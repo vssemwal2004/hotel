@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fonts (you should add these to _document or import in head) */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Poppins:wght@300;400;600;700&display=swap');
+
+:root{
+  --color-primary: #E53935;
+  --color-secondary: #FFD600;
+  --color-accent: #2E7D32;
+  --color-background: #FFFBEA;
+  --color-dark: #1A1A1A;
+  --text-main: #2C2C2C;
+  --text-sub: #5C5C5C;
+}
+
+/* Dark theme overrides applied when .theme-dark is on html element */
+/* (dark theme removed) */
+/* Utility classes to use variable-driven colors */
+.bg-background { background-color: var(--color-background); }
+.text-main { color: var(--text-main); }
+.text-sub { color: var(--text-sub); }
+.bg-dark { background-color: var(--color-dark); }
+.bg-primary { background-color: var(--color-primary); }
+.text-primary { color: var(--color-primary); }
+
+
+html,body,#__next{
+  height:100%;
+}
+
+body{
+  font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  background-color: var(--color-background);
+  color: var(--text-main);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+.font-playfair{
+  font-family: 'Playfair Display', serif;
+}
+
+.btn-primary{
+  @apply bg-primary text-white px-4 py-2 rounded-lg font-semibold;
+}
+
+.card{
+  @apply bg-white rounded-2xl shadow-md p-4;
+}

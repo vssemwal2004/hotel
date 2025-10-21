@@ -1,0 +1,13 @@
+import React from 'react'
+import '../styles/globals.css'
+import { AuthProvider } from '../context/AuthContext'
+import Chatbot from '../components/Chatbot'
+
+export default function App({ Component, pageProps }){
+  return (
+    <AuthProvider>
+      <Component {...pageProps} />
+      <Chatbot />
+    </AuthProvider>
+  )
+}

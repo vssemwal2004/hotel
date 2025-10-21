@@ -1,0 +1,75 @@
+########################################################
+# Frontend .gitignore (Node.js / Next.js / Vite / Tailwind)
+########################################################
+
+# Package managers / dependencies
+node_modules/
+/.pnp
+.pnp.js
+.pnpm-store/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Test coverage
+coverage/
+
+# Next.js build output
+.next/
+out/
+
+# Vite / general build output
+dist/
+build/
+.vite/
+
+# Caches
+.cache/
+.turbo/
+.eslintcache
+.stylelintcache
+
+# Local env files (keep an example committed)
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Hosting / platforms
+.vercel
+
+# TypeScript artifacts
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE settings
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# Editor swap files
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# E2E/testing outputs (optional, safe to ignore)
+playwright-report/
+test-results/
+cypress/screenshots/
+cypress/videos/
