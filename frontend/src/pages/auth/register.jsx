@@ -2,19 +2,28 @@ import React, { useState, useEffect } from 'react'
 import MainLayout from '../../layouts/MainLayout'
 import { useForm } from 'react-hook-form'
 import Link from 'next/link'
+import useAuth from '../../hooks/useAuth'
+import { useRouter } from 'next/router'
 
 export default function Register(){
   const { register, handleSubmit, formState: { errors }, watch } = useForm()
   const [isLoading, setIsLoading] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+  const { register: registerUser } = useAuth()
+  const router = useRouter()
 
   useEffect(() => setIsMounted(true), [])
 
   const onSubmit = async (data) => {
-    setIsLoading(true)
-    await new Promise(r => setTimeout(r, 1500))
-    console.log('register', data)
-    setIsLoading(false)
+    try {
+      setIsLoading(true)
+  await registerUser({ name: data.name, email: data.email, password: data.password })
+  router.push('/home')
+    } catch (e) {
+      alert(e?.response?.data?.message || 'Registration failed')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const password = watch('password')

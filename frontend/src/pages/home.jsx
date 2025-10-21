@@ -786,8 +786,21 @@ export default function HomePage() {
 }
 
 // Enhanced Room Card Component
+import useAuth from '../hooks/useAuth'
+import { useRouter } from 'next/router'
 function RoomCard({ img, title, price, features }){
   const [isHovered, setIsHovered] = useState(false)
+  const { user, loading } = useAuth()
+  const router = useRouter()
+
+  const handleBookNow = () => {
+    if (!user && !loading) {
+      router.push('/auth/login')
+      return
+    }
+    // TODO: Open booking modal or go to booking page
+    alert('Booking flow coming soon!')
+  }
 
   return (
     <motion.div
@@ -829,6 +842,7 @@ function RoomCard({ img, title, price, features }){
             className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-3 rounded-full font-semibold transition-colors duration-300"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            onClick={handleBookNow}
           >
             Book Now
           </motion.button>

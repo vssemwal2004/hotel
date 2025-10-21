@@ -2,21 +2,30 @@ import React, { useState, useEffect } from 'react'
 import MainLayout from '../../layouts/MainLayout'
 import { useForm } from 'react-hook-form'
 import Link from 'next/link'
+import useAuth from '../../hooks/useAuth'
+import { useRouter } from 'next/router'
 
 export default function Login(){
   const { register, handleSubmit, formState: { errors } } = useForm()
   const [isLoading, setIsLoading] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+  const { login } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
   const onSubmit = async (data) => {
-    setIsLoading(true)
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    console.log('login', data)
-    setIsLoading(false)
+    try {
+      setIsLoading(true)
+  await login({ email: data.email, password: data.password })
+  router.push('/home')
+    } catch (e) {
+      alert(e?.response?.data?.message || 'Login failed')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (

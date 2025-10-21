@@ -1,0 +1,16 @@
+# Backend (Node/Express) ignores
+node_modules/
+logs/
+*.log
+coverage/
+
+# Local env
+.env
+src/.env
+!.env.example
+
+# OS/IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

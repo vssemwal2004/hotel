@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
-import { User, X, Menu } from 'lucide-react'
+import { User, X, Menu, LogOut } from 'lucide-react'
+import useAuth from '../hooks/useAuth'
 
 export default function Header(){
   const router = useRouter()
@@ -8,6 +9,7 @@ export default function Header(){
   const [activeNav, setActiveNav] = useState('Home')
   const [scrolled, setScrolled] = useState(false)
   const [isTransparent, setIsTransparent] = useState(true)
+  const { user, logout, loading } = useAuth()
 
   const navItems = [
     { name: 'Home', href: '/#home' },
@@ -31,10 +33,14 @@ export default function Header(){
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  const handleNavClick = (item) => {
+  // Book Now and nav click: if booking, require auth
+  const handleNavClick = (item, requireAuth = false) => {
     setActiveNav(item.name)
     setOpen(false)
-    
+    if (requireAuth && !user && !loading) {
+      router.push('/auth/login')
+      return
+    }
     if (item.href.includes('#')) {
       const id = item.href.split('#')[1]
       const element = document.getElementById(id)
@@ -100,24 +106,40 @@ export default function Header(){
               ))}
             </nav>
 
-            {/* Right Section - Login & Mobile Menu */}
+            {/* Right Section - Login/Logout & Mobile Menu */}
             <div className="flex items-center gap-3 sm:gap-4">
-              {/* Login Button - Desktop */}
+              {/* Show Logout if logged in, Login if not */}
+              {!loading && user ? (
+                <>
+                  <button
+                    onClick={async () => { await logout(); router.push('/'); }}
+                    className={`hidden lg:flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 shadow-md hover:shadow-lg ${
+                      isTransparent
+                        ? 'bg-white/20 backdrop-blur-sm text-white border border-white/30 hover:bg-white/30'
+                        : 'bg-red-600 text-white hover:bg-red-700'
+                    }`}
+                  >
+                    <LogOut size={18} />
+                    <span>Logout</span>
+                  </button>
+                  {/* No Dashboard button per requirements; keep only Logout in header */}
+                </>
+              ) : (
+                <button 
+                  onClick={() => router.push('/auth/login')} 
+                  className={`hidden lg:flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 shadow-md hover:shadow-lg ${
+                    isTransparent
+                      ? 'bg-white/20 backdrop-blur-sm text-white border border-white/30 hover:bg-white/30'
+                      : 'bg-amber-600 text-white hover:bg-amber-700'
+                  }`}
+                >
+                  <User size={18} />
+                  <span>Login</span>
+                </button>
+              )}
+              {/* Book Now Button - Desktop, require auth */}
               <button 
-                onClick={() => router.push('/auth/login')} 
-                className={`hidden lg:flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 shadow-md hover:shadow-lg ${
-                  isTransparent
-                    ? 'bg-white/20 backdrop-blur-sm text-white border border-white/30 hover:bg-white/30'
-                    : 'bg-amber-600 text-white hover:bg-amber-700'
-                }`}
-              >
-                <User size={18} />
-                <span>Login</span>
-              </button>
-
-              {/* Book Now Button - Desktop */}
-              <button 
-                onClick={() => handleNavClick({ name: 'Rooms', href: '/#rooms' })} 
+                onClick={() => handleNavClick({ name: 'Rooms', href: '/#rooms' }, true)} 
                 className={`hidden lg:flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 shadow-md hover:shadow-lg ${
                   isTransparent
                     ? 'bg-amber-600 text-white hover:bg-amber-700'
@@ -126,7 +148,6 @@ export default function Header(){
               >
                 <span>Book Now</span>
               </button>
-
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setOpen(!open)}
@@ -196,15 +217,33 @@ export default function Header(){
 
                 {/* Mobile Action Buttons */}
                 <div className="mt-6 pt-6 border-t border-gray-200 space-y-3">
+                  {!loading && user ? (
+                    <>
+                      <button
+                        onClick={async () => { setOpen(false); await logout(); router.push('/'); }}
+                        className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-red-600 text-white text-base font-semibold rounded-lg hover:bg-red-700 transition-all duration-300"
+                      >
+                        <LogOut size={20} />
+                        <span>Logout</span>
+                      </button>
+                      <button
+                        onClick={() => { setOpen(false); router.push('/dashboard') }}
+                        className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-base font-semibold rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all duration-300 shadow-lg"
+                      >
+                        <span>Dashboard</span>
+                      </button>
+                    </>
+                  ) : (
+                    <button 
+                      onClick={() => { setOpen(false); router.push('/auth/login') }} 
+                      className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gray-100 text-gray-700 text-base font-semibold rounded-lg hover:bg-gray-200 transition-all duration-300"
+                    >
+                      <User size={20} />
+                      <span>Login to Account</span>
+                    </button>
+                  )}
                   <button 
-                    onClick={() => { setOpen(false); router.push('/auth/login') }} 
-                    className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gray-100 text-gray-700 text-base font-semibold rounded-lg hover:bg-gray-200 transition-all duration-300"
-                  >
-                    <User size={20} />
-                    <span>Login to Account</span>
-                  </button>
-                  <button 
-                    onClick={() => handleNavClick({ name: 'Rooms', href: '/#rooms' })} 
+                    onClick={() => handleNavClick({ name: 'Rooms', href: '/#rooms' }, true)} 
                     className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-base font-semibold rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all duration-300 shadow-lg"
                   >
                     <span>Book Now</span>

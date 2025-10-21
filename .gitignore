@@ -1,0 +1,70 @@
+# Root .gitignore for hotel monorepo (frontend + backend)
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Logs
+logs/
+**/logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+coverage/
+**/dist/
+**/build/
+**/coverage/
+
+# Next.js
+.next/
+**/.next/
+out/
+
+# Vite cache
+.vite/
+**/.vite/
+
+# Caches
+.cache/
+**/.cache/
+.turbo/
+**/.turbo/
+.eslintcache
+.stylelintcache
+
+# Local environment files (keep examples)
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.local.example
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE/editor
+.idea/
+.history/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# Misc
+.vercel/
+.azure/
+.parcel-cache/
+*.swp
+*.swo
+*~

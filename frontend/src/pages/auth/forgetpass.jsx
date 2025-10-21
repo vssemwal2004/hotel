@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import MainLayout from '../../layouts/MainLayout'
 import { useForm } from 'react-hook-form'
 import Link from 'next/link'
+import api from '../../utils/api'
 
 export default function ForgetPass() {
   const { register, handleSubmit, formState: { errors } } = useForm()
@@ -11,10 +12,15 @@ export default function ForgetPass() {
   useEffect(() => setIsMounted(true), [])
 
   const onSubmit = async (data) => {
-    setIsLoading(true)
-    await new Promise((r) => setTimeout(r, 1000))
-    console.log('reset', data)
-    setIsLoading(false)
+    try {
+      setIsLoading(true)
+      const res = await api.post('/auth/forgot-password', { email: data.email })
+      alert('If the email exists, a reset link has been sent.' + (res.data?.token ? `\nDev token: ${res.data.token}` : ''))
+    } catch (e) {
+      alert(e?.response?.data?.message || 'Failed to request reset')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
