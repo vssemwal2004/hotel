@@ -23,6 +23,7 @@ export default function Header(){
     { name: 'In & Around', href: '/in-around' },
     { name: 'Restaurant', href: '/#restaurant' },
     { name: 'Gallery', href: '/#gallery' },
+    { name: 'Reviews', href: '/testimonials' },
     { name: 'Contact', href: '/#contact' },
   ]
 

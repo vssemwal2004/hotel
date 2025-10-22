@@ -4,7 +4,9 @@ import { motion, useScroll, useTransform } from 'framer-motion'
 import { useRef, useState, useEffect } from 'react'
 import Header from '../components/Header' // Import your custom header
 import BookingBar from '../components/BookingBar' // Import BookingBar component
+import Footer from '../components/Footer' // Import Footer component
 import api from '../utils/api'
+import siteConfig from '../utils/siteConfig'
 
 // Animation Components
 const FadeIn = ({ children, delay = 0, direction = "up", duration = 0.8 }) => (
@@ -80,6 +82,8 @@ export default function HomePage() {
   
   const [isScrolled, setIsScrolled] = useState(false)
   const [typePrices, setTypePrices] = useState({})
+  const [testimonials, setTestimonials] = useState([])
+  const [loadingTestimonials, setLoadingTestimonials] = useState(true)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -98,6 +102,23 @@ export default function HomePage() {
   ;(data.types || []).forEach(t => { map[t.key] = t.prices?.roomOnly ?? t.basePrice })
         setTypePrices(map)
       } catch {}
+    })()
+  }, [])
+
+  // Fetch top testimonials
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get('/testimonials?top=3&rating=4')
+        console.log('Home page testimonials:', res.data)
+        console.log('Number of testimonials:', res.data.length)
+        setTestimonials(res.data)
+      } catch (error) {
+        console.error('Error fetching testimonials:', error)
+        console.error('Error details:', error.response?.data || error.message)
+      } finally {
+        setLoadingTestimonials(false)
+      }
     })()
   }, [])
 
@@ -623,17 +644,40 @@ export default function HomePage() {
               </div>
             </FadeIn>
 
-            <div className="grid md:grid-cols-3 gap-8">
-              {[
-                { name: "Asha Patel", rating: 5, message: "Absolutely breathtaking views and exceptional service. The vegetarian cuisine was divine!", role: "Travel Blogger" },
-                { name: "Ravi Kumar", rating: 5, message: "Perfect getaway! The attention to detail and warm hospitality made our anniversary special.", role: "Software Engineer" },
-                { name: "Neha Sharma", rating: 5, message: "A sanctuary in the hills. Every moment was magical, from sunrise yoga to bonfire nights.", role: "Yoga Instructor" }
-              ].map((testimonial, index) => (
-                <FadeIn key={testimonial.name} delay={index * 0.2}>
-                  <TestimonialCard {...testimonial} />
+            {loadingTestimonials ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto" />
+              </div>
+            ) : testimonials.length > 0 ? (
+              <>
+                <div className="grid md:grid-cols-3 gap-8">
+                  {testimonials.map((testimonial, index) => (
+                    <FadeIn key={testimonial._id} delay={index * 0.2}>
+                      <TestimonialCard 
+                        name={testimonial.name}
+                        rating={testimonial.rating}
+                        message={testimonial.message}
+                        role={testimonial.role || 'Guest'}
+                      />
+                    </FadeIn>
+                  ))}
+                </div>
+                <FadeIn delay={0.8}>
+                  <div className="text-center mt-12">
+                    <Link href="/testimonials" className="inline-flex items-center gap-2 bg-white text-amber-700 hover:bg-amber-50 px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg">
+                      View All Reviews →
+                    </Link>
+                  </div>
                 </FadeIn>
-              ))}
-            </div>
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-xl text-amber-100 mb-6">Be the first to share your experience!</p>
+                <Link href="/testimonials" className="inline-flex items-center gap-2 bg-white text-amber-700 hover:bg-amber-50 px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg">
+                  Write a Review →
+                </Link>
+              </div>
+            )}
           </div>
         </section>
 
@@ -658,7 +702,7 @@ export default function HomePage() {
                       </div>
                       <div>
                         <div className="font-semibold">Address</div>
-                        <div className="text-gray-600">Hill Road, Mountain View, Hills</div>
+                        <div className="text-gray-600">{siteConfig.address}</div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
@@ -667,7 +711,7 @@ export default function HomePage() {
                       </div>
                       <div>
                         <div className="font-semibold">Phone</div>
-                        <div className="text-gray-600">+91 98765 43210</div>
+                        <div className="text-gray-600">{siteConfig.phone}</div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
@@ -676,7 +720,7 @@ export default function HomePage() {
                       </div>
                       <div>
                         <div className="font-semibold">Email</div>
-                        <div className="text-gray-600">info@krishnahotel.com</div>
+                        <div className="text-gray-600">{siteConfig.email}</div>
                       </div>
                     </div>
                   </div>
@@ -751,71 +795,8 @@ export default function HomePage() {
         </section>
       </main>
 
-      {/* Enhanced Footer */}
-      <footer className="bg-gray-900 text-white py-16">
-        <div className="container mx-auto px-6">
-          <div className="grid md:grid-cols-4 gap-8">
-            <FadeIn>
-              <div>
-                <div className="flex items-center space-x-2 mb-6">
-                  <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-amber-700 rounded-full flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">K</span>
-                  </div>
-                  <span className="font-playfair text-xl font-bold">Krishna</span>
-                </div>
-                <p className="text-gray-400 mb-4 leading-relaxed">
-                  Luxury hill retreat offering unparalleled experiences with breathtaking views and authentic hospitality.
-                </p>
-              </div>
-            </FadeIn>
-
-            {['Quick Links', 'Contact', 'Follow Us'].map((section, index) => (
-              <FadeIn key={section} delay={index * 0.1}>
-                <div>
-                  <h4 className="font-semibold text-lg mb-6">{section}</h4>
-                  <div className="space-y-3 text-gray-400">
-                    {section === 'Quick Links' && (
-                      <>
-                        {['Home', 'Rooms', 'Restaurant', 'Gallery', 'Contact'].map(link => (
-                          <button 
-                            key={link} 
-                            onClick={() => handleSmoothScroll(link.toLowerCase())}
-                            className="block hover:text-amber-400 transition-colors text-left"
-                          >
-                            {link}
-                          </button>
-                        ))}
-                      </>
-                    )}
-                    {section === 'Contact' && (
-                      <>
-                        <div>Hill Road, Mountain View</div>
-                        <div>+91 98765 43210</div>
-                        <div>info@krishnahotel.com</div>
-                      </>
-                    )}
-                    {section === 'Follow Us' && (
-                      <div className="flex space-x-4">
-                        {['Facebook', 'Instagram', 'Twitter'].map(social => (
-                          <div key={social} className="cursor-pointer hover:text-amber-400 transition-colors">
-                            {social}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </FadeIn>
-            ))}
-          </div>
-          
-          <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
-            <FadeIn>
-              <p>&copy; 2024 Krishna Hotel & Restaurant. All rights reserved.</p>
-            </FadeIn>
-          </div>
-        </div>
-      </footer>
+      {/* Footer */}
+      <Footer />
     </>
   )
 }

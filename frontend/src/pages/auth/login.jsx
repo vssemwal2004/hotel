@@ -4,13 +4,34 @@ import { useForm } from 'react-hook-form'
 import Link from 'next/link'
 import useAuth from '../../hooks/useAuth'
 import { useRouter } from 'next/router'
+import api from '../../utils/api'
 
 export default function Login(){
   const { register, handleSubmit, formState: { errors } } = useForm()
   const [isLoading, setIsLoading] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+  const [testimonial, setTestimonial] = useState(null)
   const { login } = useAuth()
   const router = useRouter()
+
+  useEffect(() => {
+    setIsMounted(true)
+    // Fetch a random top-rated testimonial
+    fetchTestimonial()
+  }, [])
+
+  const fetchTestimonial = async () => {
+    try {
+      const response = await api.get('/testimonials?top=5&rating=5')
+      if (response.data && response.data.length > 0) {
+        // Get a random testimonial from the top-rated ones
+        const randomIndex = Math.floor(Math.random() * response.data.length)
+        setTestimonial(response.data[randomIndex])
+      }
+    } catch (error) {
+      console.error('Error fetching testimonial:', error)
+    }
+  }
 
   useEffect(() => {
     setIsMounted(true)
@@ -136,7 +157,11 @@ export default function Login(){
                     {[1,2,3,4,5].map((star) => (
                       <svg 
                         key={star} 
-                        className="w-5 h-5 text-amber-300 transform transition-transform duration-300 hover:scale-125" 
+                        className={`w-5 h-5 transform transition-transform duration-300 hover:scale-125 ${
+                          testimonial && star <= testimonial.rating 
+                            ? 'text-amber-300' 
+                            : 'text-white/30'
+                        }`}
                         fill="currentColor" 
                         viewBox="0 0 20 20"
                       >
@@ -144,10 +169,23 @@ export default function Login(){
                       </svg>
                     ))}
                   </div>
-                  <p className="text-white/90 italic text-center text-sm leading-relaxed">
-                    "Exceptional service and luxurious accommodations. The perfect getaway experience that exceeded all expectations."
-                  </p>
-                  <p className="text-white/70 text-xs text-center mt-3 font-medium">- Sarah Johnson, Premium Guest</p>
+                  {testimonial ? (
+                    <>
+                      <p className="text-white/90 italic text-center text-sm leading-relaxed">
+                        "{testimonial.message}"
+                      </p>
+                      <p className="text-white/70 text-xs text-center mt-3 font-medium">
+                        - {testimonial.name}{testimonial.role && `, ${testimonial.role}`}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-white/90 italic text-center text-sm leading-relaxed">
+                        "Exceptional service and luxurious accommodations. The perfect getaway experience that exceeded all expectations."
+                      </p>
+                      <p className="text-white/70 text-xs text-center mt-3 font-medium">- Our Valued Guest</p>
+                    </>
+                  )}
                 </div>
               </div>
 
