@@ -11,7 +11,6 @@ import authRouter from './routes/auth.js'
 import roomsRouter from './routes/rooms.js'
 import roomTypesRouter from './routes/roomTypes.js'
 import bookingsRouter from './routes/bookings.js'
-import packagesRouter from './routes/packages.js'
 import { ensureAdminFromEnv } from './utils/seedAdmin.js'
 import { startAvailabilityResetJob } from './scheduler/availabilityReset.js'
 
@@ -64,7 +63,6 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')))
 app.use('/api/rooms', roomsRouter)
 app.use('/api/room-types', roomTypesRouter)
 app.use('/api/bookings', bookingsRouter)
-app.use('/api/packages', packagesRouter)
 
 // Error handler
 // eslint-disable-next-line no-unused-vars

@@ -119,14 +119,25 @@ export default function BookingsPage() {
     })
   }
 
+  const currentCount = bookings.filter(b => {
+    const now = new Date()
+    const checkIn = new Date(b.checkIn)
+    const checkOut = b.checkOut ? new Date(b.checkOut) : checkIn
+    return (b.status === 'paid' || b.status === 'pending') && checkOut >= now
+  }).length
+
+  const pastCount = bookings.filter(b => {
+    const checkOut = b.checkOut ? new Date(b.checkOut) : new Date(b.checkIn)
+    return b.status === 'completed' || (checkOut < new Date() && b.status !== 'cancelled')
+  }).length
+
+  const cancelledCount = bookings.filter(b => b.status === 'cancelled').length
+
   const tabs = [
     { id: 'all', label: 'All Bookings', count: bookings.length },
-    { id: 'current', label: 'Current', count: filterBookings().length },
-    { id: 'past', label: 'Past', count: bookings.filter(b => {
-      const checkOut = b.checkOut ? new Date(b.checkOut) : new Date(b.checkIn)
-      return b.status === 'completed' || (checkOut < new Date() && b.status !== 'cancelled')
-    }).length },
-    { id: 'cancelled', label: 'Cancelled', count: bookings.filter(b => b.status === 'cancelled').length }
+    { id: 'current', label: 'Current', count: currentCount },
+    { id: 'past', label: 'Past', count: pastCount },
+    { id: 'cancelled', label: 'Cancelled', count: cancelledCount }
   ]
 
   if (authLoading || !user) {
@@ -160,14 +171,14 @@ export default function BookingsPage() {
             </p>
           </motion.div>
 
-          {/* Tabs */}
+          {/* Tabs - compact, no horizontal scroll on mobile */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className="mb-8"
           >
-            <div className="flex overflow-x-auto gap-2 pb-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
@@ -175,9 +186,9 @@ export default function BookingsPage() {
                     setActiveTab(tab.id)
                     setExpandedBooking(null)
                   }}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold whitespace-nowrap transition-all duration-300 ${
+                  className={`flex items-center justify-center gap-2 px-3 py-2 sm:px-5 sm:py-3 rounded-lg text-sm sm:text-base font-semibold transition-all duration-300 ${
                     activeTab === tab.id
-                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg scale-105'
+                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg'
                       : 'bg-white text-gray-700 hover:bg-amber-50 shadow-md hover:shadow-lg'
                   }`}
                 >

@@ -486,7 +486,7 @@ export default function HomePage() {
         </section>
 
         {/* Rooms & Suites */}
-        <section id="rooms" className="py-24 bg-white">
+  <section id="rooms" className="py-24 bg-white scroll-mt-20">
           <div className="container mx-auto px-6">
             <FadeIn>
               <div className="text-center max-w-3xl mx-auto mb-16">
@@ -510,7 +510,7 @@ export default function HomePage() {
         </section>
 
         {/* Restaurant Section */}
-        <section id="restaurant" className="py-24 bg-gradient-to-br from-gray-50 to-amber-50">
+  <section id="restaurant" className="py-24 bg-gradient-to-br from-gray-50 to-amber-50 scroll-mt-20">
           <div className="container mx-auto px-6">
             <FadeIn>
               <div className="text-center max-w-3xl mx-auto mb-16">
@@ -523,7 +523,7 @@ export default function HomePage() {
               <FadeIn delay={0.1}>
                 <div className="rounded-3xl overflow-hidden shadow-2xl">
                   <img 
-                    src="/images/restaurant.jpg" 
+                    src="/images/restaurant/restaurant.webp" 
                     alt="Restaurant" 
                     className="w-full h-96 object-cover"
                   />
@@ -585,7 +585,7 @@ export default function HomePage() {
         </section>
 
         {/* Gallery Section */}
-        <section id="gallery" className="py-24 bg-gradient-to-br from-amber-50 to-white">
+  <section id="gallery" className="py-24 bg-gradient-to-br from-amber-50 to-white scroll-mt-20">
           <div className="container mx-auto px-6">
             <FadeIn>
               <div className="text-center max-w-3xl mx-auto mb-16">
@@ -638,7 +638,7 @@ export default function HomePage() {
         </section>
 
         {/* Contact Section */}
-        <section id="contact" className="py-24 bg-white">
+  <section id="contact" className="py-24 bg-white scroll-mt-20">
           <div className="container mx-auto px-6">
             <FadeIn>
               <div className="text-center max-w-3xl mx-auto mb-16">

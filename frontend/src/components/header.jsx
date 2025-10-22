@@ -18,8 +18,9 @@ export default function Header(){
   const dropdownRef = useRef(null)
 
   const navItems = [
-    { name: 'Home', href: '/#home' },
+    { name: 'Home', href: '/' },
     { name: 'Rooms', href: '/#rooms' },
+    { name: 'In & Around', href: '/in-around' },
     { name: 'Restaurant', href: '/#restaurant' },
     { name: 'Gallery', href: '/#gallery' },
     { name: 'Contact', href: '/#contact' },
@@ -333,7 +334,7 @@ export default function Header(){
                   className="flex items-center"
                 >
                   <img 
-                    src="/images/hotel-hero.jpg" 
+                    src="/images/logo-icon/logo.webp" 
                     alt="Hotel Krishna Logo" 
                     className="h-10 w-auto object-contain"
                   />

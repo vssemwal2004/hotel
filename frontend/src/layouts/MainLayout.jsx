@@ -11,7 +11,7 @@ export default function MainLayout({ children }){
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--color-background)', color: 'var(--text-main)' }}>
       {!isAuthRoute && <Header />}
-      <main className="flex-1 container mx-auto px-4 py-8">{children}</main>
+      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">{children}</main>
       {!isAuthRoute && <Footer />}
     </div>
   )
