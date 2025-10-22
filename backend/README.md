@@ -29,6 +29,9 @@ Node.js Express API providing cookie-based authentication for the Hotel app.
    ```
 5. Frontend must set axios `withCredentials: true` and point to `CLIENT_ORIGIN`.
 
+### Admin bootstrap
+- Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env`. On server start, an admin user with this email will be created or updated with role=admin.
+
 ## Cookie notes
 - In development (http://localhost), cookies use SameSite=Lax and Secure=false so they work without HTTPS.
 - In production behind HTTPS, set NODE_ENV=production and COOKIE_DOMAIN to your domain; cookies are Secure and SameSite=None to allow cross-site with frontend domain if needed.

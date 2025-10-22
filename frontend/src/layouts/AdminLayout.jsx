@@ -1,7 +1,23 @@
-import React from 'react'
+import React, { useEffect } from 'react'
+import useAuth from '../hooks/useAuth'
+import { useRouter } from 'next/router'
 
 // AdminLayout provides a simple two-column admin layout with a sidebar
 export default function AdminLayout({ children }){
+  const { user, loading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user) router.replace('/auth/login')
+      else if (user.role !== 'admin') router.replace('/home')
+    }
+  }, [user, loading, router])
+
+  if (loading || !user || user.role !== 'admin') {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+  }
+
   return (
     <div className="min-h-screen flex bg-gray-50">
       <aside className="w-64 bg-white shadow-inner p-4">
