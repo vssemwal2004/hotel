@@ -17,9 +17,26 @@ export default function Register(){
   const onSubmit = async (data) => {
     try {
       setIsLoading(true)
-  const u = await registerUser({ name: data.name, email: data.email, password: data.password })
-  // Newly registered users are not admins unless seeded by backend
-  router.push('/home')
+      const u = await registerUser({ name: data.name, email: data.email, password: data.password })
+      
+      // Check for pending booking after registration
+      const pendingBooking = sessionStorage.getItem('pendingBooking')
+      if (pendingBooking) {
+        const booking = JSON.parse(pendingBooking)
+        sessionStorage.removeItem('pendingBooking')
+        
+        // Redirect to booking page with saved details
+        const query = new URLSearchParams({
+          checkIn: booking.checkIn,
+          checkOut: booking.checkOut,
+          rooms: booking.rooms.toString(),
+          adults: booking.adults.toString(),
+          children: booking.children.toString()
+        })
+        router.push(`/booking?${query.toString()}`)
+      } else {
+        router.push('/home')
+      }
     } catch (e) {
       alert(e?.response?.data?.message || 'Registration failed')
     } finally {

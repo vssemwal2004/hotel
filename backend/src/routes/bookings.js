@@ -111,6 +111,14 @@ router.post('/:id/pay', authRequired, async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+// Get user's own bookings
+router.get('/my-bookings', authRequired, async (req, res, next) => {
+  try {
+    const bookings = await Booking.find({ user: req.user._id }).sort({ createdAt: -1 })
+    res.json({ bookings })
+  } catch (e) { next(e) }
+})
+
 // Admin list bookings
 router.get('/', authRequired, adminRequired, async (req, res, next) => {
   try {

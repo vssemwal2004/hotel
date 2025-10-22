@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { useRef, useState, useEffect } from 'react'
 import Header from '../components/Header' // Import your custom header
+import BookingBar from '../components/BookingBar' // Import BookingBar component
 import api from '../utils/api'
 
 // Animation Components
@@ -330,60 +331,84 @@ export default function HomePage() {
                 </motion.button>
               </motion.div>
             </motion.div>
-
-            {/* Trust Badges - Mobile Responsive Grid */}
-            <motion.div
-              className="mt-10 md:mt-16 grid grid-cols-2 sm:flex sm:flex-wrap justify-center gap-3 sm:gap-4 md:gap-8 text-white/80 text-xs sm:text-sm px-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 1, delay: 2 }}
-            >
-              {[
-                { icon: "⭐", text: "5-Star Rated" },
-                { icon: "🏆", text: "Award Winning" },
-                { icon: "✓", text: "Premium Service" },
-                { icon: "🌿", text: "Eco-Friendly" }
-              ].map((badge, index) => (
-                <motion.div
-                  key={badge.text}
-                  className="flex items-center justify-center gap-2 backdrop-blur-sm bg-white/10 px-3 sm:px-4 py-2 rounded-full border border-white/20"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 2.2 + index * 0.1 }}
-                  whileHover={{ scale: 1.05, backgroundColor: "rgba(255, 255, 255, 0.15)" }}
-                >
-                  <span className="text-base sm:text-lg">{badge.icon}</span>
-                  <span className="font-medium whitespace-nowrap">{badge.text}</span>
-                </motion.div>
-              ))}
-            </motion.div>
           </div>
+        </section>
 
-          {/* Elegant Scroll Indicator - Hidden on Mobile, Adjusted Position */}
-          <motion.div 
-            className="hidden md:flex absolute bottom-8 lg:bottom-10 left-1/2 transform -translate-x-1/2"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1, delay: 2.5 }}
-          >
-            <motion.div
-              className="flex flex-col items-center gap-2 text-white/70 text-xs tracking-widest"
-              animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            >
-              <span className="uppercase">Scroll to Explore</span>
-              <motion.div
-                className="w-6 h-10 border-2 border-white/50 rounded-full flex justify-center p-1"
-                whileHover={{ borderColor: "rgba(251, 191, 36, 0.8)" }}
-              >
-                <motion.div
-                  animate={{ y: [0, 14, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                  className="w-1 h-3 bg-amber-400 rounded-full"
+        {/* Booking Bar Section - Clean Separate Section */}
+        <section id="booking" className="relative py-20 bg-gradient-to-br from-white via-amber-50/30 to-white overflow-hidden scroll-mt-20">
+          {/* Decorative subtle background elements */}
+          <div className="absolute top-0 left-0 w-72 h-72 bg-amber-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-10 blur-3xl" />
+          <div className="absolute bottom-0 right-0 w-72 h-72 bg-amber-300 rounded-full translate-x-1/2 translate-y-1/2 opacity-10 blur-3xl" />
+          
+          <div className="container mx-auto px-4 relative z-10">
+            <FadeIn>
+              <div className="text-center mb-10">
+                <motion.h2 
+                  className="text-3xl md:text-4xl font-playfair font-bold text-gray-800 mb-3"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6 }}
+                  viewport={{ once: true }}
+                >
+                  Reserve Your Stay
+                </motion.h2>
+                <motion.div 
+                  className="w-20 h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent mx-auto mb-4"
+                  initial={{ opacity: 0, scaleX: 0 }}
+                  whileInView={{ opacity: 1, scaleX: 1 }}
+                  transition={{ duration: 0.8, delay: 0.2 }}
+                  viewport={{ once: true }}
                 />
-              </motion.div>
-            </motion.div>
-          </motion.div>
+                <motion.p 
+                  className="text-gray-600 text-base md:text-lg max-w-2xl mx-auto"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                  viewport={{ once: true }}
+                >
+                  Select your dates and experience luxury at Krishna Hotel & Restaurant
+                </motion.p>
+              </div>
+            </FadeIn>
+            
+            <BookingBar />
+            
+            {/* Trust Indicators */}
+            <FadeIn delay={0.4}>
+              <div className="mt-10 flex flex-wrap justify-center gap-8 text-sm text-gray-600">
+                <motion.div 
+                  className="flex items-center gap-2"
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                    <span className="text-green-600 text-lg font-bold">✓</span>
+                  </div>
+                  <span className="font-medium">Best Price Guarantee</span>
+                </motion.div>
+                <motion.div 
+                  className="flex items-center gap-2"
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                    <span className="text-blue-600 text-lg font-bold">✓</span>
+                  </div>
+                  <span className="font-medium">Instant Confirmation</span>
+                </motion.div>
+                <motion.div 
+                  className="flex items-center gap-2"
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                    <span className="text-amber-600 text-lg font-bold">✓</span>
+                  </div>
+                  <span className="font-medium">24/7 Support</span>
+                </motion.div>
+              </div>
+            </FadeIn>
+          </div>
         </section>
 
         {/* About Section */}

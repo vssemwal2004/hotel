@@ -19,9 +19,28 @@ export default function Login(){
   const onSubmit = async (data) => {
     try {
       setIsLoading(true)
-  const u = await login({ email: data.email, password: data.password })
-  if (u?.role === 'admin') router.push('/admin')
-  else router.push('/home')
+      const u = await login({ email: data.email, password: data.password })
+      
+      // Check for pending booking after login
+      const pendingBooking = sessionStorage.getItem('pendingBooking')
+      if (pendingBooking) {
+        const booking = JSON.parse(pendingBooking)
+        sessionStorage.removeItem('pendingBooking')
+        
+        // Redirect to booking page with saved details
+        const query = new URLSearchParams({
+          checkIn: booking.checkIn,
+          checkOut: booking.checkOut,
+          rooms: booking.rooms.toString(),
+          adults: booking.adults.toString(),
+          children: booking.children.toString()
+        })
+        router.push(`/booking?${query.toString()}`)
+      } else if (u?.role === 'admin') {
+        router.push('/admin')
+      } else {
+        router.push('/home')
+      }
     } catch (e) {
       alert(e?.response?.data?.message || 'Login failed')
     } finally {

@@ -26,6 +26,7 @@ export default function AdminLayout({ children }){
           <a href="/admin" className="block py-2 px-3 rounded hover:bg-background">Overview</a>
           <a href="/admin/bookings" className="block py-2 px-3 rounded hover:bg-background">Bookings</a>
           <a href="/admin/rooms" className="block py-2 px-3 rounded hover:bg-background">Rooms</a>
+          <a href="/admin/packages" className="block py-2 px-3 rounded hover:bg-background">Packages</a>
         </nav>
       </aside>
       <div className="flex-1 p-6">{children}</div>

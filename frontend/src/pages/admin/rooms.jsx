@@ -16,6 +16,7 @@ export default function AdminRooms(){
       title: 'Deluxe Valley View',
       basePrice: 0,
       prices: { roomOnly: 0, roomBreakfast: 0, roomBreakfastDinner: 0 },
+      discount: 0,
       extraBedPerPerson: 0,
       extraPersonPerNight: 0,
       status: 'available',
@@ -48,6 +49,7 @@ export default function AdminRooms(){
           roomBreakfast: Number(form.prices?.roomBreakfast ?? form.basePrice),
           roomBreakfastDinner: Number(form.prices?.roomBreakfastDinner ?? form.basePrice)
         },
+        discount: Number(form.discount || 0),
         extraBedPerPerson: Number(form.extraBedPerPerson || 0),
         extraPersonPerNight: Number(form.extraPersonPerNight || 0),
         status: form.status,
@@ -89,6 +91,7 @@ export default function AdminRooms(){
     setValue('prices.roomOnly', t.prices?.roomOnly ?? t.basePrice)
     setValue('prices.roomBreakfast', t.prices?.roomBreakfast ?? t.basePrice)
     setValue('prices.roomBreakfastDinner', t.prices?.roomBreakfastDinner ?? t.basePrice)
+    setValue('discount', t.discount || 0)
     setValue('extraBedPerPerson', t.extraBedPerPerson || 0)
     setValue('extraPersonPerNight', t.extraPersonPerNight || 0)
     setValue('status', t.status || 'available')
@@ -98,7 +101,22 @@ export default function AdminRooms(){
     setFiles([])
   }
 
-  const amenitiesOptions = ['AC','TV','WiFi','Breakfast']
+  const amenitiesOptions = [
+    'AC',
+    'TV',
+    'WiFi',
+    'Breakfast',
+    'Complimentary Evening Hi-Tea',
+    '20% Discount on Food & Beverages',
+    '15% Discount on Spa',
+    'Free Wi-Fi',
+    'Room Service',
+    'Minibar',
+    'Safe',
+    'Balcony',
+    'Mountain View',
+    'Valley View'
+  ]
   const statusOptions = [
     { value: 'available', label: 'Available' },
     { value: 'blocked', label: 'Blocked' },
@@ -133,6 +151,10 @@ export default function AdminRooms(){
             <div>
               <label className="block text-sm font-medium">Room + Breakfast + Dinner (₹)</label>
               <input type="number" min="0" step="0.01" {...register('prices.roomBreakfastDinner')} className="mt-1 w-full border rounded-md p-2" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Discount (%)</label>
+              <input type="number" min="0" max="100" step="1" {...register('discount')} className="mt-1 w-full border rounded-md p-2" placeholder="0-100" />
             </div>
             <div>
               <label className="block text-sm font-medium">Extra Bed (₹ per person/night)</label>

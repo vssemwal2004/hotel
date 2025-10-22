@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/router'
-import { User, X, Menu, LogOut } from 'lucide-react'
+import { User, X, Menu, LogOut, ChevronDown, Mail, Home as HomeIcon, BookOpen } from 'lucide-react'
 import useAuth from '../hooks/useAuth'
 
 export default function Header(){
@@ -14,6 +14,8 @@ export default function Header(){
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [fullDay, setFullDay] = useState(false)
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false)
+  const dropdownRef = useRef(null)
 
   const navItems = [
     { name: 'Home', href: '/#home' },
@@ -23,11 +25,15 @@ export default function Header(){
     { name: 'Contact', href: '/#contact' },
   ]
 
+  // Check if we're on the home/landing page
+  const isHomePage = router.pathname === '/' || router.pathname === '/home'
+
   useEffect(() => {
     const handleScroll = () => {
       const scrollY = window.scrollY
       setScrolled(scrollY > 20)
-      setIsTransparent(scrollY < 100)
+      // Only allow transparent header on home page when at top
+      setIsTransparent(isHomePage && scrollY < 100)
     }
 
     // Set initial state
@@ -35,6 +41,18 @@ export default function Header(){
     
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
+  }, [isHomePage])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowProfileDropdown(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   // Book Now and nav click: if booking, require auth
@@ -47,11 +65,29 @@ export default function Header(){
     }
     if (item.href.includes('#')) {
       const id = item.href.split('#')[1]
-      const element = document.getElementById(id)
-      if (element) {
-        element.scrollIntoView({ 
-          behavior: 'smooth',
-          block: 'start'
+      
+      // If we're on home page, scroll to section
+      if (isHomePage) {
+        const element = document.getElementById(id)
+        if (element) {
+          element.scrollIntoView({ 
+            behavior: 'smooth',
+            block: 'start'
+          })
+        }
+      } else {
+        // If we're on another page, navigate to home page with hash
+        router.push(item.href).then(() => {
+          // After navigation, scroll to the section
+          setTimeout(() => {
+            const element = document.getElementById(id)
+            if (element) {
+              element.scrollIntoView({ 
+                behavior: 'smooth',
+                block: 'start'
+              })
+            }
+          }, 100)
         })
       }
     } else {
@@ -60,11 +96,30 @@ export default function Header(){
   }
 
   const openBookNow = () => {
-    if (!user && !loading) {
-      router.push('/auth/login')
-      return
+    // Navigate to home page booking section
+    if (isHomePage) {
+      // If already on home page, scroll to booking section
+      const bookingElement = document.getElementById('booking')
+      if (bookingElement) {
+        bookingElement.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'start'
+        })
+      }
+    } else {
+      // If on another page, navigate to home page and then scroll to booking
+      router.push('/#booking').then(() => {
+        setTimeout(() => {
+          const bookingElement = document.getElementById('booking')
+          if (bookingElement) {
+            bookingElement.scrollIntoView({ 
+              behavior: 'smooth',
+              block: 'start'
+            })
+          }
+        }, 100)
+      })
     }
-    setShowBooking(true)
   }
 
   const startBooking = (e) => {
@@ -81,7 +136,11 @@ export default function Header(){
 
   const handleLogoClick = (e) => {
     e.preventDefault()
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    if (isHomePage) {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      router.push('/')
+    }
     setActiveNav('Home')
   }
 
@@ -130,23 +189,89 @@ export default function Header(){
               ))}
             </nav>
 
-            {/* Right Section - Login/Logout & Mobile Menu */}
+            {/* Right Section - Login/Profile & Mobile Menu */}
             <div className="flex items-center gap-3 sm:gap-4">
-              {/* Show Logout if logged in, Login if not */}
+              {/* Show Profile Dropdown if logged in, Login if not */}
               {!loading && user ? (
                 <>
-                  <button
-                    onClick={async () => { await logout(); router.push('/'); }}
-                    className={`hidden lg:flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 shadow-md hover:shadow-lg ${
-                      isTransparent
-                        ? 'bg-white/20 backdrop-blur-sm text-white border border-white/30 hover:bg-white/30'
-                        : 'bg-red-600 text-white hover:bg-red-700'
-                    }`}
-                  >
-                    <LogOut size={18} />
-                    <span>Logout</span>
-                  </button>
-                  {/* No Dashboard button per requirements; keep only Logout in header */}
+                  {/* Profile Dropdown for Desktop */}
+                  <div className="hidden lg:block relative" ref={dropdownRef}>
+                    <button
+                      onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                      className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 shadow-md hover:shadow-lg ${
+                        isTransparent
+                          ? 'bg-white/20 backdrop-blur-sm text-white border border-white/30 hover:bg-white/30'
+                          : 'bg-amber-600 text-white hover:bg-amber-700'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        isTransparent ? 'bg-amber-300/20' : 'bg-amber-500'
+                      }`}>
+                        <span className="text-sm font-bold">
+                          {user?.name?.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <ChevronDown size={18} className={`transition-transform duration-200 ${showProfileDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {showProfileDropdown && (
+                      <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-[60] animate-dropdownFade">
+                        {/* User Info Section */}
+                        <div className="px-5 py-5 bg-gradient-to-br from-amber-50 via-amber-50/80 to-orange-50 border-b border-amber-200">
+                          <div className="flex items-center gap-3">
+                            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg ring-2 ring-white">
+                              <span className="text-white text-xl font-bold">
+                                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                              </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-base font-bold text-gray-900 truncate mb-1">
+                                {user?.name || 'User'}
+                              </p>
+                              <p className="text-xs text-gray-600 truncate flex items-center gap-1.5">
+                                <Mail size={13} className="flex-shrink-0" />
+                                <span>{user?.email || 'email@example.com'}</span>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Navigation Links */}
+                        <div className="py-2">
+                          <button
+                            onClick={() => { router.push('/'); setShowProfileDropdown(false); }}
+                            className="w-full px-5 py-3 text-left text-sm font-medium text-gray-700 hover:bg-amber-50 transition-colors flex items-center gap-3 group"
+                          >
+                            <HomeIcon size={18} className="text-amber-600 group-hover:scale-110 transition-transform" />
+                            <span className="group-hover:translate-x-1 transition-transform">Home</span>
+                          </button>
+                          <button
+                            onClick={() => { router.push('/bookings'); setShowProfileDropdown(false); }}
+                            className="w-full px-5 py-3 text-left text-sm font-medium text-gray-700 hover:bg-amber-50 transition-colors flex items-center gap-3 group"
+                          >
+                            <BookOpen size={18} className="text-amber-600 group-hover:scale-110 transition-transform" />
+                            <span className="group-hover:translate-x-1 transition-transform">Your Bookings</span>
+                          </button>
+                        </div>
+
+                        {/* Logout Section */}
+                        <div className="border-t border-gray-200 py-2">
+                          <button
+                            onClick={async () => { 
+                              await logout(); 
+                              setShowProfileDropdown(false); 
+                              router.push('/'); 
+                            }}
+                            className="w-full px-5 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-3 group"
+                          >
+                            <LogOut size={18} className="group-hover:scale-110 transition-transform" />
+                            <span className="group-hover:translate-x-1 transition-transform">Logout</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </>
               ) : (
                 <button 
@@ -251,10 +376,11 @@ export default function Header(){
                         <span>Logout</span>
                       </button>
                       <button
-                        onClick={() => { setOpen(false); router.push('/dashboard') }}
+                        onClick={() => { setOpen(false); router.push('/bookings') }}
                         className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-base font-semibold rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all duration-300 shadow-lg"
                       >
-                        <span>Dashboard</span>
+                        <BookOpen size={20} />
+                        <span>Your Bookings</span>
                       </button>
                     </>
                   ) : (
@@ -299,6 +425,19 @@ export default function Header(){
         }
         .animate-slideDown {
           animation: slideDown 0.3s ease-out;
+        }
+        @keyframes dropdownFade {
+          from {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        .animate-dropdownFade {
+          animation: dropdownFade 0.2s ease-out;
         }
       `}</style>
 
