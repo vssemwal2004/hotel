@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { useRef, useState, useEffect } from 'react'
 import Header from '../components/Header' // Import your custom header
+import api from '../utils/api'
 
 // Animation Components
 const FadeIn = ({ children, delay = 0, direction = "up", duration = 0.8 }) => (
@@ -77,6 +78,7 @@ export default function HomePage() {
   const scale = useTransform(scrollYProgress, [0, 0.3], [1, 1.1])
   
   const [isScrolled, setIsScrolled] = useState(false)
+  const [typePrices, setTypePrices] = useState({})
 
   useEffect(() => {
     const handleScroll = () => {
@@ -84,6 +86,18 @@ export default function HomePage() {
     }
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  useEffect(() => {
+    // Load room type prices
+    (async () => {
+      try {
+        const { data } = await api.get('/room-types')
+        const map = {}
+  ;(data.types || []).forEach(t => { map[t.key] = t.prices?.roomOnly ?? t.basePrice })
+        setTypePrices(map)
+      } catch {}
+    })()
   }, [])
 
   // Smooth scroll function for navigation
@@ -431,18 +445,14 @@ export default function HomePage() {
                   </div>
 
                   <div className="flex flex-wrap gap-4">
-                    <button 
-                      onClick={() => handleSmoothScroll('contact')}
-                      className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 rounded-full font-semibold transition-all duration-300 transform hover:scale-105"
-                    >
-                      Discover More
-                    </button>
-                    <button 
-                      onClick={() => handleSmoothScroll('contact')}
+                    <a
+                      href="https://www.google.com/maps/dir//Kedarnath+Rd,+near+heritage+halipad,+Sersi,+Uttarakhand+246471/@30.6072346,78.9354361,12z/data=!3m1!4b1!4m8!4m7!1m0!1m5!1m1!1s0x3908495d3bbab39b:0x479d9bf085c33764!2m2!1d79.0178374!2d30.6072606?entry=ttu&g_ep=EgoyMDI1MTAxNC4wIKXMDSoASAFQAw%3D%3D"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="border-2 border-gray-300 hover:border-amber-600 text-gray-700 hover:text-amber-600 px-8 py-4 rounded-full font-semibold transition-all duration-300"
                     >
                       Get Directions
-                    </button>
+                    </a>
                   </div>
                 </div>
               </FadeIn>
@@ -462,12 +472,12 @@ export default function HomePage() {
 
             <div className="grid lg:grid-cols-3 gap-8">
               {[
-                { img: "/images/room-1.jpg", title: "Deluxe Valley View", price: 4500, features: ["King Bed", "Mountain View", "Free WiFi"] },
-                { img: "/images/room-2.jpg", title: "Hillside Suite", price: 6500, features: ["Private Balcony", "Panoramic Views", "Luxury Bath"] },
-                { img: "/images/room-3.jpg", title: "Family Luxury Suite", price: 8200, features: ["Two Bedrooms", "Living Area", "Special Amenities"] }
+                { key: 'deluxe-valley-view', img: "/images/room-1.jpg", title: "Deluxe Valley View", features: ["King Bed", "Mountain View", "Free WiFi"] },
+                { key: 'hillside-suite', img: "/images/room-2.jpg", title: "Hillside Suite", features: ["Private Balcony", "Panoramic Views", "Luxury Bath"] },
+                { key: 'family-luxury-suite', img: "/images/room-3.jpg", title: "Family Luxury Suite", features: ["Two Bedrooms", "Living Area", "Special Amenities"] }
               ].map((room, index) => (
                 <FadeIn key={room.title} delay={index * 0.15}>
-                  <RoomCard {...room} />
+                  <RoomCard {...room} price={typePrices[room.key] ?? (index===0?4500:index===1?6500:8200)} />
                 </FadeIn>
               ))}
             </div>
@@ -785,22 +795,9 @@ export default function HomePage() {
   )
 }
 
-// Enhanced Room Card Component
-import useAuth from '../hooks/useAuth'
-import { useRouter } from 'next/router'
 function RoomCard({ img, title, price, features }){
   const [isHovered, setIsHovered] = useState(false)
-  const { user, loading } = useAuth()
-  const router = useRouter()
-
-  const handleBookNow = () => {
-    if (!user && !loading) {
-      router.push('/auth/login')
-      return
-    }
-    // TODO: Open booking modal or go to booking page
-    alert('Booking flow coming soon!')
-  }
+  // Removed per-card booking CTA per request. Single global Book Now is kept at the top.
 
   return (
     <motion.div
@@ -833,19 +830,9 @@ function RoomCard({ img, title, price, features }){
           ))}
         </div>
         
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-2xl font-bold text-amber-600">₹{price}</span>
-            <span className="text-gray-500 text-sm ml-1">/ night</span>
-          </div>
-          <motion.button 
-            className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-3 rounded-full font-semibold transition-colors duration-300"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleBookNow}
-          >
-            Book Now
-          </motion.button>
+        <div>
+          <span className="text-2xl font-bold text-amber-600">₹{price}</span>
+          <span className="text-gray-500 text-sm ml-1">/ night</span>
         </div>
       </div>
     </motion.div>

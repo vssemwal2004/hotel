@@ -10,6 +10,10 @@ export default function Header(){
   const [scrolled, setScrolled] = useState(false)
   const [isTransparent, setIsTransparent] = useState(true)
   const { user, logout, loading } = useAuth()
+  const [showBooking, setShowBooking] = useState(false)
+  const [checkIn, setCheckIn] = useState('')
+  const [checkOut, setCheckOut] = useState('')
+  const [fullDay, setFullDay] = useState(false)
 
   const navItems = [
     { name: 'Home', href: '/#home' },
@@ -53,6 +57,26 @@ export default function Header(){
     } else {
       router.push(item.href)
     }
+  }
+
+  const openBookNow = () => {
+    if (!user && !loading) {
+      router.push('/auth/login')
+      return
+    }
+    setShowBooking(true)
+  }
+
+  const startBooking = (e) => {
+    e?.preventDefault()
+    if (!checkIn) return alert('Please select check-in')
+    if (!fullDay && !checkOut) return alert('Please select check-out')
+    const params = new URLSearchParams()
+    params.set('checkIn', checkIn)
+    if (!fullDay) params.set('checkOut', checkOut)
+    if (fullDay) params.set('fullDay', '1')
+    setShowBooking(false)
+    router.push(`/booking?${params.toString()}`)
   }
 
   const handleLogoClick = (e) => {
@@ -139,7 +163,7 @@ export default function Header(){
               )}
               {/* Book Now Button - Desktop, require auth */}
               <button 
-                onClick={() => handleNavClick({ name: 'Rooms', href: '/#rooms' }, true)} 
+                onClick={openBookNow} 
                 className={`hidden lg:flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 shadow-md hover:shadow-lg ${
                   isTransparent
                     ? 'bg-amber-600 text-white hover:bg-amber-700'
@@ -243,7 +267,7 @@ export default function Header(){
                     </button>
                   )}
                   <button 
-                    onClick={() => handleNavClick({ name: 'Rooms', href: '/#rooms' }, true)} 
+                    onClick={openBookNow} 
                     className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-base font-semibold rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all duration-300 shadow-lg"
                   >
                     <span>Book Now</span>
@@ -277,6 +301,35 @@ export default function Header(){
           animation: slideDown 0.3s ease-out;
         }
       `}</style>
+
+      {/* Booking Modal */}
+      {showBooking && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={()=>setShowBooking(false)} />
+          <form onSubmit={startBooking} className="relative bg-white rounded-2xl shadow-2xl w-11/12 max-w-md p-6">
+            <h3 className="text-lg font-semibold mb-4">Select Dates</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium">Check-in</label>
+                <input type="datetime-local" value={checkIn} onChange={e=>setCheckIn(e.target.value)} className="mt-1 w-full border rounded-md p-2" />
+              </div>
+              {!fullDay && (
+                <div>
+                  <label className="block text-sm font-medium">Check-out</label>
+                  <input type="datetime-local" value={checkOut} onChange={e=>setCheckOut(e.target.value)} className="mt-1 w-full border rounded-md p-2" />
+                </div>
+              )}
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={fullDay} onChange={e=>setFullDay(e.target.checked)} /> Full day booking
+              </label>
+            </div>
+            <div className="mt-5 flex gap-3 justify-end">
+              <button type="button" onClick={()=>setShowBooking(false)} className="px-4 py-2 border rounded-md">Cancel</button>
+              <button type="submit" className="px-4 py-2 bg-amber-600 text-white rounded-md">Continue</button>
+            </div>
+          </form>
+        </div>
+      )}
     </>
   )
 }

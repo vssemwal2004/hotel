@@ -1,13 +1,18 @@
 import dotenv from 'dotenv'
 dotenv.config({ override: true })
 import express from 'express'
+import path from 'path'
 import helmet from 'helmet'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import morgan from 'morgan'
 import mongoose from 'mongoose'
 import authRouter from './routes/auth.js'
+import roomsRouter from './routes/rooms.js'
+import roomTypesRouter from './routes/roomTypes.js'
+import bookingsRouter from './routes/bookings.js'
 import { ensureAdminFromEnv } from './utils/seedAdmin.js'
+import { startAvailabilityResetJob } from './scheduler/availabilityReset.js'
 
 const app = express()
 
@@ -42,6 +47,8 @@ mongoose
   .then(async () => {
     console.log('MongoDB connected')
     await ensureAdminFromEnv()
+    // Start background jobs after DB is ready
+    startAvailabilityResetJob()
   })
   .catch((e) => {
     console.error('MongoDB connection error:', e)
@@ -51,6 +58,11 @@ mongoose
 // Routes
 app.get('/health', (req, res) => res.json({ ok: true }))
 app.use('/api/auth', authRouter)
+// static files for uploaded images
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')))
+app.use('/api/rooms', roomsRouter)
+app.use('/api/room-types', roomTypesRouter)
+app.use('/api/bookings', bookingsRouter)
 
 // Error handler
 // eslint-disable-next-line no-unused-vars

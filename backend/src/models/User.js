@@ -6,9 +6,7 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, index: true },
     password: { type: String, required: true, minlength: 6 },
-    role: { type: String, enum: ['user', 'admin'], default: 'user' },
-    resetPasswordToken: { type: String },
-    resetPasswordExpires: { type: Date }
+    role: { type: String, enum: ['user', 'admin'], default: 'user' }
   },
   { timestamps: true }
 )
@@ -22,11 +20,6 @@ userSchema.pre('save', async function (next) {
 
 userSchema.methods.comparePassword = function (candidate) {
   return bcrypt.compare(candidate, this.password)
-}
-
-userSchema.methods.clearResetToken = function () {
-  this.resetPasswordToken = undefined
-  this.resetPasswordExpires = undefined
 }
 
 const User = mongoose.model('User', userSchema)
