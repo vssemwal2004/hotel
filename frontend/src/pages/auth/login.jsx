@@ -19,8 +19,9 @@ export default function Login(){
   const onSubmit = async (data) => {
     try {
       setIsLoading(true)
-  await login({ email: data.email, password: data.password })
-  router.push('/home')
+  const u = await login({ email: data.email, password: data.password })
+  if (u?.role === 'admin') router.push('/admin')
+  else router.push('/home')
     } catch (e) {
       alert(e?.response?.data?.message || 'Login failed')
     } finally {

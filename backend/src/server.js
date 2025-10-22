@@ -7,6 +7,7 @@ import cookieParser from 'cookie-parser'
 import morgan from 'morgan'
 import mongoose from 'mongoose'
 import authRouter from './routes/auth.js'
+import { ensureAdminFromEnv } from './utils/seedAdmin.js'
 
 const app = express()
 
@@ -38,7 +39,10 @@ console.log('MONGODB_URI from env ->', JSON.stringify(rawUri))
 console.log('MONGODB_URI used ->', JSON.stringify(MONGODB_URI))
 mongoose
   .connect(MONGODB_URI)
-  .then(() => console.log('MongoDB connected'))
+  .then(async () => {
+    console.log('MongoDB connected')
+    await ensureAdminFromEnv()
+  })
   .catch((e) => {
     console.error('MongoDB connection error:', e)
     process.exit(1)

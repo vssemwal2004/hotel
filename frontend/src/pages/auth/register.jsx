@@ -17,7 +17,8 @@ export default function Register(){
   const onSubmit = async (data) => {
     try {
       setIsLoading(true)
-  await registerUser({ name: data.name, email: data.email, password: data.password })
+  const u = await registerUser({ name: data.name, email: data.email, password: data.password })
+  // Newly registered users are not admins unless seeded by backend
   router.push('/home')
     } catch (e) {
       alert(e?.response?.data?.message || 'Registration failed')
