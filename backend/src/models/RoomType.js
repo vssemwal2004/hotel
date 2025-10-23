@@ -19,7 +19,20 @@ const roomTypeSchema = new mongoose.Schema(
     status: { type: String, enum: ['available', 'blocked', 'maintenance'], default: 'available' },
     amenities: [{ type: String }],
     count: { type: Number, required: true, min: 0 },
-    photos: [{ type: String }],
+    // Gallery photos shown in "See Photos" modal
+    photos: [
+      new mongoose.Schema({
+        publicId: { type: String, required: true },
+        url: { type: String, required: true }
+      }, { _id: false })
+    ],
+    // Cover photos used on cards/banners (prefer first two)
+    coverPhotos: [
+      new mongoose.Schema({
+        publicId: { type: String, required: true },
+        url: { type: String, required: true }
+      }, { _id: false })
+    ],
     description: { type: String }
   },
   { timestamps: true }

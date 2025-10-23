@@ -41,12 +41,15 @@ export default function AdminRooms(){
       status: 'available',
       amenities: [],
       count: 0,
-      description: ''
+      description: '',
+      photos: [],
+      coverPhotos: []
     }
   })
   const [types, setTypes] = useState([])
   const [editingId, setEditingId] = useState(null)
-  const [files, setFiles] = useState([])
+  const [coverFiles, setCoverFiles] = useState([])
+  const [galleryFiles, setGalleryFiles] = useState([])
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
 
@@ -57,6 +60,18 @@ export default function AdminRooms(){
     } catch (error) {
       console.error('Error loading room types:', error)
     }
+  }
+
+  const refreshEditing = async () => {
+    if (!editingId) return
+    try {
+      const { data } = await api.get('/room-types')
+      const t = (data.types || []).find(x => x._id === editingId)
+      if (t) {
+        setValue('photos', t.photos || [])
+        setValue('coverPhotos', t.coverPhotos || [])
+      }
+    } catch {}
   }
 
   useEffect(() => { loadTypes() }, [])
@@ -83,16 +98,18 @@ export default function AdminRooms(){
         count: Number(form.count),
         description: form.description || ''
       }
-      const fd = new FormData()
-      fd.append('data', JSON.stringify(payload))
-      ;(files || []).forEach(f => fd.append('photos', f))
+  const fd = new FormData()
+  fd.append('data', JSON.stringify(payload))
+  ;(coverFiles || []).forEach(f => fd.append('covers', f))
+  ;(galleryFiles || []).forEach(f => fd.append('subPhotos', f))
       if (editingId) {
         await api.put(`/room-types/${editingId}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
       } else {
         await api.post('/room-types', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
       }
       reset()
-      setFiles([])
+  setCoverFiles([])
+  setGalleryFiles([])
       setEditingId(null)
       setShowForm(false)
       await loadTypes()
@@ -128,14 +145,18 @@ export default function AdminRooms(){
     setValue('amenities', t.amenities || [])
     setValue('count', t.count || 0)
     setValue('description', t.description || '')
-    setFiles([])
+    setValue('photos', t.photos || [])
+    setValue('coverPhotos', t.coverPhotos || [])
+  setCoverFiles([])
+  setGalleryFiles([])
   }
 
   const cancelEdit = () => {
     setEditingId(null)
     setShowForm(false)
     reset()
-    setFiles([])
+  setCoverFiles([])
+  setGalleryFiles([])
   }
 
   const amenitiesOptions = [
@@ -403,31 +424,70 @@ export default function AdminRooms(){
               </div>
             </div>
 
-            {/* Photos */}
+            {/* Cover Photos */}
             <div className="mb-6">
-              <h3 className="text-base md:text-lg font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
+              <h3 className="text-base md:text-lg font-bold text-gray-900 mb-3 md:mb-2 flex items-center gap-2">
                 <Image size={20} className="text-blue-600" />
-                Photos
+                Cover Photos (shown on cards)
               </h3>
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 md:p-6 hover:border-purple-400 transition-colors">
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  multiple 
-                  onChange={(e)=> setFiles(Array.from(e.target.files||[]))} 
+              <div className="border-2 border-dashed border-blue-300 rounded-xl p-4 md:p-6 hover:border-blue-400 transition-colors">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e)=> setCoverFiles(Array.from(e.target.files||[]).slice(0,2))}
                   className="w-full"
-                  id="file-upload"
+                  id="cover-upload"
                 />
-                <label htmlFor="file-upload" className="block text-center cursor-pointer">
-                  <Image size={48} className="mx-auto text-gray-400 mb-2" />
-                  <p className="text-xs md:text-sm text-gray-600">Click to upload images or drag and drop</p>
-                  <p className="text-[11px] md:text-xs text-gray-500 mt-1">PNG, JPG up to 10MB</p>
+                <label htmlFor="cover-upload" className="block text-center cursor-pointer">
+                  <Image size={40} className="mx-auto text-blue-400 mb-2" />
+                  <p className="text-xs md:text-sm text-gray-600">Upload up to 2 images</p>
                 </label>
-                {files.length > 0 && (
-                  <p className="text-sm text-green-600 mt-3 text-center font-semibold">{files.length} file(s) selected</p>
+                {coverFiles.length > 0 && (
+                  <p className="text-sm text-blue-700 mt-3 text-center font-semibold">{coverFiles.length} cover image(s) selected</p>
                 )}
               </div>
             </div>
+
+            {/* Gallery Photos */}
+            <div className="mb-6">
+              <h3 className="text-base md:text-lg font-bold text-gray-900 mb-3 md:mb-2 flex items-center gap-2">
+                <Image size={20} className="text-purple-600" />
+                Gallery Photos (for "See Photos")
+              </h3>
+              <div className="border-2 border-dashed border-purple-300 rounded-xl p-4 md:p-6 hover:border-purple-400 transition-colors">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e)=> setGalleryFiles(Array.from(e.target.files||[]))}
+                  className="w-full"
+                  id="gallery-upload"
+                />
+                <label htmlFor="gallery-upload" className="block text-center cursor-pointer">
+                  <Image size={40} className="mx-auto text-purple-400 mb-2" />
+                  <p className="text-xs md:text-sm text-gray-600">Upload multiple photos for the gallery</p>
+                </label>
+                {galleryFiles.length > 0 && (
+                  <p className="text-sm text-purple-700 mt-3 text-center font-semibold">{galleryFiles.length} gallery image(s) selected</p>
+                )}
+              </div>
+            </div>
+
+            {/* Existing Images with Delete */}
+            {editingId && (
+              <div className="mb-6">
+                <h3 className="text-base md:text-lg font-bold text-gray-900 mb-3">Existing Photos</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {(watch('coverPhotos') || []).map((p, idx) => (
+                    <ImageItem key={`c-${idx}`} photo={p} type="cover" roomId={editingId} onDeleted={refreshEditing} />
+                  ))}
+                  {(watch('photos') || []).map((p, idx) => (
+                    <ImageItem key={`g-${idx}`} photo={p} type="gallery" roomId={editingId} onDeleted={refreshEditing} />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Description */}
             <div className="mb-6">
@@ -498,10 +558,10 @@ export default function AdminRooms(){
             {types.map(t => (
               <div key={t._id} className="group bg-gradient-to-br from-white to-purple-50 rounded-xl border-2 border-purple-100 hover:border-purple-300 overflow-hidden transition-all duration-300 hover:shadow-xl">
                 {/* Image */}
-                {t.photos && t.photos[0] ? (
+                {(t.coverPhotos && t.coverPhotos[0]) || (t.photos && t.photos[0]) ? (
                   <div className="h-48 overflow-hidden">
                     <img 
-                      src={t.photos[0]} 
+                      src={(t.coverPhotos && t.coverPhotos[0]?.url) || (t.photos && t.photos[0]?.url)} 
                       alt={t.title} 
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                     />
@@ -564,5 +624,34 @@ export default function AdminRooms(){
         )}
       </div>
     </AdminLayout>
+  )
+}
+
+function ImageItem({ photo, type, roomId, onDeleted }){
+  const [deleting, setDeleting] = useState(false)
+  const url = photo?.url || photo
+  const publicId = photo?.publicId
+  const remove = async () => {
+    if (!publicId) return
+    if (!confirm('Delete this photo?')) return
+    setDeleting(true)
+    try {
+      await api.delete(`/room-types/${roomId}/photo`, { params: { publicId, type: type === 'cover' ? 'cover' : 'gallery' } })
+      onDeleted && onDeleted()
+    } catch (e) {
+      alert(e?.response?.data?.message || 'Delete failed')
+    } finally {
+      setDeleting(false)
+    }
+  }
+  return (
+    <div className="relative rounded-lg overflow-hidden border">
+      <img src={url} alt="photo" className="w-full h-36 object-cover" />
+      {publicId && (
+        <button onClick={remove} disabled={deleting} className="absolute top-2 right-2 bg-white/90 hover:bg-white text-red-600 text-xs font-semibold px-2 py-1 rounded">
+          {deleting ? '...' : 'Delete'}
+        </button>
+      )}
+    </div>
   )
 }

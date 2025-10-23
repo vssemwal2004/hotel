@@ -2,7 +2,7 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { useRef, useState, useEffect } from 'react'
-import Header from '../components/Header' // Import your custom header
+import Header from '../components/header' // Import your custom header
 import BookingBar from '../components/BookingBar' // Import BookingBar component
 import Footer from '../components/Footer' // Import Footer component
 import api from '../utils/api'
@@ -83,6 +83,7 @@ export default function HomePage() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [typePrices, setTypePrices] = useState({})
   const [testimonials, setTestimonials] = useState([])
+  const [types, setTypes] = useState([])
   const [loadingTestimonials, setLoadingTestimonials] = useState(true)
 
   useEffect(() => {
@@ -100,6 +101,7 @@ export default function HomePage() {
         const { data } = await api.get('/room-types')
         const map = {}
   ;(data.types || []).forEach(t => { map[t.key] = t.prices?.roomOnly ?? t.basePrice })
+        setTypes(data.types || [])
         setTypePrices(map)
       } catch {}
     })()
@@ -517,15 +519,18 @@ export default function HomePage() {
             </FadeIn>
 
             <div className="grid lg:grid-cols-3 gap-8">
-              {[
-                { key: 'deluxe-valley-view', img: "/images/room-1.jpg", title: "Deluxe Valley View", features: ["King Bed", "Mountain View", "Free WiFi"] },
-                { key: 'hillside-suite', img: "/images/room-2.jpg", title: "Hillside Suite", features: ["Private Balcony", "Panoramic Views", "Luxury Bath"] },
-                { key: 'family-luxury-suite', img: "/images/room-3.jpg", title: "Family Luxury Suite", features: ["Two Bedrooms", "Living Area", "Special Amenities"] }
-              ].map((room, index) => (
-                <FadeIn key={room.title} delay={index * 0.15}>
-                  <RoomCard {...room} price={typePrices[room.key] ?? (index===0?4500:index===1?6500:8200)} />
-                </FadeIn>
-              ))}
+              {['deluxe-valley-view','hillside-suite','family-luxury-suite'].map((k, index) => {
+                const t = types.find(x=>x.key===k)
+                const title = t?.title || (k==='deluxe-valley-view'?'Deluxe Valley View':k==='hillside-suite'?'Hillside Suite':'Family Luxury Suite')
+                const img = (t?.coverPhotos && t.coverPhotos[0]?.url) || (t?.photos && t.photos[0]?.url) || `/images/landing page/hotel.webp`
+                const features = t?.amenities?.slice(0,3) || (index===0?["King Bed","Mountain View","Free WiFi"]: index===1?["Private Balcony","Panoramic Views","Luxury Bath"]:["Two Bedrooms","Living Area","Special Amenities"]) 
+                const price = typePrices[k] ?? (index===0?4500:index===1?6500:8200)
+                return (
+                  <FadeIn key={k} delay={index * 0.15}>
+                    <HomeRoomCard key={k} img={img} title={title} price={price} features={features} photos={[...(t?.coverPhotos||[]), ...(t?.photos||[])]} />
+                  </FadeIn>
+                )
+              })}
             </div>
           </div>
         </section>
@@ -801,7 +806,7 @@ export default function HomePage() {
   )
 }
 
-function RoomCard({ img, title, price, features }){
+function HomeRoomCard({ img, title, price, features, photos = [] }){
   const [isHovered, setIsHovered] = useState(false)
   // Removed per-card booking CTA per request. Single global Book Now is kept at the top.
 
@@ -841,6 +846,8 @@ function RoomCard({ img, title, price, features }){
           <span className="text-gray-500 text-sm ml-1">/ night</span>
         </div>
       </div>
+
+      {/* Photos modal removed per request */}
     </motion.div>
   )
 }

@@ -276,9 +276,9 @@ export default function BookingIndex(){
                       
                       {/* Room Image - Left Side */}
                       <div className="md:col-span-3 relative h-48 md:h-auto">
-                        {t.photos && t.photos[0] ? (
+                        {((t.coverPhotos && t.coverPhotos[0]) || (t.photos && t.photos[0])) ? (
                           <img 
-                            src={t.photos[0]} 
+                            src={(t.coverPhotos && t.coverPhotos[0]?.url) || (t.photos && t.photos[0]?.url)} 
                             alt={t.title} 
                             className="w-full h-full object-cover"
                           />
@@ -311,6 +311,14 @@ export default function BookingIndex(){
                                 {t.count > 0 ? `${t.count} room${t.count > 1 ? 's' : ''} available` : 'No rooms available'}
                               </p>
                             </div>
+                            {/* See Photos button */}
+                            <button
+                              type="button"
+                              onClick={() => setSelecting({ ...t, __photosOnly: true })}
+                              className="text-amber-700 hover:text-amber-800 text-sm font-semibold underline"
+                            >
+                              See Photos
+                            </button>
                           </div>
 
                           {/* Amenities - Compact Grid */}
@@ -553,7 +561,7 @@ export default function BookingIndex(){
           )}
 
           {/* Booking Details Modal */}
-          {selecting && (
+          {selecting && !selecting.__photosOnly && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={()=>setSelecting(null)} />
               <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -916,6 +924,29 @@ export default function BookingIndex(){
                       Add to Cart
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Photos Modal */}
+          {selecting && selecting.__photosOnly && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-6">
+              <div className="absolute inset-0 bg-black/80" onClick={()=>setSelecting(null)} />
+              <div className="relative bg-white rounded-3xl shadow-2xl max-w-7xl w-full h-[90vh] overflow-auto p-4 md:p-6">
+                <div className="flex items-center justify-between mb-3 md:mb-4">
+                  <h3 className="text-xl font-bold">{selecting.title} — Photos</h3>
+                  <button onClick={()=>setSelecting(null)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-5">
+                  {[...(selecting.coverPhotos||[]), ...(selecting.photos||[])].map((p, i) => (
+                    <div key={i} className="rounded-xl overflow-hidden border bg-gray-50">
+                      <img src={p.url || p} alt={`photo-${i}`} className="w-full h-56 md:h-64 object-cover" />
+                    </div>
+                  ))}
+                  {(!selecting.photos || selecting.photos.length===0) && (!selecting.coverPhotos || selecting.coverPhotos.length===0) && (
+                    <div className="text-center text-gray-500 col-span-full py-8">No photos uploaded yet.</div>
+                  )}
                 </div>
               </div>
             </div>

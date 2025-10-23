@@ -1,10 +1,25 @@
 import { Router } from 'express'
+import path from 'path'
 import { z } from 'zod'
 import RoomType from '../models/RoomType.js'
 import { authRequired, adminRequired } from '../middleware/auth.js'
-import { roomTypePhotosUpload } from '../utils/files.js'
+import { memoryUploadFields, uploadBufferToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js'
 
 const router = Router()
+function normalizePhotos(arr) {
+  return (arr || [])
+    .map((p) => {
+      if (!p) return null
+      if (typeof p === 'string') {
+        const base = path.basename(p, path.extname(p)) || 'legacy'
+        return { publicId: `legacy/${base}`, url: p }
+      }
+      if (p.url && p.publicId) return p
+      if (p.url && !p.publicId) return { ...p, publicId: `legacy/${Date.now()}` }
+      return null
+    })
+    .filter(Boolean)
+}
 
 const upsertSchema = z.object({
   key: z.enum(['deluxe-valley-view','hillside-suite','family-luxury-suite']),
@@ -29,7 +44,12 @@ const upsertSchema = z.object({
 router.get('/', async (req, res, next) => {
   try {
     const types = await RoomType.find({}).sort({ title: 1 })
-    res.json({ types })
+    const out = types.map(t => ({
+      ...t.toObject(),
+      photos: normalizePhotos(t.photos),
+      coverPhotos: normalizePhotos(t.coverPhotos)
+    }))
+    res.json({ types: out })
   } catch (e) { next(e) }
 })
 
@@ -38,19 +58,27 @@ router.get('/key/:key', async (req, res, next) => {
   try {
     const type = await RoomType.findOne({ key: req.params.key })
     if (!type) return res.status(404).json({ message: 'Not found' })
-    res.json({ type })
+    const out = {
+      ...type.toObject(),
+      photos: normalizePhotos(type.photos),
+      coverPhotos: normalizePhotos(type.coverPhotos)
+    }
+    res.json({ type: out })
   } catch (e) { next(e) }
 })
 
 // Admin create or update by key (idempotent)
-router.post('/', authRequired, adminRequired, roomTypePhotosUpload().array('photos', 5), async (req, res, next) => {
+router.post('/', authRequired, adminRequired, memoryUploadFields(), async (req, res, next) => {
   try {
     const body = JSON.parse(req.body.data || '{}')
     const parsed = upsertSchema.parse(body)
-    const photos = (req.files || []).map(f => `/uploads/roomtypes/${f.filename}`)
+    // Collect files from different fields
+    const filesObj = req.files || {}
+    const toUploadGallery = (filesObj.subPhotos || filesObj.photos || [])
+    const toUploadCovers = (filesObj.covers || [])
     let doc = await RoomType.findOne({ key: parsed.key })
     if (!doc) {
-      const payload = { ...parsed, photos }
+      const payload = { ...parsed, photos: [], coverPhotos: [] }
       // defaults for prices
       payload.prices = {
         roomOnly: parsed.prices?.roomOnly ?? parsed.basePrice,
@@ -69,23 +97,70 @@ router.post('/', authRequired, adminRequired, roomTypePhotosUpload().array('phot
       } else if (!doc.prices) {
         doc.prices = { roomOnly: doc.basePrice, roomBreakfast: doc.basePrice, roomBreakfastDinner: doc.basePrice }
       }
-      if (photos.length) doc.photos = [...(doc.photos || []), ...photos]
-      await doc.save()
     }
+    // Upload to Cloudinary
+    // Ensure any legacy string entries are migrated to objects
+    doc.photos = normalizePhotos(doc.photos)
+    doc.coverPhotos = normalizePhotos(doc.coverPhotos)
+
+    const folderBase = `hotel/roomtypes/${doc.key}`
+    for (const f of toUploadGallery) {
+      const r = await uploadBufferToCloudinary(f.buffer, f.originalname, `${folderBase}/gallery`)
+      doc.photos.push({ publicId: r.public_id, url: r.secure_url })
+    }
+    for (const f of toUploadCovers) {
+      const r = await uploadBufferToCloudinary(f.buffer, f.originalname, `${folderBase}/covers`)
+      doc.coverPhotos.push({ publicId: r.public_id, url: r.secure_url })
+    }
+    if (doc.coverPhotos.length > 2) doc.coverPhotos = doc.coverPhotos.slice(-2)
+    await doc.save()
     res.status(201).json({ type: doc })
   } catch (e) { next(e) }
 })
 
 // Admin update by id
-router.put('/:id', authRequired, adminRequired, roomTypePhotosUpload().array('photos', 5), async (req, res, next) => {
+router.put('/:id', authRequired, adminRequired, memoryUploadFields(), async (req, res, next) => {
   try {
     const body = JSON.parse(req.body.data || '{}')
     const parsed = upsertSchema.partial().parse(body)
-    const addPhotos = (req.files || []).map(f => `/uploads/roomtypes/${f.filename}`)
+    const filesObj = req.files || {}
+    const addGallery = (filesObj.subPhotos || filesObj.photos || [])
+    const addCovers = (filesObj.covers || [])
     const doc = await RoomType.findById(req.params.id)
     if (!doc) return res.status(404).json({ message: 'Not found' })
     Object.assign(doc, parsed)
-    if (addPhotos.length) doc.photos = [...(doc.photos || []), ...addPhotos]
+    // Normalize legacy entries before appending
+    doc.photos = normalizePhotos(doc.photos)
+    doc.coverPhotos = normalizePhotos(doc.coverPhotos)
+
+    const folderBase = `hotel/roomtypes/${doc.key}`
+    for (const f of addGallery) {
+      const r = await uploadBufferToCloudinary(f.buffer, f.originalname, `${folderBase}/gallery`)
+      doc.photos.push({ publicId: r.public_id, url: r.secure_url })
+    }
+    for (const f of addCovers) {
+      const r = await uploadBufferToCloudinary(f.buffer, f.originalname, `${folderBase}/covers`)
+      doc.coverPhotos.push({ publicId: r.public_id, url: r.secure_url })
+    }
+    if (doc.coverPhotos.length > 2) doc.coverPhotos = doc.coverPhotos.slice(-2)
+    await doc.save()
+    res.json({ type: doc })
+  } catch (e) { next(e) }
+})
+
+// Delete a photo by publicId and type
+router.delete('/:id/photo', authRequired, adminRequired, async (req, res, next) => {
+  try {
+    const { publicId, type } = req.query
+    if (!publicId || !type) return res.status(400).json({ message: 'publicId and type are required' })
+    const doc = await RoomType.findById(req.params.id)
+    if (!doc) return res.status(404).json({ message: 'Not found' })
+    await deleteFromCloudinary(publicId)
+    if (type === 'cover') {
+      doc.coverPhotos = (doc.coverPhotos || []).filter(p => p.publicId !== publicId)
+    } else {
+      doc.photos = (doc.photos || []).filter(p => p.publicId !== publicId)
+    }
     await doc.save()
     res.json({ type: doc })
   } catch (e) { next(e) }
