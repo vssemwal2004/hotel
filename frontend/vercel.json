@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "env": {
+    "NEXT_TELEMETRY_DISABLED": "1"
+  },
+  "rewrites": [],
+  "redirects": []
+}
