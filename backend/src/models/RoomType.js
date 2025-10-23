@@ -11,7 +11,9 @@ const roomTypeSchema = new mongoose.Schema(
       roomBreakfast: { type: Number, min: 0, default: 0 },
       roomBreakfastDinner: { type: Number, min: 0, default: 0 }
     },
-    discount: { type: Number, min: 0, max: 100, default: 0 }, // Discount percentage
+      // Capacity per room
+      maxAdults: { type: Number, min: 0, default: 2 },
+      maxChildren: { type: Number, min: 0, default: 1 },
     extraBedPerPerson: { type: Number, min: 0, default: 0 },
     extraPersonPerNight: { type: Number, min: 0, default: 0 },
     status: { type: String, enum: ['available', 'blocked', 'maintenance'], default: 'available' },

@@ -12,11 +12,13 @@ export function verifyToken(token) {
 }
 
 export function cookieOptions() {
+  const domain = process.env.COOKIE_DOMAIN
+  const useDomain = domain && domain !== 'localhost' ? domain : undefined
   return {
     httpOnly: true,
     secure: isProd, // set true behind HTTPS in production
     sameSite: isProd ? 'none' : 'lax',
-    domain: process.env.COOKIE_DOMAIN || undefined,
+    domain: useDomain,
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000
   }

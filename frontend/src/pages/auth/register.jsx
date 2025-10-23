@@ -9,10 +9,25 @@ export default function Register(){
   const { register, handleSubmit, formState: { errors }, watch } = useForm()
   const [isLoading, setIsLoading] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
-  const { register: registerUser } = useAuth()
+  const { register: registerUser, googleLogin } = useAuth()
   const router = useRouter()
+  const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+  const [googleReady, setGoogleReady] = useState(false)
 
   useEffect(() => setIsMounted(true), [])
+
+  // Load Google Identity Services script
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return
+    if (window.google?.accounts?.id) { setGoogleReady(true); return }
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    script.onload = () => setGoogleReady(true)
+    document.body.appendChild(script)
+    return () => { document.body.removeChild(script) }
+  }, [GOOGLE_CLIENT_ID])
 
   const onSubmit = async (data) => {
     try {
@@ -41,6 +56,47 @@ export default function Register(){
       alert(e?.response?.data?.message || 'Registration failed')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleGoogle = async () => {
+    try {
+      if (!GOOGLE_CLIENT_ID) return alert('Google login not configured. Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID')
+      if (!googleReady || !window.google?.accounts?.id) return alert('Google is still loading, please try again.')
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async (resp) => {
+          try {
+            const credential = resp?.credential
+            if (!credential) return
+            const u = await googleLogin(credential)
+            const pendingBooking = sessionStorage.getItem('pendingBooking')
+            if (pendingBooking) {
+              const booking = JSON.parse(pendingBooking)
+              sessionStorage.removeItem('pendingBooking')
+              const query = new URLSearchParams({
+                checkIn: booking.checkIn,
+                checkOut: booking.checkOut,
+                rooms: String(booking.rooms),
+                adults: String(booking.adults),
+                children: String(booking.children)
+              })
+              router.push(`/booking?${query.toString()}`)
+            } else if (u?.role === 'admin') {
+              router.push('/admin')
+            } else {
+              router.push('/home')
+            }
+          } catch (e) {
+            alert(e?.response?.data?.message || 'Google sign-in failed')
+          }
+        },
+        auto_select: false,
+        ux_mode: 'popup'
+      })
+      window.google.accounts.id.prompt()
+    } catch (e) {
+      alert('Google login failed')
     }
   }
 
@@ -191,7 +247,7 @@ export default function Register(){
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <button className="flex items-center justify-center gap-3 border-2 border-gray-200 rounded-xl p-3 hover:border-red-300 hover:bg-red-50 transition-all duration-300">
+                  <button onClick={handleGoogle} className="flex items-center justify-center gap-3 border-2 border-gray-200 rounded-xl p-3 hover:border-red-300 hover:bg-red-50 transition-all duration-300">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48">
                       <path fill="#EA4335" d="M24 9.5c3.9 0 6.6 1.7 8.1 3.1l6-5.8C34.8 3.6 29.8 1.5 24 1.5 14.7 1.5 6.9 7.7 3.6 16.1l7.4 5.7C12.6 15.1 17.8 9.5 24 9.5z"/>
                       <path fill="#34A853" d="M46.5 24c0-1.6-.1-3.1-.4-4.6H24v9.1h12.6c-.5 2.6-2 4.8-4.2 6.3l6.5 5c3.8-3.5 6-8.9 6-15.8z"/>

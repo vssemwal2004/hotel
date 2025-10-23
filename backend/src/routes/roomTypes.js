@@ -15,6 +15,8 @@ const upsertSchema = z.object({
     roomBreakfast: z.number().min(0).optional(),
     roomBreakfastDinner: z.number().min(0).optional()
   }).optional(),
+  maxAdults: z.number().int().min(0).optional().default(2),
+  maxChildren: z.number().int().min(0).optional().default(1),
   extraBedPerPerson: z.number().min(0).optional().default(0),
   extraPersonPerNight: z.number().min(0).optional().default(0),
   status: z.enum(['available','blocked','maintenance']).optional().default('available'),

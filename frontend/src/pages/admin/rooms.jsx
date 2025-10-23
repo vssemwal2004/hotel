@@ -34,6 +34,8 @@ export default function AdminRooms(){
       basePrice: 0,
       prices: { roomOnly: 0, roomBreakfast: 0, roomBreakfastDinner: 0 },
       discount: 0,
+      maxAdults: 2,
+      maxChildren: 1,
       extraBedPerPerson: 0,
       extraPersonPerNight: 0,
       status: 'available',
@@ -72,6 +74,8 @@ export default function AdminRooms(){
           roomBreakfastDinner: Number(form.prices?.roomBreakfastDinner ?? form.basePrice)
         },
         discount: Number(form.discount || 0),
+        maxAdults: Number(form.maxAdults || 0),
+        maxChildren: Number(form.maxChildren || 0),
         extraBedPerPerson: Number(form.extraBedPerPerson || 0),
         extraPersonPerNight: Number(form.extraPersonPerNight || 0),
         status: form.status,
@@ -116,6 +120,8 @@ export default function AdminRooms(){
     setValue('prices.roomBreakfast', t.prices?.roomBreakfast ?? t.basePrice)
     setValue('prices.roomBreakfastDinner', t.prices?.roomBreakfastDinner ?? t.basePrice)
     setValue('discount', t.discount || 0)
+    setValue('maxAdults', t.maxAdults ?? 2)
+    setValue('maxChildren', t.maxChildren ?? 1)
     setValue('extraBedPerPerson', t.extraBedPerPerson || 0)
     setValue('extraPersonPerNight', t.extraPersonPerNight || 0)
     setValue('status', t.status || 'available')
@@ -324,6 +330,32 @@ export default function AdminRooms(){
                     className="w-full border-2 border-green-300 rounded-lg p-2.5 md:p-3 focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
                     required
                   />
+                </div>
+              </div>
+            </div>
+
+            {/* Capacity */}
+            <div className="mb-6">
+              <h3 className="text-base md:text-lg font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
+                <Users size={20} className="text-emerald-600" />
+                Capacity per Room
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Max Adults</label>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    {...register('maxAdults')} 
+                    className="w-full border-2 border-gray-300 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"/>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Max Children</label>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    {...register('maxChildren')} 
+                    className="w-full border-2 border-gray-300 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"/>
                 </div>
               </div>
             </div>

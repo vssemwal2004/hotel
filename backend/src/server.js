@@ -1,7 +1,15 @@
 import dotenv from 'dotenv'
-dotenv.config({ override: true })
-import express from 'express'
 import path from 'path'
+import { fileURLToPath } from 'url'
+// Load .env from both CWD and project root to be robust whether started from backend/ or backend/src
+try {
+  dotenv.config({ override: true })
+  // Attempt to also load parent folder .env (when starting from backend/src)
+  const __filename = fileURLToPath(import.meta.url)
+  const __dirname = path.dirname(__filename)
+  dotenv.config({ path: path.resolve(__dirname, '../.env'), override: true })
+} catch {}
+import express from 'express'
 import helmet from 'helmet'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
@@ -11,8 +19,6 @@ import authRouter from './routes/auth.js'
 import roomsRouter from './routes/rooms.js'
 import roomTypesRouter from './routes/roomTypes.js'
 import bookingsRouter from './routes/bookings.js'
-import testimonialsRouter from './routes/testimonials.js'
-import contactRouter from './routes/contact.js'
 import { ensureAdminFromEnv } from './utils/seedAdmin.js'
 import { startAvailabilityResetJob } from './scheduler/availabilityReset.js'
 
@@ -60,13 +66,22 @@ mongoose
 // Routes
 app.get('/health', (req, res) => res.json({ ok: true }))
 app.use('/api/auth', authRouter)
+// Diagnostics: surface minimal config for troubleshooting (safe in dev)
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/api/debug/google-config', (req, res) => {
+    const cid = process.env.GOOGLE_CLIENT_ID || ''
+    res.json({
+      hasClientId: Boolean(cid),
+      clientIdPrefix: cid ? cid.slice(0, 20) : null,
+      clientOrigin: process.env.CLIENT_ORIGIN || null
+    })
+  })
+}
 // static files for uploaded images
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')))
 app.use('/api/rooms', roomsRouter)
 app.use('/api/room-types', roomTypesRouter)
 app.use('/api/bookings', bookingsRouter)
-app.use('/api/testimonials', testimonialsRouter)
-app.use('/api/contact', contactRouter)
 
 // Error handler
 // eslint-disable-next-line no-unused-vars

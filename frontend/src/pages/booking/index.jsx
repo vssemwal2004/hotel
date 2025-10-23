@@ -121,6 +121,15 @@ export default function BookingIndex(){
     if (quantity < 1) return alert('Select at least 1 room')
     if (selecting.count === 0) return alert('Rooms full')
     if (quantity > selecting.count) return alert(`Only ${selecting.count} rooms available`)
+    // Capacity validation
+    const maxA = (selecting.maxAdults || 0) * quantity
+    const maxC = (selecting.maxChildren || 0) * quantity
+    if (adults > maxA || children > maxC) {
+      const needByA = (selecting.maxAdults || 1) > 0 ? Math.ceil(adults / (selecting.maxAdults || 1)) : adults
+      const needByC = (selecting.maxChildren || 1) > 0 ? Math.ceil(children / (selecting.maxChildren || 1)) : children
+      const requiredRooms = Math.max(needByA, needByC)
+      return alert(`Selected rooms cannot accommodate all guests. Please add more rooms.\nTo accommodate ${adults} adults and ${children} children, you need at least ${requiredRooms} ${selecting.title}.`)
+    }
     const item = {
       key: selecting.key,
       title: selecting.title,
@@ -145,6 +154,22 @@ export default function BookingIndex(){
   const createAndPay = async () => {
     if (!checkIn || (!fullDay && !checkOut)) return alert('Missing dates')
     if (cart.length === 0) return alert('Add at least one room')
+    // Global capacity validation across cart items
+    for (const c of cart) {
+      const t = types.find(x => x.key === c.key)
+      if (!t) continue
+      const maxA = (t.maxAdults || 0) * c.quantity
+      const maxC = (t.maxChildren || 0) * c.quantity
+      const adultCount = (c.guests || []).filter(g => g.type === 'adult').length
+      const childCount = (c.guests || []).filter(g => g.type === 'child').length
+      if (adultCount > maxA || childCount > maxC) {
+        const needByA = (t.maxAdults || 1) > 0 ? Math.ceil(adultCount / (t.maxAdults || 1)) : adultCount
+        const needByC = (t.maxChildren || 1) > 0 ? Math.ceil(childCount / (t.maxChildren || 1)) : childCount
+        const requiredRooms = Math.max(needByA, needByC)
+        alert(`Selected ${t.title} rooms cannot accommodate all guests. Please add more rooms.\nSuggested: ${requiredRooms} rooms for ${adultCount} adults and ${childCount} children.`)
+        return
+      }
+    }
     setCreating(true)
     try {
       const payload = {
@@ -632,6 +657,45 @@ export default function BookingIndex(){
                         <div className="text-xs text-gray-600">Night{nights > 1 ? 's' : ''}</div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Capacity Notice and Auto-Recommend */}
+                  <div className="mb-6">
+                    {(() => {
+                      const maxA = (selecting.maxAdults || 0) * quantity
+                      const maxC = (selecting.maxChildren || 0) * quantity
+                      const ok = adults <= maxA && children <= maxC
+                      if (ok) {
+                        return (
+                          <div className="bg-green-50 border border-green-200 text-green-800 text-sm rounded-xl p-3">
+                            ✓ Capacity OK for {adults} adult{adults>1?'s':''} and {children} child{children!==1?'ren':''} with {quantity} room{quantity>1?'s':''}.
+                          </div>
+                        )
+                      }
+                      const needByA = (selecting.maxAdults || 1) > 0 ? Math.ceil(adults / (selecting.maxAdults || 1)) : adults
+                      const needByC = (selecting.maxChildren || 1) > 0 ? Math.ceil(children / (selecting.maxChildren || 1)) : children
+                      const requiredRooms = Math.max(needByA, needByC)
+                      return (
+                        <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-3">
+                          <div className="text-sm font-semibold mb-2">Selected rooms cannot accommodate all guests. Please add more rooms.</div>
+                          <div className="text-xs mb-3">To accommodate {adults} adults and {children} children, you need at least <b>{requiredRooms}</b> {selecting.title}.</div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const tRooms = Math.max(needByA, needByC)
+                              if (tRooms > (selecting.count || 0)) {
+                                alert(`Only ${selecting.count || 0} rooms available for ${selecting.title}. Please choose another type or adjust guests.`)
+                              } else {
+                                setQuantity(tRooms)
+                              }
+                            }}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold"
+                          >
+                            Add Recommended Rooms Automatically
+                          </button>
+                        </div>
+                      )
+                    })()}
                   </div>
 
                   {/* Meal Options - Prominent Display */}

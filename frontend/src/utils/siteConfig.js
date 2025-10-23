@@ -1,3 +1,4 @@
+export const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
 // Centralized site configuration for contact and branding details
 export const siteConfig = {
   hotelName: 'Hotel Krishna and Restaurant',
