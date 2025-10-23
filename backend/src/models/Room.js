@@ -12,7 +12,7 @@ const roomSchema = new mongoose.Schema(
     basePrice: { type: Number, required: true, min: 0 },
     seasonalDiscount: { type: Number, default: 0, min: 0, max: 100 },
     amenities: [{ type: String }],
-    photos: [{ type: String }], // URLs or relative paths served from /uploads
+  photos: [{ type: String }], // Cloudinary URLs
     status: { type: String, enum: ['available', 'blocked', 'maintenance'], default: 'available' },
     description: { type: String }
   },
