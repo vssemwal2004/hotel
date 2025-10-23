@@ -46,6 +46,8 @@ app.use(
 
 // Routes
 app.get('/health', (req, res) => res.json({ ok: true }))
+// Convenience root route for API-only project
+app.get('/', (req, res) => res.json({ ok: true, service: 'hotel-backend', version: '1.0' }))
 app.use('/api/auth', authRouter)
 // Diagnostics (non-prod)
 if (process.env.NODE_ENV !== 'production') {
