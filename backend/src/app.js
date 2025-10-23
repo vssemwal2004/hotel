@@ -75,8 +75,11 @@ let mongoPromise
 export async function ensureDb() {
   if (!mongoPromise) {
     const rawUri = process.env.MONGODB_URI
-    const MONGODB_URI = (rawUri && rawUri.trim().replace(/^['"]|['"]$/g, '')) || 'mongodb://127.0.0.1:27017/hotel'
-    console.log('MONGODB_URI used ->', JSON.stringify(MONGODB_URI))
+    if (!rawUri || !rawUri.trim()) {
+      throw new Error('MONGODB_URI is not set')
+    }
+    const MONGODB_URI = rawUri.trim().replace(/^['\"]|['\"]$/g, '')
+    console.log('MONGODB_URI used ->', JSON.stringify(MONGODB_URI.replace(/:\w+@/, '://****@')))
     mongoPromise = mongoose
       .connect(MONGODB_URI)
       .then(async () => {
@@ -84,7 +87,7 @@ export async function ensureDb() {
         await ensureAdminFromEnv()
       })
       .catch((e) => {
-        console.error('MongoDB connection error:', e)
+        console.error('MongoDB connection error:', e?.message)
         throw e
       })
   }
