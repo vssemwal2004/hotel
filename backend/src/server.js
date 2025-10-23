@@ -10,6 +10,7 @@ try {
   dotenv.config({ path: path.resolve(__dirname, '../.env'), override: true })
 } catch {}
 import express from 'express'
+import fs from 'fs'
 import helmet from 'helmet'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
@@ -82,6 +83,19 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')))
 app.use('/api/rooms', roomsRouter)
 app.use('/api/room-types', roomTypesRouter)
 app.use('/api/bookings', bookingsRouter)
+
+// Serve static frontend (Next.js exported) if available
+try {
+  const FRONTEND_DIST = process.env.FRONTEND_DIST || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../frontend/out')
+  if (fs.existsSync(FRONTEND_DIST)) {
+    console.log('Serving static frontend from:', FRONTEND_DIST)
+    app.use(express.static(FRONTEND_DIST))
+  } else {
+    console.log('Static frontend not found at', FRONTEND_DIST)
+  }
+} catch (e) {
+  console.warn('Static frontend serve skipped:', e?.message)
+}
 
 // Error handler
 // eslint-disable-next-line no-unused-vars
