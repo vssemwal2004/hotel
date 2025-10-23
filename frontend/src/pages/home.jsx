@@ -7,6 +7,7 @@ import BookingBar from '../components/BookingBar' // Import BookingBar component
 import Footer from '../components/Footer' // Import Footer component
 import api from '../utils/api'
 import siteConfig from '../utils/siteConfig'
+import useAuth from '../hooks/useAuth'
 
 // Animation Components
 const FadeIn = ({ children, delay = 0, direction = "up", duration = 0.8 }) => (
@@ -85,6 +86,16 @@ export default function HomePage() {
   const [testimonials, setTestimonials] = useState([])
   const [types, setTypes] = useState([])
   const [loadingTestimonials, setLoadingTestimonials] = useState(true)
+  
+  // Contact form state
+  const { user } = useAuth()
+  const [contactForm, setContactForm] = useState({
+    subject: '',
+    message: ''
+  })
+  const [contactSubmitting, setContactSubmitting] = useState(false)
+  const [contactSuccess, setContactSuccess] = useState(false)
+  const [contactError, setContactError] = useState('')
 
   useEffect(() => {
     const handleScroll = () => {
@@ -131,6 +142,59 @@ export default function HomePage() {
       element.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
+  // Handle contact form submission
+  const handleContactSubmit = async (e) => {
+    e.preventDefault()
+    
+    if (!user) {
+      setContactError('Please log in to send a message.')
+      return
+    }
+    
+    if (!contactForm.subject.trim() || !contactForm.message.trim()) {
+      setContactError('Please fill in all required fields.')
+      return
+    }
+    
+    if (contactForm.message.length < 10) {
+      setContactError('Message must be at least 10 characters.')
+      return
+    }
+    
+    setContactSubmitting(true)
+    setContactError('')
+    
+    try {
+      await api.post('/contact', {
+        name: user.name,
+        email: user.email,
+        subject: contactForm.subject,
+        message: contactForm.message
+      })
+      
+      setContactSuccess(true)
+      setContactForm({ subject: '', message: '' })
+      
+      setTimeout(() => {
+        setContactSuccess(false)
+      }, 5000)
+    } catch (error) {
+      console.error('Error submitting contact form:', error)
+      const msg = error?.response?.status === 401
+        ? 'Please log in to send a message.'
+        : (error?.response?.data?.message || 'Failed to send message. Please try again.')
+      setContactError(msg)
+    } finally {
+      setContactSubmitting(false)
+    }
+  }
+
+  const handleContactChange = (e) => {
+    const { name, value } = e.target
+    setContactForm(prev => ({ ...prev, [name]: value }))
+    if (contactError) setContactError('')
+  }
 
   return (
     <>
@@ -735,36 +799,90 @@ export default function HomePage() {
               <FadeIn delay={0.2}>
                 <div className="bg-amber-50 rounded-3xl p-8">
                   <h3 className="text-2xl font-playfair font-bold mb-6">Send us a Message</h3>
-                  <form className="space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <input 
-                        type="text" 
-                        placeholder="Your Name" 
-                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                      />
-                      <input 
-                        type="email" 
-                        placeholder="Your Email" 
-                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                      />
+                  
+                  {!user ? (
+                    <div className="text-center py-12">
+                      <div className="mb-4 text-gray-600">
+                        <svg className="w-16 h-16 mx-auto mb-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <p className="text-lg font-semibold mb-2">Login Required</p>
+                        <p className="text-gray-600 mb-6">Please log in to send us a message</p>
+                      </div>
+                      <Link href="/auth/login" className="inline-block bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 rounded-full font-semibold transition-all duration-300 transform hover:scale-105">
+                        Log In to Continue
+                      </Link>
                     </div>
-                    <input 
-                      type="text" 
-                      placeholder="Subject" 
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    />
-                    <textarea 
-                      placeholder="Your Message" 
-                      rows="4"
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    ></textarea>
-                    <button 
-                      type="submit"
-                      className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 rounded-full font-semibold transition-all duration-300 transform hover:scale-105"
-                    >
-                      Send Message
-                    </button>
-                  </form>
+                  ) : contactSuccess ? (
+                    <div className="text-center py-12">
+                      <div className="mb-4 text-green-600">
+                        <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="text-lg font-semibold mb-2">Message Sent!</p>
+                        <p className="text-gray-600">Thank you for contacting us. We'll get back to you soon.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* User context */}
+                      <div className="bg-white rounded-lg border-2 border-amber-200 p-4 mb-6 text-sm text-gray-700">
+                        Sending as <span className="font-semibold">{user.name}</span>
+                        {user.email ? (<span> ({user.email})</span>) : null}
+                      </div>
+                      
+                      <form onSubmit={handleContactSubmit} className="space-y-4">
+                        <input 
+                          type="text" 
+                          name="subject"
+                          value={contactForm.subject}
+                          onChange={handleContactChange}
+                          placeholder="Subject *" 
+                          required
+                          className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        />
+                        <textarea 
+                          name="message"
+                          value={contactForm.message}
+                          onChange={handleContactChange}
+                          placeholder="Your Message *" 
+                          rows="4"
+                          required
+                          className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        ></textarea>
+                        
+                        <div className="text-sm text-gray-500">
+                          {contactForm.message.length}/1000 characters
+                        </div>
+                        
+                        {contactError && (
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
+                            {contactError}
+                          </div>
+                        )}
+                        
+                        <button 
+                          type="submit"
+                          disabled={contactSubmitting}
+                          className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 rounded-full font-semibold transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed w-full flex items-center justify-center gap-2"
+                        >
+                          {contactSubmitting ? (
+                            <>
+                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                              </svg>
+                              Send Message
+                            </>
+                          )}
+                        </button>
+                      </form>
+                    </>
+                  )}
                 </div>
               </FadeIn>
             </div>

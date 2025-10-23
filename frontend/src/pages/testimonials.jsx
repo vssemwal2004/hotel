@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import MainLayout from '../layouts/MainLayout'
 import { Star, Send, CheckCircle, MessageSquare, TrendingUp } from 'lucide-react'
 import api from '../utils/api'
+import useAuth from '../hooks/useAuth'
 
 const FadeIn = ({ children, delay = 0 }) => (
   <motion.div
@@ -21,11 +22,10 @@ export default function Testimonials() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const { user } = useAuth()
   
   // Form state
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
     rating: 5,
     message: '',
     role: ''
@@ -80,15 +80,7 @@ export default function Testimonials() {
 
   const validateForm = () => {
     const newErrors = {}
-    
-    if (!formData.name.trim() || formData.name.length < 2) {
-      newErrors.name = 'Name must be at least 2 characters'
-    }
-    
-    if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address'
-    }
-    
+
     if (!formData.message.trim() || formData.message.length < 10) {
       newErrors.message = 'Message must be at least 10 characters'
     }
@@ -110,18 +102,17 @@ export default function Testimonials() {
     
     try {
       await api.post('/testimonials', {
-        ...formData,
-        rating: parseInt(formData.rating)
+        rating: parseInt(formData.rating),
+        message: formData.message,
+        role: formData.role
       })
       
       setSubmitSuccess(true)
-      setFormData({
-        name: '',
-        email: '',
-        rating: 5,
-        message: '',
-        role: ''
-      })
+      setFormData({ rating: 5, message: '', role: '' })
+
+      // Refresh testimonials and stats after submission
+      fetchTestimonials()
+      fetchStats()
       
       // Hide success message and form after 5 seconds
       setTimeout(() => {
@@ -131,7 +122,12 @@ export default function Testimonials() {
       
     } catch (error) {
       console.error('Error submitting testimonial:', error)
-      setErrors({ submit: error.response?.data?.message || 'Failed to submit testimonial. Please try again.' })
+      console.error('Error response:', error?.response?.data)
+      console.error('Error status:', error?.response?.status)
+      const msg = error?.response?.status === 401
+        ? 'Please log in to submit a testimonial.'
+        : (error?.response?.data?.message || 'Failed to submit testimonial. Please try again.')
+      setErrors({ submit: msg })
     } finally {
       setSubmitting(false)
     }
@@ -192,13 +188,17 @@ export default function Testimonials() {
         <div className="container mx-auto px-4 text-center">
           <FadeIn>
             {!showForm && (
-              <button
-                onClick={() => setShowForm(true)}
-                className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg inline-flex items-center gap-2"
-              >
-                <Send size={20} />
-                Write a Review
-              </button>
+              user ? (
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg inline-flex items-center gap-2"
+                >
+                  <Send size={20} />
+                  Write a Review
+                </button>
+              ) : (
+                <p className="text-gray-700">Please log in to share your experience.</p>
+              )
             )}
           </FadeIn>
         </div>
@@ -224,41 +224,13 @@ export default function Testimonials() {
                   </h2>
                   
                   <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Name */}
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Your Name *
-                      </label>
-                      <input
-                        type="text"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition-all"
-                        placeholder="Enter your name"
-                      />
-                      {errors.name && (
-                        <p className="text-red-600 text-sm mt-1">{errors.name}</p>
-                      )}
-                    </div>
-
-                    {/* Email */}
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Email Address *
-                      </label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition-all"
-                        placeholder="your@email.com"
-                      />
-                      {errors.email && (
-                        <p className="text-red-600 text-sm mt-1">{errors.email}</p>
-                      )}
-                    </div>
+                    {/* User context (read-only) */}
+                    {user && (
+                      <div className="bg-white rounded-lg border-2 border-amber-200 p-4 text-sm text-gray-700">
+                        Submitting as <span className="font-semibold">{user.name}</span>
+                        {user.email ? (<span> ({user.email})</span>) : null}
+                      </div>
+                    )}
 
                     {/* Role/Occupation */}
                     <div>

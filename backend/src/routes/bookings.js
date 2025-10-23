@@ -45,38 +45,13 @@ router.post('/', authRequired, async (req, res, next) => {
   nights = nightsBetween(checkIn, checkOut)
     }
 
-    // Validate availability and capacity
+    // Validate availability
     const types = await RoomType.find({ key: { $in: data.items.map(i=>i.roomTypeKey) } })
     const typeMap = Object.fromEntries(types.map(t => [t.key, t]))
     for (const it of data.items) {
       const t = typeMap[it.roomTypeKey]
       if (!t) return res.status(400).json({ message: `Invalid room type ${it.roomTypeKey}` })
       if (t.count < it.quantity) return res.status(409).json({ message: `${t.title} rooms full` })
-      // Capacity check based on guests array
-      const guests = it.guests || []
-      const adultCount = guests.filter(g => g.type === 'adult').length
-      const childCount = guests.filter(g => g.type === 'child').length
-      const maxA = (t.maxAdults ?? 0) * it.quantity
-      const maxC = (t.maxChildren ?? 0) * it.quantity
-      if ((adultCount > maxA) || (childCount > maxC)) {
-        const needRoomsByAdults = (t.maxAdults || 1) > 0 ? Math.ceil(adultCount / (t.maxAdults || 1)) : adultCount
-        const needRoomsByChildren = (t.maxChildren || 1) > 0 ? Math.ceil(childCount / (t.maxChildren || 1)) : childCount
-        const requiredRooms = Math.max(needRoomsByAdults, needRoomsByChildren)
-        const msg = `Selected ${t.title} rooms cannot accommodate all guests. Please add more rooms.`
-        return res.status(400).json({ 
-          message: msg,
-          details: {
-            roomTypeKey: t.key,
-            title: t.title,
-            adults: adultCount,
-            children: childCount,
-            maxAdultsPerRoom: t.maxAdults || 0,
-            maxChildrenPerRoom: t.maxChildren || 0,
-            selectedRooms: it.quantity,
-            requiredRooms
-          }
-        })
-      }
     }
 
     // Build items with pricing

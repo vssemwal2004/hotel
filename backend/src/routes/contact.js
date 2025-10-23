@@ -14,10 +14,27 @@ const contactMessageSchema = z.object({
   message: z.string().min(10).max(1000)
 })
 
-// POST /api/contact - Submit contact form (public)
-router.post('/', async (req, res, next) => {
+// POST /api/contact - Submit contact form (auth required)
+router.post('/', authRequired, async (req, res, next) => {
   try {
-    const data = contactMessageSchema.parse(req.body)
+    // Get name and email from authenticated user
+    const data = {
+      name: req.user.name,
+      email: req.user.email,
+      subject: req.body.subject,
+      message: req.body.message,
+      phone: req.body.phone
+    }
+    
+    // Validate subject and message
+    const bodySchema = z.object({
+      subject: z.string().min(3).max(200),
+      message: z.string().min(10).max(1000),
+      phone: z.string().max(20).optional()
+    })
+    
+    bodySchema.parse(req.body)
+    
     const contactMessage = await ContactMessage.create(data)
     
     res.status(201).json({ 

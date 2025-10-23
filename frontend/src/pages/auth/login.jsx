@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import MainLayout from '../../layouts/MainLayout'
 import { useForm } from 'react-hook-form'
 import Link from 'next/link'
@@ -11,11 +11,7 @@ export default function Login(){
   const [isLoading, setIsLoading] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const [testimonial, setTestimonial] = useState(null)
-  const { login, googleLogin } = useAuth()
-  const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
-  const [googleReady, setGoogleReady] = useState(false)
-  const googleBtnRef = useRef(null)
-  const [gsiRendered, setGsiRendered] = useState(false)
+  const { login } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -23,80 +19,6 @@ export default function Login(){
     // Fetch a random top-rated testimonial
     fetchTestimonial()
   }, [])
-
-  // Load Google Identity Services script
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) return
-    if (window.google && window.google.accounts && window.google.accounts.id) {
-      setGoogleReady(true)
-      return
-    }
-    const script = document.createElement('script')
-    script.src = 'https://accounts.google.com/gsi/client'
-    script.async = true
-    script.defer = true
-    script.onload = () => setGoogleReady(true)
-    document.body.appendChild(script)
-    return () => {
-      document.body.removeChild(script)
-    }
-  }, [GOOGLE_CLIENT_ID])
-
-  // Initialize and render the official Google button once the script is ready
-  useEffect(() => {
-    if (!googleReady) return
-    if (!GOOGLE_CLIENT_ID) return
-    const gsi = window?.google?.accounts?.id
-    if (!gsi) return
-    if (!googleBtnRef.current) return
-    if (gsiRendered) return
-    try {
-      gsi.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: async (resp) => {
-          try {
-            const credential = resp?.credential
-            if (!credential) return
-            const u = await googleLogin(credential)
-            // Redirect logic mirrors normal login
-            const pendingBooking = sessionStorage.getItem('pendingBooking')
-            if (pendingBooking) {
-              const booking = JSON.parse(pendingBooking)
-              sessionStorage.removeItem('pendingBooking')
-              const query = new URLSearchParams({
-                checkIn: booking.checkIn,
-                checkOut: booking.checkOut,
-                rooms: String(booking.rooms),
-                adults: String(booking.adults),
-                children: String(booking.children)
-              })
-              router.push(`/booking?${query.toString()}`)
-            } else if (u?.role === 'admin') {
-              router.push('/admin')
-            } else {
-              router.push('/home')
-            }
-          } catch (e) {
-            alert(e?.response?.data?.message || 'Google sign-in failed')
-          }
-        },
-        auto_select: false,
-        ux_mode: 'popup'
-      })
-      // Render the official Google button
-      gsi.renderButton(googleBtnRef.current, {
-        theme: 'outline',
-        size: 'large',
-        shape: 'pill',
-        text: 'continue_with'
-      })
-      setGsiRendered(true)
-      // Optional: do NOT auto prompt here to avoid the localhost popup issue
-      // gsi.prompt()
-    } catch (err) {
-      console.error('Failed to initialize Google Identity Services:', err)
-    }
-  }, [googleReady, GOOGLE_CLIENT_ID, gsiRendered, googleLogin, router])
 
   const fetchTestimonial = async () => {
     try {
@@ -144,53 +66,6 @@ export default function Login(){
       alert(e?.response?.data?.message || 'Login failed')
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const handleGoogle = async () => {
-    try {
-      if (!GOOGLE_CLIENT_ID) {
-        return alert('Google login not configured. Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID')
-      }
-      if (!googleReady || !window.google?.accounts?.id) {
-        return alert('Google is still loading, please try again in a moment.')
-      }
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: async (resp) => {
-          try {
-            const credential = resp?.credential
-            if (!credential) return
-            const u = await googleLogin(credential)
-            // Redirect logic mirrors normal login
-            const pendingBooking = sessionStorage.getItem('pendingBooking')
-            if (pendingBooking) {
-              const booking = JSON.parse(pendingBooking)
-              sessionStorage.removeItem('pendingBooking')
-              const query = new URLSearchParams({
-                checkIn: booking.checkIn,
-                checkOut: booking.checkOut,
-                rooms: String(booking.rooms),
-                adults: String(booking.adults),
-                children: String(booking.children)
-              })
-              router.push(`/booking?${query.toString()}`)
-            } else if (u?.role === 'admin') {
-              router.push('/admin')
-            } else {
-              router.push('/home')
-            }
-          } catch (e) {
-            alert(e?.response?.data?.message || 'Google sign-in failed')
-          }
-        },
-        auto_select: false,
-        ux_mode: 'popup'
-      })
-      // Show the account chooser / One Tap prompt
-      window.google.accounts.id.prompt()
-    } catch (e) {
-      alert('Google login failed')
     }
   }
 
@@ -468,22 +343,15 @@ export default function Login(){
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Official Google Sign-In button container */}
-                  <div className="flex items-center justify-center border-2 border-gray-200 rounded-xl p-2">
-                    <div ref={googleBtnRef} className="flex items-center justify-center" />
-                    {/* Fallback button if GSI script hasn't loaded */}
-                    {!googleReady && (
-                      <button onClick={handleGoogle} className="flex items-center justify-center gap-3 rounded-xl p-2 hover:border-red-300 hover:bg-red-50 transition-all duration-300 transform hover:scale-[1.03] group">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48" className="transform transition-transform duration-300 group-hover:scale-110">
-                          <path fill="#EA4335" d="M24 9.5c3.9 0 6.6 1.7 8.1 3.1l6-5.8C34.8 3.6 29.8 1.5 24 1.5 14.7 1.5 6.9 7.7 3.6 16.1l7.4 5.7C12.6 15.1 17.8 9.5 24 9.5z"/>
-                          <path fill="#34A853" d="M46.5 24c0-1.6-.1-3.1-.4-4.6H24v9.1h12.6c-.5 2.6-2 4.8-4.2 6.3l6.5 5c3.8-3.5 6-8.9 6-15.8z"/>
-                          <path fill="#4A90E2" d="M10.9 29.1c-.8-2.3-1.3-4.7-1.3-7.1s.5-4.8 1.3-7.1L3.6 9.9C1.3 13.4 0 17.6 0 22s1.3 8.6 3.6 12.1l7.3-5z"/>
-                          <path fill="#FBBC05" d="M24 46.5c6.1 0 11.2-2 15-5.5l-7.2-5.4c-2 1.3-4.8 2.2-7.8 2.2-6.4 0-11.8-4.2-13.7-9.9l-7.4 5.7C6.9 40.3 14.7 46.5 24 46.5z"/>
-                        </svg>
-                        <span className="text-sm font-medium text-gray-700 group-hover:text-red-600 transition-colors">Google</span>
-                      </button>
-                    )}
-                  </div>
+                  <button className="flex items-center justify-center gap-3 border-2 border-gray-200 rounded-xl p-3 hover:border-red-300 hover:bg-red-50 transition-all duration-300 transform hover:scale-[1.03] group">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48" className="transform transition-transform duration-300 group-hover:scale-110">
+                      <path fill="#EA4335" d="M24 9.5c3.9 0 6.6 1.7 8.1 3.1l6-5.8C34.8 3.6 29.8 1.5 24 1.5 14.7 1.5 6.9 7.7 3.6 16.1l7.4 5.7C12.6 15.1 17.8 9.5 24 9.5z"/>
+                      <path fill="#34A853" d="M46.5 24c0-1.6-.1-3.1-.4-4.6H24v9.1h12.6c-.5 2.6-2 4.8-4.2 6.3l6.5 5c3.8-3.5 6-8.9 6-15.8z"/>
+                      <path fill="#4A90E2" d="M10.9 29.1c-.8-2.3-1.3-4.7-1.3-7.1s.5-4.8 1.3-7.1L3.6 9.9C1.3 13.4 0 17.6 0 22s1.3 8.6 3.6 12.1l7.3-5z"/>
+                      <path fill="#FBBC05" d="M24 46.5c6.1 0 11.2-2 15-5.5l-7.2-5.4c-2 1.3-4.8 2.2-7.8 2.2-6.4 0-11.8-4.2-13.7-9.9l-7.4 5.7C6.9 40.3 14.7 46.5 24 46.5z"/>
+                    </svg>
+                    <span className="text-sm font-medium text-gray-700 group-hover:text-red-600 transition-colors">Google</span>
+                  </button>
 
                   <button className="flex items-center justify-center gap-3 border-2 border-gray-200 rounded-xl p-3 hover:border-amber-300 hover:bg-amber-50 transition-all duration-300 transform hover:scale-[1.03] group">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="transform transition-transform duration-300 group-hover:scale-110">
