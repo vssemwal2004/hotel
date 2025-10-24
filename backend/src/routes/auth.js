@@ -25,10 +25,7 @@ router.post('/register', async (req, res, next) => {
     const user = await User.create({ name, email, password })
     const token = signToken({ sub: user._id, role: user.role })
     res.cookie('token', token, cookieOptions())
-    res.status(201).json({
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
-      token
-    })
+    res.status(201).json({ user: { id: user._id, name: user.name, email: user.email, role: user.role } })
   } catch (err) {
     next(err)
   }
@@ -43,10 +40,7 @@ router.post('/login', async (req, res, next) => {
     if (!ok) return res.status(401).json({ message: 'Invalid credentials' })
     const token = signToken({ sub: user._id, role: user.role })
     res.cookie('token', token, cookieOptions())
-    res.json({
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
-      token
-    })
+    res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role } })
   } catch (err) {
     next(err)
   }
@@ -58,12 +52,7 @@ router.post('/logout', async (req, res) => {
 })
 
 router.get('/me', async (req, res) => {
-  // Accept token from cookie or Authorization header
-  let token = req.cookies?.token
-  if (!token) {
-    const auth = req.headers['authorization'] || ''
-    if (auth.toLowerCase().startsWith('bearer ')) token = auth.slice(7).trim()
-  }
+  const token = req.cookies.token
   if (!token) return res.status(401).json({ message: 'Not authenticated' })
   try {
     const { sub } = verifyToken(token)
@@ -115,10 +104,7 @@ router.post('/google', async (req, res, next) => {
 
     const token = signToken({ sub: user._id, role: user.role })
     res.cookie('token', token, cookieOptions())
-    res.json({
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
-      token
-    })
+    res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role } })
   } catch (err) {
     if (process.env.NODE_ENV !== 'production') {
       console.error('[auth/google] Error:', err?.message || err)

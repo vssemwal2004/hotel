@@ -73,19 +73,12 @@ router.get('/stats', async (req, res, next) => {
   }
 })
 
-// POST /api/testimonials - Create new testimonial (auth required)
-router.post('/', authRequired, async (req, res, next) => {
+// POST /api/testimonials - Create new testimonial (public)
+router.post('/', async (req, res, next) => {
   try {
-    // We accept rating, message, optional role from body; name/email come from authenticated user
-    const bodySchema = testimonialSchema.pick({ rating: true, message: true, role: true })
-    const { rating, message, role } = bodySchema.parse(req.body)
-
+    const data = testimonialSchema.parse(req.body)
     const testimonial = await Testimonial.create({
-      name: req.user.name,
-      email: req.user.email,
-      rating,
-      message,
-      role: role || undefined,
+      ...data,
       isApproved: true, // Auto-approve testimonials
       approvedAt: new Date()
     })
@@ -132,7 +125,7 @@ router.patch('/:id/approve', authRequired, adminRequired, async (req, res, next)
       req.params.id,
       { 
         isApproved: true,
-        approvedBy: req.user._id,
+        approvedBy: req.user.sub,
         approvedAt: new Date()
       },
       { new: true }

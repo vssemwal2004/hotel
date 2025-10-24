@@ -10,15 +10,4 @@ const api = axios.create({
   withCredentials: true
 })
 
-// Attach Authorization header from localStorage token if present (helps dev without cookies)
-api.interceptors.request.use((config) => {
-  try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
-    if (token && !config.headers.Authorization) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-  } catch {}
-  return config
-})
-
 export default api
