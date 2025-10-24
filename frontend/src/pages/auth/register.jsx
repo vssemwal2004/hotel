@@ -104,22 +104,22 @@ export default function Register(){
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 py-8 px-4 overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 py-4 md:py-8 px-3 md:px-4 overflow-hidden">
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-r from-red-200 to-yellow-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-slow"></div>
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-r from-amber-200 to-red-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-medium"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-gradient-to-r from-yellow-200 to-amber-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-fast"></div>
+          <div className="absolute -top-40 -right-40 w-60 md:w-80 h-60 md:h-80 bg-gradient-to-r from-red-200 to-yellow-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-slow"></div>
+          <div className="absolute -bottom-40 -left-40 w-60 md:w-80 h-60 md:h-80 bg-gradient-to-r from-amber-200 to-red-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-medium"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-60 md:w-80 h-60 md:h-80 bg-gradient-to-r from-yellow-200 to-amber-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-fast"></div>
           {isMounted && [...Array(12)].map((_, i) => (
             <div
               key={i}
-              className="absolute w-2 h-2 bg-amber-400/30 rounded-full animate-float-particle"
+              className="absolute w-1.5 md:w-2 h-1.5 md:h-2 bg-amber-400/30 rounded-full animate-float-particle"
               style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 5}s`, animationDuration: `${3 + Math.random() * 4}s` }}
             />
           ))}
         </div>
 
         <div className="max-w-6xl mx-auto relative z-10">
-          <div className="relative mx-4 md:mx-0 md:flex min-h-[600px] rounded-3xl overflow-hidden shadow-2xl bg-white/90 backdrop-blur-sm border border-white/30 transform transition-all duration-500 hover:shadow-3xl">
+          <div className="relative mx-2 md:mx-4 lg:mx-0 md:flex min-h-[550px] md:min-h-[600px] rounded-2xl md:rounded-3xl overflow-hidden shadow-xl md:shadow-2xl bg-white/90 backdrop-blur-sm border border-white/30 transform transition-all duration-500 hover:shadow-3xl">
             <div className="hidden md:flex md:w-2/5 relative bg-gradient-to-br from-red-800 via-red-700 to-amber-700 p-12 overflow-hidden group">
               {/* Animated background pattern */}
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIgMS44LTQgNC00czQgMS44IDQgNC0xLjggNC00IDQtNC0xLjgtNC00eiIvPjxwYXRoIGQ9Ik0xNiAxNmMtMi4yIDAtNCAxLjgtNCA0czEuOCA0IDQgNCA0LTEuOCA0LTRzLTEuOC00LTQtNHoiLz48cGF0aCBkPSJNNTAgMTZjLTIuMiAwLTQgMS44LTQgNHMxLjggNCA0IDQgNC0xLjggNC00LTEuOC00LTQtNHoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-10 animate-pattern-move"></div>
@@ -196,78 +196,104 @@ export default function Register(){
             </div>
 
             <div className="flex-1 p-8 md:p-12 flex flex-col justify-center relative">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-red-500/10 to-transparent rounded-tr-3xl transition-all duration-500 hover:opacity-80"></div>
-              <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-amber-500/10 to-transparent rounded-bl-3xl transition-all duration-500 hover:opacity-80"></div>
+              <div className="absolute top-0 right-0 w-20 md:w-32 h-20 md:h-32 bg-gradient-to-bl from-red-500/10 to-transparent rounded-tr-2xl md:rounded-tr-3xl transition-all duration-500 hover:opacity-80"></div>
+              <div className="absolute bottom-0 left-0 w-20 md:w-32 h-20 md:h-32 bg-gradient-to-tr from-amber-500/10 to-transparent rounded-bl-2xl md:rounded-bl-3xl transition-all duration-500 hover:opacity-80"></div>
 
               <div className="max-w-md mx-auto w-full">
                 <div className="text-center md:text-left">
-                  <div className="md:hidden w-20 h-20 bg-gradient-to-br from-red-600 to-amber-500 rounded-2xl flex items-center justify-center shadow-lg mx-auto mb-6 transform transition-transform duration-300 hover:scale-105">
-                    <img src="/images/logo-icon/logo.webp" alt="Logo" className="w-12 h-12 object-contain" />
+                  <div className="md:hidden w-16 sm:w-20 h-16 sm:h-20 bg-gradient-to-br from-red-600 to-amber-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg mx-auto mb-4 sm:mb-6 transform transition-transform duration-300 hover:scale-105">
+                    <img src="/images/logo-icon/logo.webp" alt="Logo" className="w-10 sm:w-12 h-10 sm:h-12 object-contain" />
                   </div>
-                  <h3 className="font-playfair text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-amber-500 transform transition-transform duration-300 hover:scale-105">Create account</h3>
-                  <p className="text-gray-600 mt-3 text-lg transition-colors duration-300 hover:text-gray-800">Sign up to start your luxury journey</p>
+                  <h3 className="font-playfair text-2xl sm:text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-amber-500 transform transition-transform duration-300 hover:scale-105">Create Account</h3>
+                  <p className="text-gray-600 mt-2 sm:mt-3 text-sm sm:text-base md:text-lg transition-colors duration-300 hover:text-gray-800">Sign up to start your luxury journey</p>
                 </div>
 
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
-                  <div className="space-y-5">
+                <form className="mt-5 sm:mt-6 md:mt-8 space-y-3 sm:space-y-4 md:space-y-6" onSubmit={handleSubmit(onSubmit)}>
+                  <div className="space-y-3 sm:space-y-4 md:space-y-5">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Full name</label>
-                      <input {...register('name', { required: 'Name is required' })} className="w-full border-2 border-gray-200 rounded-xl p-4 focus:border-red-500 focus:ring-2 focus:ring-red-200 bg-white/70 backdrop-blur-sm" placeholder="Your full name" />
-                      {errors.name && <p className="text-red-600 text-sm mt-2">{errors.name.message}</p>}
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">Full Name</label>
+                      <input 
+                        {...register('name', { required: 'Name is required' })} 
+                        className="w-full border-2 border-gray-200 rounded-lg sm:rounded-xl p-2.5 sm:p-3 md:p-4 text-sm sm:text-base focus:border-red-500 focus:ring-2 focus:ring-red-200 bg-white/70 backdrop-blur-sm hover:border-gray-300 transition-all duration-300" 
+                        placeholder="Your full name" 
+                      />
+                      {errors.name && <p className="text-red-600 text-xs sm:text-sm mt-1 sm:mt-2">{errors.name.message}</p>}
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
-                      <input {...register('email', { required: 'Email is required', pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' } })} className="w-full border-2 border-gray-200 rounded-xl p-4 focus:border-red-500 focus:ring-2 focus:ring-red-200 bg-white/70 backdrop-blur-sm" placeholder="you@email.com" />
-                      {errors.email && <p className="text-red-600 text-sm mt-2">{errors.email.message}</p>}
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">Email Address</label>
+                      <input 
+                        {...register('email', { required: 'Email is required', pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' } })} 
+                        className="w-full border-2 border-gray-200 rounded-lg sm:rounded-xl p-2.5 sm:p-3 md:p-4 text-sm sm:text-base focus:border-red-500 focus:ring-2 focus:ring-red-200 bg-white/70 backdrop-blur-sm hover:border-gray-300 transition-all duration-300" 
+                        placeholder="you@email.com" 
+                      />
+                      {errors.email && <p className="text-red-600 text-xs sm:text-sm mt-1 sm:mt-2">{errors.email.message}</p>}
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
-                      <input {...register('password', { required: 'Password required', minLength: { value: 6, message: 'Minimum 6 characters' } })} type="password" className="w-full border-2 border-gray-200 rounded-xl p-4 focus:border-red-500 focus:ring-2 focus:ring-red-200 bg-white/70 backdrop-blur-sm" placeholder="Create a password" />
-                      {errors.password && <p className="text-red-600 text-sm mt-2">{errors.password.message}</p>}
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">Password</label>
+                      <input 
+                        {...register('password', { required: 'Password required', minLength: { value: 6, message: 'Minimum 6 characters' } })} 
+                        type="password" 
+                        className="w-full border-2 border-gray-200 rounded-lg sm:rounded-xl p-2.5 sm:p-3 md:p-4 text-sm sm:text-base focus:border-red-500 focus:ring-2 focus:ring-red-200 bg-white/70 backdrop-blur-sm hover:border-gray-300 transition-all duration-300" 
+                        placeholder="Create a password" 
+                      />
+                      {errors.password && <p className="text-red-600 text-xs sm:text-sm mt-1 sm:mt-2">{errors.password.message}</p>}
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm password</label>
-                      <input {...register('confirmPassword', { required: 'Please confirm', validate: value => value === password || 'Passwords do not match' })} type="password" className="w-full border-2 border-gray-200 rounded-xl p-4 focus:border-red-500 focus:ring-2 focus:ring-red-200 bg-white/70 backdrop-blur-sm" placeholder="Confirm password" />
-                      {errors.confirmPassword && <p className="text-red-600 text-sm mt-2">{errors.confirmPassword.message}</p>}
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">Confirm Password</label>
+                      <input 
+                        {...register('confirmPassword', { required: 'Please confirm', validate: value => value === password || 'Passwords do not match' })} 
+                        type="password" 
+                        className="w-full border-2 border-gray-200 rounded-lg sm:rounded-xl p-2.5 sm:p-3 md:p-4 text-sm sm:text-base focus:border-red-500 focus:ring-2 focus:ring-red-200 bg-white/70 backdrop-blur-sm hover:border-gray-300 transition-all duration-300" 
+                        placeholder="Confirm password" 
+                      />
+                      {errors.confirmPassword && <p className="text-red-600 text-xs sm:text-sm mt-1 sm:mt-2">{errors.confirmPassword.message}</p>}
                     </div>
                   </div>
 
-                  <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-red-600 to-amber-500 text-white py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 flex items-center justify-center gap-2">
-                    {isLoading ? (<><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>Creating...</>) : 'Create account'}
+                  <button 
+                    type="submit" 
+                    disabled={isLoading} 
+                    className="w-full bg-gradient-to-r from-red-600 to-amber-500 text-white py-3 sm:py-4 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 disabled:opacity-50 disabled:transform-none flex items-center justify-center gap-2 group"
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="w-4 sm:w-5 h-4 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <span className="text-sm sm:text-base">Creating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Create account</span>
+                        <svg className="w-3.5 sm:w-4 h-3.5 sm:h-4 transform transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </>
+                    )}
                   </button>
                 </form>
 
-                <div className="my-8 flex items-center gap-4">
+                <div className="my-5 sm:my-6 md:my-8 flex items-center gap-3 sm:gap-4">
                   <hr className="flex-1 border-gray-300" />
-                  <span className="text-sm text-gray-500 font-medium">Or continue with</span>
+                  <span className="text-xs sm:text-sm text-gray-500 font-medium">Or continue with</span>
                   <hr className="flex-1 border-gray-300" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <button onClick={handleGoogle} className="flex items-center justify-center gap-3 border-2 border-gray-200 rounded-xl p-3 hover:border-red-300 hover:bg-red-50 transition-all duration-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48">
-                      <path fill="#EA4335" d="M24 9.5c3.9 0 6.6 1.7 8.1 3.1l6-5.8C34.8 3.6 29.8 1.5 24 1.5 14.7 1.5 6.9 7.7 3.6 16.1l7.4 5.7C12.6 15.1 17.8 9.5 24 9.5z"/>
-                      <path fill="#34A853" d="M46.5 24c0-1.6-.1-3.1-.4-4.6H24v9.1h12.6c-.5 2.6-2 4.8-4.2 6.3l6.5 5c3.8-3.5 6-8.9 6-15.8z"/>
-                      <path fill="#4A90E2" d="M10.9 29.1c-.8-2.3-1.3-4.7-1.3-7.1s.5-4.8 1.3-7.1L3.6 9.9C1.3 13.4 0 17.6 0 22s1.3 8.6 3.6 12.1l7.3-5z"/>
-                      <path fill="#FBBC05" d="M24 46.5c6.1 0 11.2-2 15-5.5l-7.2-5.4c-2 1.3-4.8 2.2-7.8 2.2-6.4 0-11.8-4.2-13.7-9.9l-7.4 5.7C6.9 40.3 14.7 46.5 24 46.5z"/>
-                    </svg>
-                    <span className="text-sm font-medium text-gray-700">Google</span>
-                  </button>
+                {/* Google Sign-In button - Full Width */}
+                <button onClick={handleGoogle} className="w-full flex items-center justify-center gap-2 sm:gap-3 border-2 border-gray-200 rounded-lg sm:rounded-xl p-2.5 sm:p-3 hover:border-red-300 hover:bg-red-50 transition-all duration-300 transform hover:scale-[1.02] group">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 48 48" className="sm:w-[18px] sm:h-[18px] transform transition-transform duration-300 group-hover:scale-110">
+                    <path fill="#EA4335" d="M24 9.5c3.9 0 6.6 1.7 8.1 3.1l6-5.8C34.8 3.6 29.8 1.5 24 1.5 14.7 1.5 6.9 7.7 3.6 16.1l7.4 5.7C12.6 15.1 17.8 9.5 24 9.5z"/>
+                    <path fill="#34A853" d="M46.5 24c0-1.6-.1-3.1-.4-4.6H24v9.1h12.6c-.5 2.6-2 4.8-4.2 6.3l6.5 5c3.8-3.5 6-8.9 6-15.8z"/>
+                    <path fill="#4A90E2" d="M10.9 29.1c-.8-2.3-1.3-4.7-1.3-7.1s.5-4.8 1.3-7.1L3.6 9.9C1.3 13.4 0 17.6 0 22s1.3 8.6 3.6 12.1l7.3-5z"/>
+                    <path fill="#FBBC05" d="M24 46.5c6.1 0 11.2-2 15-5.5l-7.2-5.4c-2 1.3-4.8 2.2-7.8 2.2-6.4 0-11.8-4.2-13.7-9.9l-7.4 5.7C6.9 40.3 14.7 46.5 24 46.5z"/>
+                  </svg>
+                  <span className="text-xs sm:text-sm font-medium text-gray-700 group-hover:text-red-600 transition-colors">Continue with Google</span>
+                </button>
 
-                  <button className="flex items-center justify-center gap-3 border-2 border-gray-200 rounded-xl p-3 hover:border-amber-300 hover:bg-amber-50 transition-all duration-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.86 19.86 0 0 1 2.09 4.18 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.72c.12 1.21.49 2.39 1.09 3.5a2 2 0 0 1-.45 2.11L9.91 10.9a16 16 0 0 0 6 6l1.56-1.56a2 2 0 0 1 2.11-.45c1.11.6 2.29.97 3.5 1.09A2 2 0 0 1 22 16.92z"/>
-                    </svg>
-                    <span className="text-sm font-medium text-gray-700">Mobile</span>
-                  </button>
-                </div>
-
-                <div className="mt-8 text-center">
+                <div className="mt-5 sm:mt-6 md:mt-8 text-center text-xs sm:text-sm">
                   <span className="text-gray-600">Already have an account? </span>
-                  <Link href="/auth/login" className="font-semibold text-red-600 hover:text-red-700">Sign in</Link>
+                  <Link href="/auth/login" className="font-semibold text-red-600 hover:text-red-700 transition-all duration-300 transform hover:scale-105 inline-block">Sign in</Link>
                 </div>
               </div>
             </div>
