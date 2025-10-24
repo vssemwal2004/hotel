@@ -70,12 +70,11 @@ router.post('/logout', async (req, res) => {
 })
 
 router.get('/me', async (req, res) => {
-  // Accept token from cookie or Authorization header
-  let token = req.cookies?.token
-  if (!token) {
-    const auth = req.headers['authorization'] || ''
-    if (auth.toLowerCase().startsWith('bearer ')) token = auth.slice(7).trim()
-  }
+  // Prefer Authorization header (explicit client intent), fallback to cookie
+  let token
+  const auth = req.headers['authorization'] || ''
+  if (auth && auth.toLowerCase().startsWith('bearer ')) token = auth.slice(7).trim()
+  if (!token) token = req.cookies?.token
   if (!token) return res.status(401).json({ message: 'Not authenticated' })
   try {
     const { sub } = verifyToken(token)

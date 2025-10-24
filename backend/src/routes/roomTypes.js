@@ -22,7 +22,7 @@ function normalizePhotos(arr) {
 }
 
 const upsertSchema = z.object({
-  key: z.enum(['deluxe-valley-view','hillside-suite','family-luxury-suite']),
+  key: z.string().min(1), // Allow any room type key dynamically
   title: z.string().min(1),
   basePrice: z.number().min(0),
   prices: z.object({

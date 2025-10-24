@@ -2,7 +2,7 @@ import mongoose from 'mongoose'
 
 const roomTypeSchema = new mongoose.Schema(
   {
-    key: { type: String, required: true, enum: ['deluxe-valley-view', 'hillside-suite', 'family-luxury-suite'], unique: true },
+    key: { type: String, required: true, unique: true }, // Allow any key dynamically
     title: { type: String, required: true },
     // Legacy base price kept for compatibility; prefer prices.roomOnly
     basePrice: { type: Number, required: true, min: 0 },

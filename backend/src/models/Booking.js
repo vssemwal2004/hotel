@@ -2,6 +2,8 @@ import mongoose from 'mongoose'
 
 const guestSchema = new mongoose.Schema({
   name: { type: String, required: true },
+  email: { type: String },
+  phone: { type: String },
   age: { type: Number, required: true, min: 0 },
   type: { type: String, enum: ['adult','child'], required: true }
 }, { _id: false })

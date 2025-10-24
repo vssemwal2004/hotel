@@ -7,9 +7,15 @@ import RoomType from '../models/RoomType.js'
 
 const router = Router()
 
-const guestSchema = z.object({ name: z.string().min(1), age: z.number().int().min(0), type: z.enum(['adult','child']) })
+const guestSchema = z.object({ 
+  name: z.string().min(1), 
+  email: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  age: z.number().int().min(0), 
+  type: z.enum(['adult','child']) 
+})
 const itemSchema = z.object({
-  roomTypeKey: z.enum(['deluxe-valley-view','hillside-suite','family-luxury-suite']),
+  roomTypeKey: z.string().min(1), // Allow any room type key dynamically
   quantity: z.number().int().min(1),
   packageType: z.enum(['roomOnly', 'roomBreakfast', 'roomBreakfastDinner']).default('roomOnly'),
   extraBeds: z.number().int().min(0).optional().default(0),
@@ -200,8 +206,14 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
     const payload = req.body || {}
     const userInfo = payload.user || {}
     const name = String(userInfo.name || '').trim()
-    const email = String(userInfo.email || '').trim().toLowerCase()
-    if (!name || !email) return res.status(400).json({ message: 'User name and email are required' })
+    let email = String(userInfo.email || '').trim().toLowerCase()
+    
+    if (!name) return res.status(400).json({ message: 'User name is required' })
+    
+    // Generate email if not provided or invalid
+    if (!email || !email.includes('@')) {
+      email = `guest${Date.now()}@hotel.local`
+    }
 
     // Find or create user
     let user = await (await import('../models/User.js')).default.findOne({ email })

@@ -58,23 +58,28 @@ export default function Login(){
             const credential = resp?.credential
             if (!credential) return
             const u = await googleLogin(credential)
-            // Redirect logic mirrors normal login
-            const pendingBooking = sessionStorage.getItem('pendingBooking')
-            if (pendingBooking) {
-              const booking = JSON.parse(pendingBooking)
-              sessionStorage.removeItem('pendingBooking')
-              const query = new URLSearchParams({
-                checkIn: booking.checkIn,
-                checkOut: booking.checkOut,
-                rooms: String(booking.rooms),
-                adults: String(booking.adults),
-                children: String(booking.children)
-              })
-              router.push(`/booking?${query.toString()}`)
-            } else if (u?.role === 'admin') {
+            // Role-based redirect after Google login
+            if (u?.role === 'admin') {
               router.push('/admin')
+            } else if (u?.role === 'worker') {
+              router.push('/worker')
             } else {
-              router.push('/home')
+              // For regular users, check for pending booking
+              const pendingBooking = sessionStorage.getItem('pendingBooking')
+              if (pendingBooking) {
+                const booking = JSON.parse(pendingBooking)
+                sessionStorage.removeItem('pendingBooking')
+                const query = new URLSearchParams({
+                  checkIn: booking.checkIn,
+                  checkOut: booking.checkOut,
+                  rooms: String(booking.rooms),
+                  adults: String(booking.adults),
+                  children: String(booking.children)
+                })
+                router.push(`/booking?${query.toString()}`)
+              } else {
+                router.push('/home')
+              }
             }
           } catch (e) {
             alert(e?.response?.data?.message || 'Google sign-in failed')
@@ -122,25 +127,30 @@ export default function Login(){
       const u = await login({ email: data.email, password: data.password })
       console.log('Login successful:', u)
       
-      // Check for pending booking after login
-      const pendingBooking = sessionStorage.getItem('pendingBooking')
-      if (pendingBooking) {
-        const booking = JSON.parse(pendingBooking)
-        sessionStorage.removeItem('pendingBooking')
-        
-        // Redirect to booking page with saved details
-        const query = new URLSearchParams({
-          checkIn: booking.checkIn,
-          checkOut: booking.checkOut,
-          rooms: booking.rooms.toString(),
-          adults: booking.adults.toString(),
-          children: booking.children.toString()
-        })
-        router.push(`/booking?${query.toString()}`)
-      } else if (u?.role === 'admin') {
+      // Role-based redirect after login
+      if (u?.role === 'admin') {
         router.push('/admin')
+      } else if (u?.role === 'worker') {
+        router.push('/worker')
       } else {
-        router.push('/home')
+        // For regular users, check for pending booking
+        const pendingBooking = sessionStorage.getItem('pendingBooking')
+        if (pendingBooking) {
+          const booking = JSON.parse(pendingBooking)
+          sessionStorage.removeItem('pendingBooking')
+          
+          // Redirect to booking page with saved details
+          const query = new URLSearchParams({
+            checkIn: booking.checkIn,
+            checkOut: booking.checkOut,
+            rooms: booking.rooms.toString(),
+            adults: booking.adults.toString(),
+            children: booking.children.toString()
+          })
+          router.push(`/booking?${query.toString()}`)
+        } else {
+          router.push('/home')
+        }
       }
     } catch (e) {
       console.error('Login error:', e)
@@ -167,23 +177,28 @@ export default function Login(){
             const credential = resp?.credential
             if (!credential) return
             const u = await googleLogin(credential)
-            // Redirect logic mirrors normal login
-            const pendingBooking = sessionStorage.getItem('pendingBooking')
-            if (pendingBooking) {
-              const booking = JSON.parse(pendingBooking)
-              sessionStorage.removeItem('pendingBooking')
-              const query = new URLSearchParams({
-                checkIn: booking.checkIn,
-                checkOut: booking.checkOut,
-                rooms: String(booking.rooms),
-                adults: String(booking.adults),
-                children: String(booking.children)
-              })
-              router.push(`/booking?${query.toString()}`)
-            } else if (u?.role === 'admin') {
+            // Role-based redirect after Google login
+            if (u?.role === 'admin') {
               router.push('/admin')
+            } else if (u?.role === 'worker') {
+              router.push('/worker')
             } else {
-              router.push('/home')
+              // For regular users, check for pending booking
+              const pendingBooking = sessionStorage.getItem('pendingBooking')
+              if (pendingBooking) {
+                const booking = JSON.parse(pendingBooking)
+                sessionStorage.removeItem('pendingBooking')
+                const query = new URLSearchParams({
+                  checkIn: booking.checkIn,
+                  checkOut: booking.checkOut,
+                  rooms: String(booking.rooms),
+                  adults: String(booking.adults),
+                  children: String(booking.children)
+                })
+                router.push(`/booking?${query.toString()}`)
+              } else {
+                router.push('/home')
+              }
             }
           } catch (e) {
             alert(e?.response?.data?.message || 'Google sign-in failed')

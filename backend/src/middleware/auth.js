@@ -3,10 +3,14 @@ import User from '../models/User.js'
 
 export async function authRequired(req, res, next) {
   try {
-    let token = req.cookies?.token
+    // Prefer Authorization header (explicit client intent), fallback to cookie
+    let token
+    const auth = req.headers['authorization'] || ''
+    if (auth && auth.toLowerCase().startsWith('bearer ')) {
+      token = auth.slice(7).trim()
+    }
     if (!token) {
-      const auth = req.headers['authorization'] || ''
-      if (auth.toLowerCase().startsWith('bearer ')) token = auth.slice(7).trim()
+      token = req.cookies?.token
     }
     if (!token) return res.status(401).json({ message: 'Not authenticated' })
     const { sub } = verifyToken(token)
