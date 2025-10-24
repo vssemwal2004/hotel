@@ -1,6 +1,6 @@
 import React from 'react'
 import { useRouter } from 'next/router'
-import Header from '../components/Header'
+import Header from '../components/header'
 import Footer from '../components/Footer'
 
 // MainLayout wraps public-facing pages (landing, rooms, about, contact, etc.)

@@ -6,7 +6,7 @@ import {
   AlertCircle, Package, IndianRupee, ChevronDown, ChevronUp,
   MapPin, Mail, Phone, FileText
 } from 'lucide-react'
-import Header from '../components/Header'
+import Header from '../components/header'
 import Footer from '../components/Footer'
 import useAuth from '../hooks/useAuth'
 import api from '../utils/api'
