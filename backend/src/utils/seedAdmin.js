@@ -14,12 +14,20 @@ export async function ensureAdminFromEnv() {
     console.log(`[seedAdmin] Created admin user for ${email}`)
     return
   }
-  // Ensure role is admin
+  // Ensure role is admin; optionally rotate password if env changed
+  let changed = false
   if (existing.role !== 'admin') {
     existing.role = 'admin'
+    changed = true
+  }
+  if (password && (await existing.comparePassword(password)) === false) {
+    existing.password = password
+    changed = true
+  }
+  if (changed) {
     await existing.save()
-    console.log(`[seedAdmin] Updated role to admin for ${email}`)
+    console.log(`[seedAdmin] Updated admin user for ${email}`)
   } else {
-    console.log('[seedAdmin] Admin user already exists')
+    console.log('[seedAdmin] Admin user already up to date')
   }
 }

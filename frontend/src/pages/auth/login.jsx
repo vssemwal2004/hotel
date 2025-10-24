@@ -145,9 +145,7 @@ export default function Login(){
     } catch (e) {
       console.error('Login error:', e)
       console.error('Error response:', e?.response?.data)
-      console.error('Error status:', e?.response?.status)
-      console.error('Error message:', e?.message)
-      const errorMsg = e?.response?.data?.message || e?.message || 'Login failed. Please check your credentials.'
+      const errorMsg = e?.response?.data?.message || e?.message || 'Login failed'
       alert(errorMsg)
     } finally {
       setIsLoading(false)

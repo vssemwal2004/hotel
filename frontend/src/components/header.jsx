@@ -193,88 +193,205 @@ export default function Header(){
 
             {/* Right Section - Login/Profile & Mobile Menu */}
             <div className="flex items-center gap-3 sm:gap-4">
-              {/* Show Profile Dropdown if logged in, Login if not */}
-              {!loading && user ? (
-                <>
-                  {/* Profile Dropdown for Desktop */}
-                  <div className="hidden lg:block relative" ref={dropdownRef}>
-                    <button
-                      onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-                      className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 shadow-md hover:shadow-lg ${
-                        isTransparent
-                          ? 'bg-white/20 backdrop-blur-sm text-white border border-white/30 hover:bg-white/30'
-                          : 'bg-amber-600 text-white hover:bg-amber-700'
-                      }`}
-                    >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        isTransparent ? 'bg-amber-300/20' : 'bg-amber-500'
-                      }`}>
-                        <span className="text-sm font-bold">
-                          {user?.name?.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <ChevronDown size={18} className={`transition-transform duration-200 ${showProfileDropdown ? 'rotate-180' : ''}`} />
-                    </button>
+              {/* Mobile Profile Icon - Show if logged in */}
+              {!loading && user && (
+                <div className="lg:hidden relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                    className={`flex items-center gap-1 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-300 ${
+                      isTransparent
+                        ? 'bg-white/20 backdrop-blur-sm text-white border border-white/30'
+                        : 'bg-amber-600 text-white'
+                    }`}
+                  >
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                      isTransparent ? 'bg-amber-300/20' : 'bg-amber-500'
+                    }`}>
+                      <span className="text-xs font-bold">
+                        {user?.name?.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <ChevronDown size={14} className={`transition-transform duration-200 ${showProfileDropdown ? 'rotate-180' : ''}`} />
+                  </button>
 
-                    {/* Dropdown Menu */}
-                    {showProfileDropdown && (
-                      <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-[60] animate-dropdownFade">
-                        {/* User Info Section */}
-                        <div className="px-5 py-5 bg-gradient-to-br from-amber-50 via-amber-50/80 to-orange-50 border-b border-amber-200">
-                          <div className="flex items-center gap-3">
-                            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg ring-2 ring-white">
-                              <span className="text-white text-xl font-bold">
-                                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                              </span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-base font-bold text-gray-900 truncate mb-1">
-                                {user?.name || 'User'}
-                              </p>
-                              <p className="text-xs text-gray-600 truncate flex items-center gap-1.5">
-                                <Mail size={13} className="flex-shrink-0" />
-                                <span>{user?.email || 'email@example.com'}</span>
-                              </p>
-                            </div>
+                  {/* Mobile Profile Dropdown */}
+                  {showProfileDropdown && (
+                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-[60]">
+                      {/* User Info */}
+                      <div className="px-4 py-4 bg-gradient-to-br from-amber-50 to-orange-50 border-b border-amber-200">
+                        <div className="flex items-center gap-2">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg">
+                            <span className="text-white text-lg font-bold">
+                              {user?.name?.charAt(0)?.toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-gray-900 truncate">
+                              {user?.name}
+                            </p>
+                            <p className="text-xs text-gray-600 truncate flex items-center gap-1">
+                              <Mail size={11} />
+                              <span>{user?.email}</span>
+                            </p>
                           </div>
                         </div>
+                      </div>
 
-                        {/* Navigation Links */}
-                        <div className="py-2">
-                          <button
-                            onClick={() => { router.push('/'); setShowProfileDropdown(false); }}
-                            className="w-full px-5 py-3 text-left text-sm font-medium text-gray-700 hover:bg-amber-50 transition-colors flex items-center gap-3 group"
-                          >
-                            <HomeIcon size={18} className="text-amber-600 group-hover:scale-110 transition-transform" />
-                            <span className="group-hover:translate-x-1 transition-transform">Home</span>
-                          </button>
-                          <button
-                            onClick={() => { router.push('/bookings'); setShowProfileDropdown(false); }}
-                            className="w-full px-5 py-3 text-left text-sm font-medium text-gray-700 hover:bg-amber-50 transition-colors flex items-center gap-3 group"
-                          >
-                            <BookOpen size={18} className="text-amber-600 group-hover:scale-110 transition-transform" />
-                            <span className="group-hover:translate-x-1 transition-transform">Your Bookings</span>
-                          </button>
-                        </div>
+                      {/* Menu Options */}
+                      <div className="py-1">
+                        <button
+                          onClick={(e) => { 
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowProfileDropdown(false); 
+                            setOpen(false);
+                            setTimeout(() => {
+                              router.push('/bookings');
+                            }, 100);
+                          }}
+                          className="w-full px-4 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-amber-50 transition-colors flex items-center gap-2"
+                        >
+                          <BookOpen size={16} className="text-amber-600" />
+                          <span>Your Bookings</span>
+                        </button>
+                        <button
+                          onClick={(e) => { 
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowProfileDropdown(false); 
+                            setOpen(false);
+                            setTimeout(() => {
+                              router.push('/');
+                            }, 100);
+                          }}
+                          className="w-full px-4 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-amber-50 transition-colors flex items-center gap-2"
+                        >
+                          <HomeIcon size={16} className="text-amber-600" />
+                          <span>Back to Home</span>
+                        </button>
+                      </div>
 
-                        {/* Logout Section */}
-                        <div className="border-t border-gray-200 py-2">
-                          <button
-                            onClick={async () => { 
-                              await logout(); 
-                              setShowProfileDropdown(false); 
-                              router.push('/'); 
-                            }}
-                            className="w-full px-5 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-3 group"
-                          >
-                            <LogOut size={18} className="group-hover:scale-110 transition-transform" />
-                            <span className="group-hover:translate-x-1 transition-transform">Logout</span>
-                          </button>
+                      {/* Logout */}
+                      <div className="border-t border-gray-200 py-1">
+                        <button
+                          onClick={async (e) => { 
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowProfileDropdown(false); 
+                            setOpen(false);
+                            await logout();
+                            setTimeout(() => {
+                              router.push('/');
+                            }, 100);
+                          }}
+                          className="w-full px-4 py-2.5 text-left text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                        >
+                          <LogOut size={16} />
+                          <span>Logout</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Desktop Profile Dropdown */}
+              {!loading && user ? (
+                <div className="hidden lg:block relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 shadow-md hover:shadow-lg ${
+                      isTransparent
+                        ? 'bg-white/20 backdrop-blur-sm text-white border border-white/30 hover:bg-white/30'
+                        : 'bg-amber-600 text-white hover:bg-amber-700'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      isTransparent ? 'bg-amber-300/20' : 'bg-amber-500'
+                    }`}>
+                      <span className="text-sm font-bold">
+                        {user?.name?.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <ChevronDown size={18} className={`transition-transform duration-200 ${showProfileDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Desktop Dropdown Menu */}
+                  {showProfileDropdown && (
+                    <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-[60] animate-dropdownFade">
+                      {/* User Info Section */}
+                      <div className="px-5 py-5 bg-gradient-to-br from-amber-50 via-amber-50/80 to-orange-50 border-b border-amber-200">
+                        <div className="flex items-center gap-3">
+                          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg ring-2 ring-white">
+                            <span className="text-white text-xl font-bold">
+                              {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-base font-bold text-gray-900 truncate mb-1">
+                              {user?.name || 'User'}
+                            </p>
+                            <p className="text-xs text-gray-600 truncate flex items-center gap-1.5">
+                              <Mail size={13} className="flex-shrink-0" />
+                              <span>{user?.email || 'email@example.com'}</span>
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    )}
-                  </div>
-                </>
+
+                      {/* Navigation Links */}
+                      <div className="py-2">
+                        <button
+                          onClick={(e) => { 
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowProfileDropdown(false);
+                            setTimeout(() => {
+                              router.push('/');
+                            }, 100);
+                          }}
+                          className="w-full px-5 py-3 text-left text-sm font-medium text-gray-700 hover:bg-amber-50 transition-colors flex items-center gap-3 group"
+                        >
+                          <HomeIcon size={18} className="text-amber-600 group-hover:scale-110 transition-transform" />
+                          <span className="group-hover:translate-x-1 transition-transform">Home</span>
+                        </button>
+                        <button
+                          onClick={(e) => { 
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowProfileDropdown(false);
+                            setTimeout(() => {
+                              router.push('/bookings');
+                            }, 100);
+                          }}
+                          className="w-full px-5 py-3 text-left text-sm font-medium text-gray-700 hover:bg-amber-50 transition-colors flex items-center gap-3 group"
+                        >
+                          <BookOpen size={18} className="text-amber-600 group-hover:scale-110 transition-transform" />
+                          <span className="group-hover:translate-x-1 transition-transform">Your Bookings</span>
+                        </button>
+                      </div>
+
+                      {/* Logout Section */}
+                      <div className="border-t border-gray-200 py-2">
+                        <button
+                          onClick={async (e) => { 
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowProfileDropdown(false);
+                            await logout();
+                            setTimeout(() => {
+                              router.push('/');
+                            }, 100);
+                          }}
+                          className="w-full px-5 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-3 group"
+                        >
+                          <LogOut size={18} className="group-hover:scale-110 transition-transform" />
+                          <span className="group-hover:translate-x-1 transition-transform">Logout</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <button 
                   onClick={() => router.push('/auth/login')} 
@@ -348,20 +465,37 @@ export default function Header(){
                 </button>
               </div>
 
-              {/* Mobile Navigation Links */}
+              {/* Mobile Navigation Links - Professional 1 per line */}
               <div className="py-4 max-h-[calc(100vh-8rem)] overflow-y-auto">
                 <div className="space-y-2">
-                  {navItems.map((item) => (
+                  {navItems.map((item, index) => (
                     <button
                       key={item.name}
                       onClick={() => handleNavClick(item)}
-                      className={`w-full text-left px-4 py-3.5 text-base font-medium rounded-lg transition-all duration-300 ${
+                      className={`w-full text-left px-5 py-3.5 text-base font-medium rounded-xl transition-all duration-300 flex items-center justify-between group ${
                         activeNav === item.name 
-                          ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg' 
-                          : 'text-gray-700 hover:bg-amber-50 hover:text-amber-600'
+                          ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg transform scale-[1.02]' 
+                          : 'text-gray-700 hover:bg-gradient-to-r hover:from-amber-50 hover:to-amber-100 hover:text-amber-700 border border-gray-200 hover:border-amber-300 hover:shadow-md'
                       }`}
                     >
-                      {item.name}
+                      <span className="flex items-center gap-3">
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                          activeNav === item.name 
+                            ? 'bg-white' 
+                            : 'bg-amber-500 group-hover:bg-amber-600'
+                        }`} />
+                        {item.name}
+                      </span>
+                      <svg 
+                        className={`w-4 h-4 transition-transform duration-300 ${
+                          activeNav === item.name ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'
+                        }`} 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </button>
                   ))}
                 </div>

@@ -357,17 +357,17 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Booking Bar Section - Clean Separate Section */}
-        <section id="booking" className="relative py-20 bg-gradient-to-br from-white via-amber-50/30 to-white overflow-hidden scroll-mt-20">
+        {/* Booking Bar Section - Clean Separate Section - Mobile Optimized */}
+        <section id="booking" className="relative py-12 md:py-20 bg-gradient-to-br from-white via-amber-50/30 to-white overflow-hidden scroll-mt-20">
           {/* Decorative subtle background elements */}
           <div className="absolute top-0 left-0 w-72 h-72 bg-amber-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-10 blur-3xl" />
           <div className="absolute bottom-0 right-0 w-72 h-72 bg-amber-300 rounded-full translate-x-1/2 translate-y-1/2 opacity-10 blur-3xl" />
           
-          <div className="container mx-auto px-4 relative z-10">
+          <div className="container mx-auto px-4 md:px-4 relative z-10">
             <FadeIn>
-              <div className="text-center mb-10">
+              <div className="text-center mb-6 md:mb-10">
                 <motion.h2 
-                  className="text-3xl md:text-4xl font-playfair font-bold text-gray-800 mb-3"
+                  className="text-2xl md:text-4xl font-playfair font-bold text-gray-800 mb-2 md:mb-3"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6 }}
@@ -376,14 +376,14 @@ export default function HomePage() {
                   Reserve Your Stay
                 </motion.h2>
                 <motion.div 
-                  className="w-20 h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent mx-auto mb-4"
+                  className="w-20 h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent mx-auto mb-3 md:mb-4"
                   initial={{ opacity: 0, scaleX: 0 }}
                   whileInView={{ opacity: 1, scaleX: 1 }}
                   transition={{ duration: 0.8, delay: 0.2 }}
                   viewport={{ once: true }}
                 />
                 <motion.p 
-                  className="text-gray-600 text-base md:text-lg max-w-2xl mx-auto"
+                  className="text-gray-600 text-sm md:text-lg max-w-2xl mx-auto"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.3 }}
@@ -434,70 +434,70 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* About Section */}
-        <section id="about" className="py-24 bg-gradient-to-br from-amber-50 to-white relative overflow-hidden">
+        {/* About Section - Mobile Optimized: Image left, text right in one line */}
+        <section id="about" className="py-12 md:py-24 bg-gradient-to-br from-amber-50 to-white relative overflow-hidden">
           <div className="absolute top-0 left-0 w-72 h-72 bg-amber-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20" />
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-amber-300 rounded-full translate-x-1/3 translate-y-1/3 opacity-10" />
           
-          <div className="container mx-auto px-6 relative z-10">
-            <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="container mx-auto px-4 md:px-6 relative z-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 md:gap-16 items-center">
               <SlideIn>
-                <div className="relative">
+                <div className="relative h-64 md:h-auto">
                   <motion.div
                     whileHover={{ scale: 1.02 }}
                     transition={{ duration: 0.5 }}
-                    className="rounded-3xl overflow-hidden shadow-2xl"
+                    className="rounded-2xl md:rounded-3xl overflow-hidden shadow-xl md:shadow-2xl"
                   >
                     <img 
                       src="/images/landing page/hotel.webp" 
                       alt="Luxury Hotel" 
-                      className="w-full h-[600px] object-cover"
+                      className="w-full h-64 md:h-[600px] object-cover"
                     />
                   </motion.div>
                   <motion.div
                     initial={{ opacity: 0, scale: 0.8 }}
                     whileInView={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.6, delay: 0.4 }}
-                    className="absolute -bottom-6 -right-6 bg-white rounded-2xl p-6 shadow-2xl"
+                    className="absolute -bottom-4 md:-bottom-6 -right-4 md:-right-6 bg-white rounded-xl md:rounded-2xl p-3 md:p-6 shadow-2xl"
                   >
-                    <div className="text-3xl font-bold text-amber-600">15+</div>
-                    <div className="text-gray-600">Years of Excellence</div>
+                    <div className="text-xl md:text-3xl font-bold text-amber-600">15+</div>
+                    <div className="text-xs md:text-base text-gray-600">Years of Excellence</div>
                   </motion.div>
                 </div>
               </SlideIn>
 
               <FadeIn delay={0.2} direction="right">
                 <div>
-                  <h2 className="text-5xl font-playfair font-bold mb-6 leading-tight">
+                  <h2 className="text-2xl md:text-5xl font-playfair font-bold mb-4 md:mb-6 leading-tight">
                     Experience Unparalleled <span className="text-amber-600">Luxury</span> in the Hills
                   </h2>
-                  <p className="text-lg text-gray-600 mb-8 leading-relaxed">
+                  <p className="text-sm md:text-lg text-gray-600 mb-6 md:mb-8 leading-relaxed">
                     Nestled amidst pristine hills, Krishna Hotel & Restaurant offers a sanctuary where modern luxury harmonizes with natural beauty. Our commitment to exceptional service, authentic vegetarian cuisine, and breathtaking views creates memories that last a lifetime.
                   </p>
                   
-                  <div className="grid grid-cols-2 gap-6 mb-8">
+                  <div className="grid grid-cols-2 gap-3 md:gap-6 mb-6 md:mb-8">
                     {['Luxury Accommodations', 'Panoramic Views', 'Gourmet Dining', '24/7 Service'].map((feature, index) => (
                       <motion.div
                         key={feature}
                         initial={{ opacity: 0, x: -20 }}
                         whileInView={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.5, delay: index * 0.1 }}
-                        className="flex items-center space-x-3"
+                        className="flex items-center space-x-2 md:space-x-3"
                       >
-                        <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
-                          <div className="w-2 h-2 bg-amber-600 rounded-full" />
+                        <div className="w-6 h-6 md:w-8 md:h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-amber-600 rounded-full" />
                         </div>
-                        <span className="font-medium text-gray-700">{feature}</span>
+                        <span className="font-medium text-gray-700 text-xs md:text-base">{feature}</span>
                       </motion.div>
                     ))}
                   </div>
 
-                  <div className="flex flex-wrap gap-4">
+                  <div className="flex flex-wrap gap-3 md:gap-4">
                     <a
                       href="https://www.google.com/maps/dir//Kedarnath+Rd,+near+heritage+halipad,+Sersi,+Uttarakhand+246471/@30.6072346,78.9354361,12z/data=!3m1!4b1!4m8!4m7!1m0!1m5!1m1!1s0x3908495d3bbab39b:0x479d9bf085c33764!2m2!1d79.0178374!2d30.6072606?entry=ttu&g_ep=EgoyMDI1MTAxNC4wIKXMDSoASAFQAw%3D%3D"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="border-2 border-gray-300 hover:border-amber-600 text-gray-700 hover:text-amber-600 px-8 py-4 rounded-full font-semibold transition-all duration-300"
+                      className="border-2 border-gray-300 hover:border-amber-600 text-gray-700 hover:text-amber-600 px-5 md:px-8 py-2.5 md:py-4 rounded-full font-semibold text-sm md:text-base transition-all duration-300"
                     >
                       Get Directions
                     </a>
@@ -508,17 +508,17 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Rooms & Suites */}
-  <section id="rooms" className="py-24 bg-white scroll-mt-20">
-          <div className="container mx-auto px-6">
+        {/* Rooms & Suites - Mobile: 3 cards in one line */}
+  <section id="rooms" className="py-16 md:py-24 bg-white scroll-mt-20">
+          <div className="container mx-auto px-4 md:px-6">
             <FadeIn>
-              <div className="text-center max-w-3xl mx-auto mb-16">
-                <h2 className="text-5xl font-playfair font-bold mb-4">Luxury Accommodations</h2>
-                <p className="text-xl text-gray-600">Each room is meticulously designed to provide comfort, elegance, and breathtaking views of the surrounding hills.</p>
+              <div className="text-center max-w-3xl mx-auto mb-8 md:mb-16">
+                <h2 className="text-2xl md:text-5xl font-playfair font-bold mb-2 md:mb-4">Luxury Accommodations</h2>
+                <p className="text-sm md:text-xl text-gray-600">Each room is meticulously designed to provide comfort, elegance, and breathtaking views of the surrounding hills.</p>
               </div>
             </FadeIn>
 
-            <div className="grid lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-3 lg:grid-cols-3 gap-3 md:gap-8">
               {['deluxe-valley-view','hillside-suite','family-luxury-suite'].map((k, index) => {
                 const t = types.find(x=>x.key===k)
                 const title = t?.title || (k==='deluxe-valley-view'?'Deluxe Valley View':k==='hillside-suite'?'Hillside Suite':'Family Luxury Suite')
@@ -535,44 +535,44 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Restaurant Section */}
-  <section id="restaurant" className="py-24 bg-gradient-to-br from-gray-50 to-amber-50 scroll-mt-20">
-          <div className="container mx-auto px-6">
+        {/* Restaurant Section - Mobile Optimized */}
+  <section id="restaurant" className="py-12 md:py-24 bg-gradient-to-br from-gray-50 to-amber-50 scroll-mt-20">
+          <div className="container mx-auto px-4 md:px-6">
             <FadeIn>
-              <div className="text-center max-w-3xl mx-auto mb-16">
-                <h2 className="text-5xl font-playfair font-bold mb-4">Authentic Vegetarian Cuisine</h2>
-                <p className="text-xl text-gray-600">Savor the flavors of the hills with our carefully crafted vegetarian dishes made from locally sourced ingredients</p>
+              <div className="text-center max-w-3xl mx-auto mb-8 md:mb-16">
+                <h2 className="text-2xl md:text-5xl font-playfair font-bold mb-2 md:mb-4">Authentic Vegetarian Cuisine</h2>
+                <p className="text-sm md:text-xl text-gray-600">Savor the flavors of the hills with our carefully crafted vegetarian dishes made from locally sourced ingredients</p>
               </div>
             </FadeIn>
 
-            <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12 items-center">
               <FadeIn delay={0.1}>
-                <div className="rounded-3xl overflow-hidden shadow-2xl">
+                <div className="rounded-2xl md:rounded-3xl overflow-hidden shadow-lg md:shadow-2xl">
                   <img 
                     src="/images/restaurant/restaurant.webp" 
                     alt="Restaurant" 
-                    className="w-full h-96 object-cover"
+                    className="w-full h-48 md:h-96 object-cover"
                   />
                 </div>
               </FadeIn>
               
               <FadeIn delay={0.2} direction="left">
                 <div>
-                  <h3 className="text-3xl font-playfair font-bold mb-6">Culinary Excellence</h3>
-                  <p className="text-lg text-gray-600 mb-6 leading-relaxed">
+                  <h3 className="text-xl md:text-3xl font-playfair font-bold mb-3 md:mb-6">Culinary Excellence</h3>
+                  <p className="text-sm md:text-lg text-gray-600 mb-4 md:mb-6 leading-relaxed">
                     Our chefs combine traditional recipes with modern techniques to create unforgettable dining experiences. Every dish tells a story of the hills and our commitment to quality.
                   </p>
-                  <div className="space-y-4 mb-8">
+                  <div className="space-y-2 md:space-y-4 mb-6 md:mb-8">
                     {['Fresh Local Ingredients', 'Traditional Recipes', 'Modern Presentation', 'Seasonal Specialties'].map((item, index) => (
-                      <div key={item} className="flex items-center space-x-3">
-                        <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
-                          <div className="w-2 h-2 bg-amber-600 rounded-full" />
+                      <div key={item} className="flex items-center space-x-2 md:space-x-3">
+                        <div className="w-5 h-5 md:w-6 md:h-6 bg-amber-100 rounded-full flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-amber-600 rounded-full" />
                         </div>
-                        <span className="font-medium text-gray-700">{item}</span>
+                        <span className="font-medium text-gray-700 text-sm md:text-base">{item}</span>
                       </div>
                     ))}
                   </div>
-                  <button className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 rounded-full font-semibold transition-all duration-300 transform hover:scale-105">
+                  <button className="bg-amber-600 hover:bg-amber-700 text-white px-6 md:px-8 py-3 md:py-4 rounded-full font-semibold text-sm md:text-base transition-all duration-300 transform hover:scale-105">
                     View Menu
                   </button>
                 </div>
@@ -581,17 +581,17 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Enhanced Facilities */}
-        <section id="experiences" className="py-24 bg-white">
-          <div className="container mx-auto px-6">
+        {/* Enhanced Facilities - 4 tabs in one line on mobile */}
+        <section id="experiences" className="py-12 md:py-24 bg-white">
+          <div className="container mx-auto px-4 md:px-6">
             <FadeIn>
-              <div className="text-center max-w-3xl mx-auto mb-16">
-                <h2 className="text-5xl font-playfair font-bold mb-4">World-Class Amenities</h2>
-                <p className="text-xl text-gray-600">Designed to enhance your stay with premium services and facilities</p>
+              <div className="text-center max-w-3xl mx-auto mb-8 md:mb-16">
+                <h2 className="text-2xl md:text-5xl font-playfair font-bold mb-2 md:mb-4">World-Class Amenities</h2>
+                <p className="text-sm md:text-xl text-gray-600">Designed to enhance your stay with premium services and facilities</p>
               </div>
             </FadeIn>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-4 md:grid-cols-4 gap-3 md:gap-6">
               {[
                 { icon: "📶", title: "High-Speed WiFi", desc: "Complimentary high-speed internet" },
                 { icon: "🍽️", title: "Fine Dining", desc: "Authentic vegetarian cuisine" },
@@ -610,27 +610,27 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Gallery Section */}
-  <section id="gallery" className="py-24 bg-gradient-to-br from-amber-50 to-white scroll-mt-20">
-          <div className="container mx-auto px-6">
+        {/* Gallery Section - Mobile Optimized */}
+  <section id="gallery" className="py-12 md:py-24 bg-gradient-to-br from-amber-50 to-white scroll-mt-20">
+          <div className="container mx-auto px-4 md:px-6">
             <FadeIn>
-              <div className="text-center max-w-3xl mx-auto mb-16">
-                <h2 className="text-5xl font-playfair font-bold mb-4">Moments of Bliss</h2>
-                <p className="text-xl text-gray-600">Capture the essence of your unforgettable stay through our lens</p>
+              <div className="text-center max-w-3xl mx-auto mb-8 md:mb-16">
+                <h2 className="text-2xl md:text-5xl font-playfair font-bold mb-2 md:mb-4">Moments of Bliss</h2>
+                <p className="text-sm md:text-xl text-gray-600">Capture the essence of your unforgettable stay through our lens</p>
               </div>
             </FadeIn>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
                 <FadeIn key={i} delay={i * 0.1}>
                   <motion.div
                     whileHover={{ scale: 1.05 }}
-                    className="rounded-2xl overflow-hidden shadow-lg cursor-pointer"
+                    className="rounded-xl md:rounded-2xl overflow-hidden shadow-md md:shadow-lg cursor-pointer"
                   >
                     <img 
                       src={`/images/gallery-${i+1}.jpg`} 
                       alt={`Gallery ${i+1}`} 
-                      className="w-full h-64 object-cover transition-transform duration-300"
+                      className="w-full h-40 md:h-64 object-cover transition-transform duration-300"
                     />
                   </motion.div>
                 </FadeIn>
@@ -639,13 +639,13 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Testimonials */}
-        <section className="py-24 bg-gradient-to-br from-amber-600 to-amber-700 text-white">
-          <div className="container mx-auto px-6">
+        {/* Testimonials - Mobile Optimized */}
+        <section className="py-12 md:py-24 bg-gradient-to-br from-amber-600 to-amber-700 text-white">
+          <div className="container mx-auto px-4 md:px-6">
             <FadeIn>
-              <div className="text-center max-w-3xl mx-auto mb-16">
-                <h2 className="text-5xl font-playfair font-bold mb-4">Guest Stories</h2>
-                <p className="text-xl text-amber-100">Discover what our guests say about their experiences</p>
+              <div className="text-center max-w-3xl mx-auto mb-8 md:mb-16">
+                <h2 className="text-2xl md:text-5xl font-playfair font-bold mb-2 md:mb-4">Guest Stories</h2>
+                <p className="text-sm md:text-xl text-amber-100">Discover what our guests say about their experiences</p>
               </div>
             </FadeIn>
 
@@ -655,7 +655,7 @@ export default function HomePage() {
               </div>
             ) : testimonials.length > 0 ? (
               <>
-                <div className="grid md:grid-cols-3 gap-8">
+                <div className="grid grid-cols-3 md:grid-cols-3 gap-3 md:gap-8">
                   {testimonials.map((testimonial, index) => (
                     <FadeIn key={testimonial._id} delay={index * 0.2}>
                       <TestimonialCard 
@@ -668,8 +668,8 @@ export default function HomePage() {
                   ))}
                 </div>
                 <FadeIn delay={0.8}>
-                  <div className="text-center mt-12">
-                    <Link href="/testimonials" className="inline-flex items-center gap-2 bg-white text-amber-700 hover:bg-amber-50 px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg">
+                  <div className="text-center mt-8 md:mt-12">
+                    <Link href="/testimonials" className="inline-flex items-center gap-2 bg-white text-amber-700 hover:bg-amber-50 px-5 md:px-8 py-2.5 md:py-3 rounded-full font-semibold text-sm md:text-lg transition-all duration-300 transform hover:scale-105 shadow-lg">
                       View All Reviews →
                     </Link>
                   </div>
@@ -677,8 +677,8 @@ export default function HomePage() {
               </>
             ) : (
               <div className="text-center py-12">
-                <p className="text-xl text-amber-100 mb-6">Be the first to share your experience!</p>
-                <Link href="/testimonials" className="inline-flex items-center gap-2 bg-white text-amber-700 hover:bg-amber-50 px-8 py-3 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg">
+                <p className="text-base md:text-xl text-amber-100 mb-6">Be the first to share your experience!</p>
+                <Link href="/testimonials" className="inline-flex items-center gap-2 bg-white text-amber-700 hover:bg-amber-50 px-6 md:px-8 py-2.5 md:py-3 rounded-full font-semibold text-sm md:text-lg transition-all duration-300 transform hover:scale-105 shadow-lg">
                   Write a Review →
                 </Link>
               </div>
@@ -686,88 +686,100 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Contact Section */}
-  <section id="contact" className="py-24 bg-white scroll-mt-20">
-          <div className="container mx-auto px-6">
+        {/* Contact Section - Mobile: 3 tabs in one line */}
+  <section id="contact" className="py-12 md:py-24 bg-white scroll-mt-20">
+          <div className="container mx-auto px-4 md:px-6">
             <FadeIn>
-              <div className="text-center max-w-3xl mx-auto mb-16">
-                <h2 className="text-5xl font-playfair font-bold mb-4">Get In Touch</h2>
-                <p className="text-xl text-gray-600">We'd love to hear from you and help plan your perfect stay</p>
+              <div className="text-center max-w-3xl mx-auto mb-8 md:mb-16">
+                <h2 className="text-2xl md:text-5xl font-playfair font-bold mb-2 md:mb-4">Get In Touch</h2>
+                <p className="text-sm md:text-xl text-gray-600">We'd love to hear from you and help plan your perfect stay</p>
               </div>
             </FadeIn>
 
-            <div className="grid lg:grid-cols-2 gap-12">
+            {/* Mobile: 3 columns, Desktop: 2 columns */}
+            <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-2 gap-2 md:gap-12">
+              {/* Address - Mobile Column 1 */}
               <FadeIn delay={0.1}>
-                <div className="bg-gray-50 rounded-3xl p-8">
-                  <h3 className="text-2xl font-playfair font-bold mb-6">Contact Information</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
-                        <span className="text-amber-600">📍</span>
-                      </div>
-                      <div>
-                        <div className="font-semibold">Address</div>
-                        <div className="text-gray-600">{siteConfig.address}</div>
-                      </div>
+                <div className="bg-gray-50 rounded-xl md:rounded-3xl p-3 md:p-8">
+                  <div className="flex flex-col items-center md:items-start">
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-amber-100 rounded-full flex items-center justify-center mb-2 md:mb-0">
+                      <span className="text-amber-600 text-base md:text-xl">📍</span>
                     </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
-                        <span className="text-amber-600">📞</span>
-                      </div>
-                      <div>
-                        <div className="font-semibold">Phone</div>
-                        <div className="text-gray-600">{siteConfig.phone}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
-                        <span className="text-amber-600">✉️</span>
-                      </div>
-                      <div>
-                        <div className="font-semibold">Email</div>
-                        <div className="text-gray-600">{siteConfig.email}</div>
-                      </div>
+                    <div className="text-center md:text-left mt-2 md:mt-4">
+                      <div className="font-semibold text-xs md:text-base mb-1">Address</div>
+                      <div className="text-gray-600 text-[10px] md:text-base leading-tight">{siteConfig.address}</div>
                     </div>
                   </div>
                 </div>
               </FadeIn>
 
-              <FadeIn delay={0.2}>
-                <div className="bg-amber-50 rounded-3xl p-8">
-                  <h3 className="text-2xl font-playfair font-bold mb-6">Send us a Message</h3>
-                  <form className="space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <input 
-                        type="text" 
-                        placeholder="Your Name" 
-                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                      />
-                      <input 
-                        type="email" 
-                        placeholder="Your Email" 
-                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                      />
+              {/* Phone - Mobile Column 2 */}
+              <FadeIn delay={0.15}>
+                <div className="bg-gray-50 rounded-xl md:rounded-3xl p-3 md:p-8">
+                  <div className="flex flex-col items-center md:items-start">
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-amber-100 rounded-full flex items-center justify-center mb-2 md:mb-0">
+                      <span className="text-amber-600 text-base md:text-xl">📞</span>
                     </div>
-                    <input 
-                      type="text" 
-                      placeholder="Subject" 
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    />
-                    <textarea 
-                      placeholder="Your Message" 
-                      rows="4"
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    ></textarea>
-                    <button 
-                      type="submit"
-                      className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 rounded-full font-semibold transition-all duration-300 transform hover:scale-105"
-                    >
-                      Send Message
-                    </button>
-                  </form>
+                    <div className="text-center md:text-left mt-2 md:mt-4">
+                      <div className="font-semibold text-xs md:text-base mb-1">Phone</div>
+                      <div className="text-gray-600 text-[10px] md:text-base">{siteConfig.phone}</div>
+                    </div>
+                  </div>
+                </div>
+              </FadeIn>
+
+              {/* Email - Mobile Column 3 */}
+              <FadeIn delay={0.2}>
+                <div className="bg-gray-50 rounded-xl md:rounded-3xl p-3 md:p-8">
+                  <div className="flex flex-col items-center md:items-start">
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-amber-100 rounded-full flex items-center justify-center mb-2 md:mb-0">
+                      <span className="text-amber-600 text-base md:text-xl">✉️</span>
+                    </div>
+                    <div className="text-center md:text-left mt-2 md:mt-4">
+                      <div className="font-semibold text-xs md:text-base mb-1">Email</div>
+                      <div className="text-gray-600 text-[10px] md:text-base break-all">{siteConfig.email}</div>
+                    </div>
+                  </div>
                 </div>
               </FadeIn>
             </div>
+
+            {/* Message Form - Full Width Below on Mobile */}
+            <FadeIn delay={0.3}>
+              <div className="bg-amber-50 rounded-2xl md:rounded-3xl p-4 md:p-8 mt-4 md:mt-12">
+                <h3 className="text-lg md:text-2xl font-playfair font-bold mb-4 md:mb-6 text-center md:text-left">Send us a Message</h3>
+                <form className="space-y-3 md:space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                    <input 
+                      type="text" 
+                      placeholder="Your Name" 
+                      className="w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base rounded-lg md:rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    />
+                    <input 
+                      type="email" 
+                      placeholder="Your Email" 
+                      className="w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base rounded-lg md:rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    />
+                  </div>
+                  <input 
+                    type="text" 
+                    placeholder="Subject" 
+                    className="w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base rounded-lg md:rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  />
+                  <textarea 
+                    placeholder="Your Message" 
+                    rows="3"
+                    className="w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base rounded-lg md:rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  ></textarea>
+                  <button 
+                    type="submit"
+                    className="w-full md:w-auto bg-amber-600 hover:bg-amber-700 text-white px-6 md:px-8 py-3 md:py-4 text-sm md:text-base rounded-full font-semibold transition-all duration-300 transform hover:scale-105"
+                  >
+                    Send Message
+                  </button>
+                </form>
+              </div>
+            </FadeIn>
           </div>
         </section>
 
@@ -812,7 +824,7 @@ function HomeRoomCard({ img, title, price, features, photos = [] }){
 
   return (
     <motion.div
-      className="bg-white rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500"
+      className="bg-white rounded-xl md:rounded-3xl overflow-hidden shadow-lg md:shadow-xl hover:shadow-xl md:hover:shadow-2xl transition-all duration-500"
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
       whileHover={{ y: -10 }}
@@ -821,18 +833,18 @@ function HomeRoomCard({ img, title, price, features, photos = [] }){
         <motion.img 
           src={img} 
           alt={title}
-          className="w-full h-64 object-cover"
+          className="w-full h-32 md:h-64 object-cover"
           animate={{ scale: isHovered ? 1.1 : 1 }}
           transition={{ duration: 0.6 }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-        <div className="absolute bottom-4 left-4 text-white">
-          <h3 className="text-2xl font-playfair font-bold">{title}</h3>
+        <div className="absolute bottom-2 md:bottom-4 left-2 md:left-4 text-white">
+          <h3 className="text-xs md:text-2xl font-playfair font-bold leading-tight">{title}</h3>
         </div>
       </div>
       
-      <div className="p-6">
-        <div className="mb-4">
+      <div className="p-3 md:p-6">
+        <div className="mb-2 md:mb-4 hidden md:block">
           {features.map((feature, index) => (
             <div key={feature} className="flex items-center text-gray-600 mb-2">
               <div className="w-2 h-2 bg-amber-500 rounded-full mr-3" />
@@ -841,9 +853,17 @@ function HomeRoomCard({ img, title, price, features, photos = [] }){
           ))}
         </div>
         
+        {/* Mobile: Show only first feature */}
+        <div className="mb-2 md:hidden">
+          <div className="flex items-center text-gray-600 text-[10px]">
+            <div className="w-1.5 h-1.5 bg-amber-500 rounded-full mr-1.5" />
+            {features[0]}
+          </div>
+        </div>
+        
         <div>
-          <span className="text-2xl font-bold text-amber-600">₹{price}</span>
-          <span className="text-gray-500 text-sm ml-1">/ night</span>
+          <span className="text-sm md:text-2xl font-bold text-amber-600">₹{price}</span>
+          <span className="text-gray-500 text-[10px] md:text-sm ml-1">/ night</span>
         </div>
       </div>
 
@@ -856,18 +876,18 @@ function HomeRoomCard({ img, title, price, features, photos = [] }){
 function FacilityCard({ icon, title, desc }){
   return (
     <motion.div
-      className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 text-center group cursor-pointer"
+      className="bg-white rounded-xl md:rounded-2xl p-3 md:p-6 shadow-lg hover:shadow-xl transition-all duration-300 text-center group cursor-pointer"
       whileHover={{ y: -5 }}
     >
       <motion.div 
-        className="text-4xl mb-4"
+        className="text-2xl md:text-4xl mb-2 md:mb-4"
         whileHover={{ scale: 1.2, rotate: 5 }}
         transition={{ duration: 0.3 }}
       >
         {icon}
       </motion.div>
-      <h3 className="font-semibold text-lg mb-2 text-gray-800">{title}</h3>
-      <p className="text-gray-600 text-sm">{desc}</p>
+      <h3 className="font-semibold text-xs md:text-lg mb-1 md:mb-2 text-gray-800">{title}</h3>
+      <p className="text-gray-600 text-[10px] md:text-sm hidden md:block">{desc}</p>
     </motion.div>
   )
 }
@@ -876,29 +896,30 @@ function FacilityCard({ icon, title, desc }){
 function TestimonialCard({ name, rating = 5, message, role }){
   return (
     <motion.div
-      className="bg-white/10 backdrop-blur-sm rounded-3xl p-8 border border-white/20 hover:border-white/40 transition-all duration-300"
+      className="bg-white/10 backdrop-blur-sm rounded-xl md:rounded-3xl p-3 md:p-8 border border-white/20 hover:border-white/40 transition-all duration-300"
       whileHover={{ scale: 1.02 }}
     >
-      <div className="flex items-center gap-4 mb-6">
-        <div className="w-14 h-14 bg-amber-400/20 rounded-full flex items-center justify-center text-amber-200 font-semibold text-lg">
+      <div className="flex flex-col md:flex-row items-center md:items-center gap-2 md:gap-4 mb-3 md:mb-6">
+        <div className="w-10 h-10 md:w-14 md:h-14 bg-amber-400/20 rounded-full flex items-center justify-center text-amber-200 font-semibold text-sm md:text-lg flex-shrink-0">
           {name[0]}
         </div>
-        <div>
-          <h4 className="font-semibold text-lg">{name}</h4>
-          <p className="text-amber-200 text-sm">{role}</p>
-          <div className="flex items-center gap-1 text-amber-300 mt-1">
+        <div className="text-center md:text-left">
+          <h4 className="font-semibold text-xs md:text-lg truncate">{name}</h4>
+          <p className="text-amber-200 text-[10px] md:text-sm">{role}</p>
+          <div className="flex items-center justify-center md:justify-start gap-0.5 md:gap-1 text-amber-300 mt-0.5 md:mt-1">
             {Array.from({ length: rating }).map((_,i) => (
               <motion.span 
                 key={i}
                 initial={{ scale: 0 }}
                 whileInView={{ scale: 1 }}
                 transition={{ duration: 0.3, delay: i * 0.1 }}
+                className="text-xs md:text-base"
               >★</motion.span>
             ))}
           </div>
         </div>
       </div>
-      <p className="text-amber-100 leading-relaxed italic">"{message}"</p>
+      <p className="text-amber-100 leading-tight md:leading-relaxed italic text-[10px] md:text-base line-clamp-3 md:line-clamp-none">"{message}"</p>
     </motion.div>
   )
 }
