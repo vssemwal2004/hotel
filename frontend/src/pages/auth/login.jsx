@@ -118,7 +118,9 @@ export default function Login(){
   const onSubmit = async (data) => {
     try {
       setIsLoading(true)
+      console.log('Attempting login with:', data.email)
       const u = await login({ email: data.email, password: data.password })
+      console.log('Login successful:', u)
       
       // Check for pending booking after login
       const pendingBooking = sessionStorage.getItem('pendingBooking')
@@ -141,7 +143,12 @@ export default function Login(){
         router.push('/home')
       }
     } catch (e) {
-      alert(e?.response?.data?.message || 'Login failed')
+      console.error('Login error:', e)
+      console.error('Error response:', e?.response?.data)
+      console.error('Error status:', e?.response?.status)
+      console.error('Error message:', e?.message)
+      const errorMsg = e?.response?.data?.message || e?.message || 'Login failed. Please check your credentials.'
+      alert(errorMsg)
     } finally {
       setIsLoading(false)
     }

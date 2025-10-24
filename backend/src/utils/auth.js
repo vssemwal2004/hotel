@@ -14,10 +14,12 @@ export function verifyToken(token) {
 export function cookieOptions() {
   const domain = process.env.COOKIE_DOMAIN
   const useDomain = domain && domain !== 'localhost' ? domain : undefined
+  // In local development across ports (e.g., 3000 -> 5000), use 'none' for cross-origin
+  const sameSite = process.env.COOKIE_SAMESITE || (isProd ? 'none' : 'none')
   return {
     httpOnly: true,
-    secure: isProd, // set true behind HTTPS in production
-    sameSite: isProd ? 'none' : 'lax',
+    secure: false, // Set false for local development (http://localhost)
+    sameSite,
     domain: useDomain,
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000
