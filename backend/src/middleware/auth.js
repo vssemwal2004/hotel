@@ -3,7 +3,11 @@ import User from '../models/User.js'
 
 export async function authRequired(req, res, next) {
   try {
-    const token = req.cookies.token
+    let token = req.cookies?.token
+    if (!token) {
+      const auth = req.headers['authorization'] || ''
+      if (auth.toLowerCase().startsWith('bearer ')) token = auth.slice(7).trim()
+    }
     if (!token) return res.status(401).json({ message: 'Not authenticated' })
     const { sub } = verifyToken(token)
     const user = await User.findById(sub).select('name email role')
@@ -19,4 +23,12 @@ export function adminRequired(req, res, next) {
   if (!req.user) return res.status(401).json({ message: 'Not authenticated' })
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' })
   next()
+}
+
+export function rolesRequired(...roles) {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ message: 'Not authenticated' })
+    if (!roles.includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' })
+    next()
+  }
 }

@@ -24,7 +24,14 @@ const bookingSchema = new mongoose.Schema({
   items: [itemSchema],
   total: { type: Number, required: true, min: 0 },
   // status: pending -> paid -> completed | cancelled
-  status: { type: String, enum: ['pending','paid','completed','cancelled'], default: 'pending' }
+  status: { type: String, enum: ['pending','paid','completed','cancelled'], default: 'pending' },
+  payment: {
+    provider: { type: String },
+    orderId: { type: String },
+    paymentId: { type: String },
+    signature: { type: String },
+    status: { type: String, enum: ['created','paid','refunded','failed'], default: 'created' }
+  }
 }, { timestamps: true })
 
 const Booking = mongoose.model('Booking', bookingSchema)

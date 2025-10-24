@@ -43,6 +43,59 @@ export default function BookingsPage() {
     }
   }
 
+  // Razorpay payment handler for pending bookings
+  const payWithRazorpay = async (booking) => {
+    try {
+      // Create order on backend
+      const { data } = await api.post('/payments/create-order', { bookingId: booking._id })
+      const { orderId, key, amount, currency } = data
+
+      // Load Razorpay script if not present
+      if (!window.Razorpay) {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script')
+          s.src = 'https://checkout.razorpay.com/v1/checkout.js'
+          s.onload = resolve
+          s.onerror = reject
+          document.body.appendChild(s)
+        })
+      }
+
+      const options = {
+        key,
+        amount,
+        currency,
+        name: 'Hotel Krishna',
+        description: `Booking #${booking._id.slice(-6).toUpperCase()}`,
+        order_id: orderId,
+        prefill: {
+          name: user?.name || '',
+          email: user?.email || ''
+        },
+        theme: { color: '#f59e0b' },
+        handler: async function (resp) {
+          try {
+            const ver = await api.post('/payments/verify', {
+              razorpay_order_id: resp.razorpay_order_id,
+              razorpay_payment_id: resp.razorpay_payment_id,
+              razorpay_signature: resp.razorpay_signature,
+              bookingId: booking._id
+            })
+            // Refresh bookings
+            await fetchBookings()
+            alert('Payment successful! Your booking is confirmed.')
+          } catch (e) {
+            alert(e?.response?.data?.message || 'Payment verification failed')
+          }
+        }
+      }
+      const rzp = new window.Razorpay(options)
+      rzp.open()
+    } catch (e) {
+      alert(e?.response?.data?.message || 'Failed to initiate payment')
+    }
+  }
+
   const getStatusInfo = (status) => {
     switch (status) {
       case 'paid':
@@ -415,8 +468,8 @@ export default function BookingsPage() {
                               {/* Action Buttons */}
                               {booking.status === 'pending' && (
                                 <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                                  <button className="flex-1 px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all shadow-lg hover:shadow-xl">
-                                    Complete Payment
+                                  <button onClick={() => payWithRazorpay(booking)} className="flex-1 px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all shadow-lg hover:shadow-xl">
+                                    Pay with Razorpay
                                   </button>
                                   <button className="px-6 py-3 bg-white text-red-600 font-semibold rounded-lg hover:bg-red-50 transition-all border-2 border-red-200">
                                     Cancel Booking
