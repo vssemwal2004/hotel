@@ -85,6 +85,8 @@ export default function HomePage() {
   const [testimonials, setTestimonials] = useState([])
   const [types, setTypes] = useState([])
   const [loadingTestimonials, setLoadingTestimonials] = useState(true)
+  const [galleryImages, setGalleryImages] = useState([])
+  const [loadingGallery, setLoadingGallery] = useState(true)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -120,6 +122,21 @@ export default function HomePage() {
         console.error('Error details:', error.response?.data || error.message)
       } finally {
         setLoadingTestimonials(false)
+      }
+    })()
+  }, [])
+
+  // Fetch gallery images
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get('/gallery')
+        console.log('Gallery images:', res.data)
+        setGalleryImages(res.data)
+      } catch (error) {
+        console.error('Error fetching gallery:', error)
+      } finally {
+        setLoadingGallery(false)
       }
     })()
   }, [])
@@ -621,20 +638,40 @@ export default function HomePage() {
             </FadeIn>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <FadeIn key={i} delay={i * 0.1}>
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    className="rounded-xl md:rounded-2xl overflow-hidden shadow-md md:shadow-lg cursor-pointer"
-                  >
-                    <img 
-                      src={`/images/gallery-${i+1}.jpg`} 
-                      alt={`Gallery ${i+1}`} 
-                      className="w-full h-40 md:h-64 object-cover transition-transform duration-300"
-                    />
-                  </motion.div>
-                </FadeIn>
-              ))}
+              {loadingGallery ? (
+                <div className="col-span-2 md:col-span-3 lg:col-span-4 text-center py-12">
+                  <p className="text-gray-500">Loading gallery...</p>
+                </div>
+              ) : galleryImages.length === 0 ? (
+                <div className="col-span-2 md:col-span-3 lg:col-span-4 text-center py-12">
+                  <p className="text-gray-500">No gallery images available</p>
+                </div>
+              ) : (
+                galleryImages.map((image, i) => (
+                  <FadeIn key={image._id} delay={i * 0.1}>
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      className="rounded-xl md:rounded-2xl overflow-hidden shadow-md md:shadow-lg cursor-pointer group relative"
+                    >
+                      <img 
+                        src={image.imageUrl} 
+                        alt={image.title || `Gallery ${image.order}`} 
+                        className="w-full h-40 md:h-64 object-cover transition-transform duration-300"
+                      />
+                      {image.title && (
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end">
+                          <div className="p-3 md:p-4 w-full">
+                            <h3 className="text-white font-semibold text-sm md:text-base">{image.title}</h3>
+                            {image.description && (
+                              <p className="text-white/90 text-xs md:text-sm mt-1">{image.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  </FadeIn>
+                ))
+              )}
             </div>
           </div>
         </section>

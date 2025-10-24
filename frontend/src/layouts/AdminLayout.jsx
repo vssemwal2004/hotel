@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Home,
   MessageSquare,
-  Mail
+  Mail,
+  Image
 } from 'lucide-react'
 
 // AdminLayout provides a professional responsive admin layout with sidebar
@@ -48,6 +49,7 @@ export default function AdminLayout({ children }){
     { icon: Bed, label: 'Room Types', href: '/admin/rooms', color: 'text-purple-500' },
     { icon: Users, label: 'Users', href: '/admin/users', color: 'text-pink-500' },
     { icon: MessageSquare, label: 'Testimonials', href: '/admin/testimonials', color: 'text-amber-500' },
+    { icon: Image, label: 'Gallery', href: '/admin/gallery', color: 'text-cyan-500' },
     { icon: Mail, label: 'Messages', href: '/admin/messages', color: 'text-red-500' },
   ]
 
