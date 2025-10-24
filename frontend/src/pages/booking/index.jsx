@@ -180,8 +180,8 @@ export default function BookingIndex(){
       }
       const { data } = await api.post('/bookings', payload)
       const bookingId = data.booking?._id
-      await api.post(`/bookings/${bookingId}/pay`)
-      router.push('/booking/confirmation')
+      // Redirect to confirmation page where payment will be initiated
+      router.push({ pathname: '/booking/confirmation', query: { bookingId } })
     } catch (e) {
       alert(e?.response?.data?.message || 'Payment failed')
     } finally {

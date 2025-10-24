@@ -12,6 +12,8 @@ import roomsRouter from './routes/rooms.js'
 import roomTypesRouter from './routes/roomTypes.js'
 import bookingsRouter from './routes/bookings.js'
 import paymentsRouter from './routes/payments.js'
+import testimonialsRouter from './routes/testimonials.js'
+import contactRouter from './routes/contact.js'
 import { ensureAdminFromEnv } from './utils/seedAdmin.js'
 
 // Load env for local dev and general usage
@@ -67,6 +69,8 @@ app.use('/api/rooms', roomsRouter)
 app.use('/api/room-types', roomTypesRouter)
 app.use('/api/bookings', bookingsRouter)
 app.use('/api/payments', paymentsRouter)
+app.use('/api/testimonials', testimonialsRouter)
+app.use('/api/contact', contactRouter)
 
 // Error handler
 // eslint-disable-next-line no-unused-vars

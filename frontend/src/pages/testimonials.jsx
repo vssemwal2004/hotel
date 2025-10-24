@@ -115,6 +115,8 @@ export default function Testimonials() {
       })
       
       setSubmitSuccess(true)
+      // Refresh the list and stats so everyone (including current user) sees the new review immediately
+      await Promise.all([fetchTestimonials(), fetchStats()])
       setFormData({
         name: '',
         email: '',

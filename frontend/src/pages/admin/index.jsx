@@ -53,7 +53,7 @@ export default function AdminIndex(){
       const activeBookings = bookings.filter(b => {
         const checkIn = new Date(b.checkIn)
         const checkOut = new Date(b.checkOut || b.checkIn)
-        return checkIn <= now && checkOut >= now && b.paymentStatus === 'paid'
+        return checkIn <= now && checkOut >= now && b.status === 'paid'
       }).length
 
       // Calculate total available rooms
@@ -63,7 +63,7 @@ export default function AdminIndex(){
       const occupiedRooms = bookings.filter(b => {
         const checkIn = new Date(b.checkIn)
         const checkOut = new Date(b.checkOut || b.checkIn)
-        return checkIn <= now && checkOut >= now && b.paymentStatus === 'paid'
+        return checkIn <= now && checkOut >= now && b.status === 'paid'
       }).reduce((sum, b) => sum + b.items.reduce((s, i) => s + i.quantity, 0), 0)
       
       const occupancyRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0
@@ -74,7 +74,7 @@ export default function AdminIndex(){
         totalRooms,
         totalUsers: bookings.length,
         todayBookings,
-        pendingPayments: bookings.filter(b => b.paymentStatus === 'pending').length,
+        pendingPayments: bookings.filter(b => b.status === 'pending').length,
         activeBookings,
         occupancyRate
       })
@@ -252,6 +252,13 @@ export default function AdminIndex(){
             href="/admin/rooms"
             color="text-purple-600"
             bgColor="bg-purple-50"
+          />
+          <QuickActionCard
+            icon={Users}
+            label="Add Worker"
+            href="/admin/users"
+            color="text-pink-600"
+            bgColor="bg-pink-50"
           />
         </div>
       </div>

@@ -46,6 +46,7 @@ export default function AdminLayout({ children }){
     { icon: LayoutDashboard, label: 'Dashboard', href: '/admin', color: 'text-blue-500' },
     { icon: CalendarCheck, label: 'Bookings', href: '/admin/bookings', color: 'text-green-500' },
     { icon: Bed, label: 'Room Types', href: '/admin/rooms', color: 'text-purple-500' },
+    { icon: Users, label: 'Users', href: '/admin/users', color: 'text-pink-500' },
     { icon: MessageSquare, label: 'Testimonials', href: '/admin/testimonials', color: 'text-amber-500' },
     { icon: Mail, label: 'Messages', href: '/admin/messages', color: 'text-red-500' },
   ]

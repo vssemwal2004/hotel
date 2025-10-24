@@ -55,7 +55,7 @@ export default function AdminBookings(){
 
     // Filter by status
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(b => b.paymentStatus === statusFilter)
+      filtered = filtered.filter(b => b.status === statusFilter)
     }
 
     // Filter by search query
@@ -77,12 +77,16 @@ export default function AdminBookings(){
     const styles = {
       paid: 'bg-green-100 text-green-700 border-green-200',
       pending: 'bg-amber-100 text-amber-700 border-amber-200',
-      failed: 'bg-red-100 text-red-700 border-red-200'
+      failed: 'bg-red-100 text-red-700 border-red-200',
+      completed: 'bg-blue-100 text-blue-700 border-blue-200',
+      cancelled: 'bg-gray-100 text-gray-700 border-gray-200'
     }
     const icons = {
       paid: Check,
       pending: Clock,
-      failed: X
+      failed: X,
+      completed: Check,
+      cancelled: X
     }
     const safeStatus = typeof status === 'string' && status.length ? status : 'pending'
     const Icon = icons[safeStatus] || Clock
@@ -118,8 +122,8 @@ export default function AdminBookings(){
             
             {/* Status Banner */}
             {(() => {
-              const payStatus = (typeof booking.paymentStatus === 'string' && booking.paymentStatus.length)
-                ? booking.paymentStatus
+              const payStatus = (typeof booking.status === 'string' && booking.status.length)
+                ? booking.status
                 : 'pending'
               return (
                 <div className={`rounded-xl p-4 border-2 ${
@@ -337,16 +341,16 @@ export default function AdminBookings(){
         </div>
         <div className="bg-white rounded-xl p-3 lg:p-5 border-l-4 border-green-500 shadow-md">
           <p className="text-sm text-gray-600 mb-1">Paid</p>
-          <p className="text-3xl font-bold text-green-600">{bookings.filter(b => b.paymentStatus === 'paid').length}</p>
+          <p className="text-3xl font-bold text-green-600">{bookings.filter(b => b.status === 'paid').length}</p>
         </div>
         <div className="bg-white rounded-xl p-3 lg:p-5 border-l-4 border-amber-500 shadow-md">
           <p className="text-sm text-gray-600 mb-1">Pending</p>
-          <p className="text-3xl font-bold text-amber-600">{bookings.filter(b => b.paymentStatus === 'pending').length}</p>
+          <p className="text-3xl font-bold text-amber-600">{bookings.filter(b => b.status === 'pending').length}</p>
         </div>
         <div className="bg-white rounded-xl p-3 lg:p-5 border-l-4 border-purple-500 shadow-md">
           <p className="text-sm text-gray-600 mb-1">Total Revenue</p>
           <p className="text-3xl font-bold text-purple-600">
-            ₹{bookings.filter(b => b.paymentStatus === 'paid').reduce((sum, b) => sum + (b.totalAmount || b.total || 0), 0).toLocaleString()}
+            ₹{bookings.filter(b => b.status === 'paid').reduce((sum, b) => sum + (b.totalAmount || b.total || 0), 0).toLocaleString()}
           </p>
         </div>
         </div>
@@ -471,7 +475,7 @@ export default function AdminBookings(){
                         <p className="text-xl font-bold text-green-600">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</p>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(booking.paymentStatus)}
+                        {getStatusBadge(booking.status)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button
@@ -504,7 +508,7 @@ export default function AdminBookings(){
                           <p className="text-xs text-blue-200">#{booking._id.slice(-8)}</p>
                         </div>
                       </div>
-                      {getStatusBadge(booking.paymentStatus)}
+                      {getStatusBadge(booking.status)}
                     </div>
                   </div>
 
