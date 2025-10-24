@@ -201,18 +201,18 @@ export default function Login(){
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 py-8 px-4 overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 py-4 md:py-8 px-3 md:px-4 overflow-hidden">
         {/* Enhanced Animated Background */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-r from-red-200 to-yellow-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-slow"></div>
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-r from-amber-200 to-red-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-medium"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-gradient-to-r from-yellow-200 to-amber-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-fast"></div>
+          <div className="absolute -top-40 -right-40 w-60 md:w-80 h-60 md:h-80 bg-gradient-to-r from-red-200 to-yellow-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-slow"></div>
+          <div className="absolute -bottom-40 -left-40 w-60 md:w-80 h-60 md:h-80 bg-gradient-to-r from-amber-200 to-red-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-medium"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-60 md:w-80 h-60 md:h-80 bg-gradient-to-r from-yellow-200 to-amber-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-fast"></div>
           
           {/* Floating particles */}
           {isMounted && [...Array(15)].map((_, i) => (
             <div
               key={i}
-              className="absolute w-2 h-2 bg-amber-400/30 rounded-full animate-float-particle"
+              className="absolute w-1.5 md:w-2 h-1.5 md:h-2 bg-amber-400/30 rounded-full animate-float-particle"
               style={{
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
@@ -225,7 +225,7 @@ export default function Login(){
 
         <div className="max-w-6xl mx-auto relative z-10">
           {/* Enhanced Main Card */}
-          <div className="relative mx-4 md:mx-0 md:flex min-h-[600px] rounded-3xl overflow-hidden shadow-2xl bg-white/90 backdrop-blur-sm border border-white/30 transform transition-all duration-500 hover:shadow-3xl">
+          <div className="relative mx-2 md:mx-4 lg:mx-0 md:flex min-h-[500px] md:min-h-[600px] rounded-2xl md:rounded-3xl overflow-hidden shadow-xl md:shadow-2xl bg-white/90 backdrop-blur-sm border border-white/30 transform transition-all duration-500 hover:shadow-3xl">
             
             {/* Enhanced Left Panel */}
             <div className="hidden md:flex md:w-2/5 relative bg-gradient-to-br from-red-800 via-red-700 to-amber-700 p-12 overflow-hidden group">
@@ -324,33 +324,33 @@ export default function Login(){
             </div>
 
             {/* Enhanced Right Form Panel */}
-            <div className="flex-1 p-8 md:p-12 flex flex-col justify-center relative">
+            <div className="flex-1 p-5 sm:p-6 md:p-8 lg:p-12 flex flex-col justify-center relative">
               {/* Enhanced decorative corner elements */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-red-500/10 to-transparent rounded-tr-3xl transition-all duration-500 hover:opacity-80"></div>
-              <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-amber-500/10 to-transparent rounded-bl-3xl transition-all duration-500 hover:opacity-80"></div>
+              <div className="absolute top-0 right-0 w-20 md:w-32 h-20 md:h-32 bg-gradient-to-bl from-red-500/10 to-transparent rounded-tr-2xl md:rounded-tr-3xl transition-all duration-500 hover:opacity-80"></div>
+              <div className="absolute bottom-0 left-0 w-20 md:w-32 h-20 md:h-32 bg-gradient-to-tr from-amber-500/10 to-transparent rounded-bl-2xl md:rounded-bl-3xl transition-all duration-500 hover:opacity-80"></div>
               
               <div className="max-w-md mx-auto w-full">
                 <div className="text-center md:text-left">
                   {/* Mobile Logo */}
-                  <div className="md:hidden w-20 h-20 bg-gradient-to-br from-red-600 to-amber-500 rounded-2xl flex items-center justify-center shadow-lg mx-auto mb-6 transform transition-transform duration-300 hover:scale-105">
+                  <div className="md:hidden w-16 sm:w-20 h-16 sm:h-20 bg-gradient-to-br from-red-600 to-amber-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg mx-auto mb-4 sm:mb-6 transform transition-transform duration-300 hover:scale-105">
                     <img 
                       src="/images/logo-icon/logo.webp" 
                       alt="Logo" 
-                      className="w-12 h-12 object-contain"
+                      className="w-10 sm:w-12 h-10 sm:h-12 object-contain"
                     />
                   </div>
-                  <h3 className="font-playfair text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-amber-500 transform transition-transform duration-300 hover:scale-105">
+                  <h3 className="font-playfair text-2xl sm:text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-amber-500 transform transition-transform duration-300 hover:scale-105">
                     Welcome Back
                   </h3>
-                  <p className="text-gray-600 mt-3 text-lg transition-colors duration-300 hover:text-gray-800">
+                  <p className="text-gray-600 mt-2 sm:mt-3 text-sm sm:text-base md:text-lg transition-colors duration-300 hover:text-gray-800">
                     Sign in to continue your luxury journey
                   </p>
                 </div>
 
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
-                  <div className="space-y-5">
+                <form className="mt-6 sm:mt-8 space-y-4 sm:space-y-6" onSubmit={handleSubmit(onSubmit)}>
+                  <div className="space-y-4 sm:space-y-5">
                     <div className="relative transform transition-all duration-300 hover:scale-[1.02]">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2 transition-colors duration-300 hover:text-gray-900">
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2 transition-colors duration-300 hover:text-gray-900">
                         Email Address
                       </label>
                       <div className="relative">
@@ -362,18 +362,18 @@ export default function Login(){
                               message: 'Invalid email address'
                             }
                           })} 
-                          className="w-full border-2 border-gray-200 rounded-xl p-4 pl-12 focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all duration-300 bg-white/70 backdrop-blur-sm hover:border-gray-300"
+                          className="w-full border-2 border-gray-200 rounded-lg sm:rounded-xl p-3 sm:p-4 pl-10 sm:pl-12 text-sm sm:text-base focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all duration-300 bg-white/70 backdrop-blur-sm hover:border-gray-300"
                           placeholder="your@email.com"
                         />
-                        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 transition-colors duration-300 group-hover:text-red-500">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 transition-colors duration-300 group-hover:text-red-500">
+                          <svg className="w-4 sm:w-5 h-4 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                           </svg>
                         </div>
                       </div>
                       {errors.email && (
-                        <p className="text-red-600 text-sm mt-2 flex items-center gap-1 animate-fade-in">
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <p className="text-red-600 text-xs sm:text-sm mt-1.5 sm:mt-2 flex items-center gap-1 animate-fade-in">
+                          <svg className="w-3 sm:w-4 h-3 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                           </svg>
                           {errors.email.message}
@@ -382,7 +382,7 @@ export default function Login(){
                     </div>
 
                     <div className="relative transform transition-all duration-300 hover:scale-[1.02]">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2 transition-colors duration-300 hover:text-gray-900">
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2 transition-colors duration-300 hover:text-gray-900">
                         Password
                       </label>
                       <div className="relative">
@@ -395,18 +395,18 @@ export default function Login(){
                             }
                           })} 
                           type="password"
-                          className="w-full border-2 border-gray-200 rounded-xl p-4 pl-12 focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all duration-300 bg-white/70 backdrop-blur-sm hover:border-gray-300"
+                          className="w-full border-2 border-gray-200 rounded-lg sm:rounded-xl p-3 sm:p-4 pl-10 sm:pl-12 text-sm sm:text-base focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all duration-300 bg-white/70 backdrop-blur-sm hover:border-gray-300"
                           placeholder="Enter your password"
                         />
-                        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 transition-colors duration-300 group-hover:text-red-500">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 transition-colors duration-300 group-hover:text-red-500">
+                          <svg className="w-4 sm:w-5 h-4 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                           </svg>
                         </div>
                       </div>
                       {errors.password && (
-                        <p className="text-red-600 text-sm mt-2 flex items-center gap-1 animate-fade-in">
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <p className="text-red-600 text-xs sm:text-sm mt-1.5 sm:mt-2 flex items-center gap-1 animate-fade-in">
+                          <svg className="w-3 sm:w-4 h-3 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                           </svg>
                           {errors.password.message}
@@ -415,8 +415,8 @@ export default function Login(){
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between transform transition-all duration-300 hover:scale-[1.01]">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between text-xs sm:text-sm transform transition-all duration-300 hover:scale-[1.01]">
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <div className="relative">
                         <input 
                           type="checkbox" 
@@ -427,19 +427,19 @@ export default function Login(){
                           htmlFor="remember" 
                           className="flex items-center cursor-pointer group"
                         >
-                          <div className="w-5 h-5 border-2 border-gray-300 rounded-md flex items-center justify-center mr-2 transition-all duration-200 group-hover:border-red-400 group-hover:scale-110">
-                            <svg className="w-3 h-3 text-red-600 opacity-0 transition-opacity duration-200" fill="currentColor" viewBox="0 0 20 20">
+                          <div className="w-4 sm:w-5 h-4 sm:h-5 border-2 border-gray-300 rounded-md flex items-center justify-center mr-1.5 sm:mr-2 transition-all duration-200 group-hover:border-red-400 group-hover:scale-110">
+                            <svg className="w-2.5 sm:w-3 h-2.5 sm:h-3 text-red-600 opacity-0 transition-opacity duration-200" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
                           </div>
-                          <span className="text-sm text-gray-700 select-none transition-colors duration-200 group-hover:text-gray-900">Remember me</span>
+                          <span className="text-gray-700 select-none transition-colors duration-200 group-hover:text-gray-900">Remember me</span>
                         </label>
                       </div>
                     </div>
 
                     <Link 
                       href="/auth/forgetpass" 
-                      className="text-sm font-semibold text-red-600 hover:text-red-700 transition-all duration-300 transform hover:scale-105"
+                      className="font-semibold text-red-600 hover:text-red-700 transition-all duration-300 transform hover:scale-105"
                     >
                       Forgot password?
                     </Link>
@@ -448,17 +448,17 @@ export default function Login(){
                   <button 
                     type="submit" 
                     disabled={isLoading}
-                    className="w-full bg-gradient-to-r from-red-600 to-amber-500 text-white py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 disabled:opacity-50 disabled:transform-none disabled:hover:shadow-lg flex items-center justify-center gap-2 group"
+                    className="w-full bg-gradient-to-r from-red-600 to-amber-500 text-white py-3 sm:py-4 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 disabled:opacity-50 disabled:transform-none disabled:hover:shadow-lg flex items-center justify-center gap-2 group"
                   >
                     {isLoading ? (
                       <>
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        Signing in...
+                        <div className="w-4 sm:w-5 h-4 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <span className="text-sm sm:text-base">Signing in...</span>
                       </>
                     ) : (
                       <>
                         <span>Sign in to your account</span>
-                        <svg className="w-4 h-4 transform transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 sm:w-4 h-3.5 sm:h-4 transform transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                         </svg>
                       </>
@@ -466,39 +466,30 @@ export default function Login(){
                   </button>
                 </form>
 
-                <div className="my-8 flex items-center gap-4 transform transition-all duration-300 hover:scale-[1.01]">
+                <div className="my-6 sm:my-8 flex items-center gap-3 sm:gap-4 transform transition-all duration-300 hover:scale-[1.01]">
                   <hr className="flex-1 border-gray-300 transition-all duration-300 hover:border-gray-400" />
-                  <span className="text-sm text-gray-500 font-medium transition-colors duration-300 hover:text-gray-700">Or continue with</span>
+                  <span className="text-xs sm:text-sm text-gray-500 font-medium transition-colors duration-300 hover:text-gray-700">Or continue with</span>
                   <hr className="flex-1 border-gray-300 transition-all duration-300 hover:border-gray-400" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Official Google Sign-In button container */}
-                  <div className="flex items-center justify-center border-2 border-gray-200 rounded-xl p-2">
-                    <div ref={googleBtnRef} className="flex items-center justify-center" />
-                    {/* Fallback button if GSI script hasn't loaded */}
-                    {!googleReady && (
-                      <button onClick={handleGoogle} className="flex items-center justify-center gap-3 rounded-xl p-2 hover:border-red-300 hover:bg-red-50 transition-all duration-300 transform hover:scale-[1.03] group">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48" className="transform transition-transform duration-300 group-hover:scale-110">
-                          <path fill="#EA4335" d="M24 9.5c3.9 0 6.6 1.7 8.1 3.1l6-5.8C34.8 3.6 29.8 1.5 24 1.5 14.7 1.5 6.9 7.7 3.6 16.1l7.4 5.7C12.6 15.1 17.8 9.5 24 9.5z"/>
-                          <path fill="#34A853" d="M46.5 24c0-1.6-.1-3.1-.4-4.6H24v9.1h12.6c-.5 2.6-2 4.8-4.2 6.3l6.5 5c3.8-3.5 6-8.9 6-15.8z"/>
-                          <path fill="#4A90E2" d="M10.9 29.1c-.8-2.3-1.3-4.7-1.3-7.1s.5-4.8 1.3-7.1L3.6 9.9C1.3 13.4 0 17.6 0 22s1.3 8.6 3.6 12.1l7.3-5z"/>
-                          <path fill="#FBBC05" d="M24 46.5c6.1 0 11.2-2 15-5.5l-7.2-5.4c-2 1.3-4.8 2.2-7.8 2.2-6.4 0-11.8-4.2-13.7-9.9l-7.4 5.7C6.9 40.3 14.7 46.5 24 46.5z"/>
-                        </svg>
-                        <span className="text-sm font-medium text-gray-700 group-hover:text-red-600 transition-colors">Google</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <button className="flex items-center justify-center gap-3 border-2 border-gray-200 rounded-xl p-3 hover:border-amber-300 hover:bg-amber-50 transition-all duration-300 transform hover:scale-[1.03] group">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="transform transition-transform duration-300 group-hover:scale-110">
-                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.86 19.86 0 0 1 2.09 4.18 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.72c.12 1.21.49 2.39 1.09 3.5a2 2 0 0 1-.45 2.11L9.91 10.9a16 16 0 0 0 6 6l1.56-1.56a2 2 0 0 1 2.11-.45c1.11.6 2.29.97 3.5 1.09A2 2 0 0 1 22 16.92z"/>
-                    </svg>
-                    <span className="text-sm font-medium text-gray-700 group-hover:text-amber-600 transition-colors">Mobile</span>
-                  </button>
+                {/* Google Sign-In button - Full Width */}
+                <div className="flex items-center justify-center border-2 border-gray-200 rounded-lg sm:rounded-xl p-2.5 sm:p-3 hover:border-red-300 hover:bg-red-50 transition-all duration-300 transform hover:scale-[1.02] group">
+                  <div ref={googleBtnRef} className="flex items-center justify-center w-full" />
+                  {/* Fallback button if GSI script hasn't loaded */}
+                  {!googleReady && (
+                    <button onClick={handleGoogle} className="flex items-center justify-center gap-2 sm:gap-3 w-full">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 48 48" className="sm:w-[18px] sm:h-[18px] transform transition-transform duration-300 group-hover:scale-110">
+                        <path fill="#EA4335" d="M24 9.5c3.9 0 6.6 1.7 8.1 3.1l6-5.8C34.8 3.6 29.8 1.5 24 1.5 14.7 1.5 6.9 7.7 3.6 16.1l7.4 5.7C12.6 15.1 17.8 9.5 24 9.5z"/>
+                        <path fill="#34A853" d="M46.5 24c0-1.6-.1-3.1-.4-4.6H24v9.1h12.6c-.5 2.6-2 4.8-4.2 6.3l6.5 5c3.8-3.5 6-8.9 6-15.8z"/>
+                        <path fill="#4A90E2" d="M10.9 29.1c-.8-2.3-1.3-4.7-1.3-7.1s.5-4.8 1.3-7.1L3.6 9.9C1.3 13.4 0 17.6 0 22s1.3 8.6 3.6 12.1l7.3-5z"/>
+                        <path fill="#FBBC05" d="M24 46.5c6.1 0 11.2-2 15-5.5l-7.2-5.4c-2 1.3-4.8 2.2-7.8 2.2-6.4 0-11.8-4.2-13.7-9.9l-7.4 5.7C6.9 40.3 14.7 46.5 24 46.5z"/>
+                      </svg>
+                      <span className="text-xs sm:text-sm font-medium text-gray-700 group-hover:text-red-600 transition-colors">Continue with Google</span>
+                    </button>
+                  )}
                 </div>
 
-                <div className="mt-8 text-center transform transition-all duration-300 hover:scale-[1.01]">
+                <div className="mt-6 sm:mt-8 text-center text-xs sm:text-sm transform transition-all duration-300 hover:scale-[1.01]">
                   <span className="text-gray-600 transition-colors duration-300 hover:text-gray-800">Don't have an account? </span>
                   <Link 
                     href="/auth/register" 

@@ -723,98 +723,120 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Contact Section - Mobile: 3 tabs in one line */}
-  <section id="contact" className="py-12 md:py-24 bg-white scroll-mt-20">
+        {/* Contact Section - Enhanced Desktop & Mobile UI/UX */}
+  <section id="contact" className="py-12 md:py-24 bg-gradient-to-br from-gray-50 via-white to-amber-50 scroll-mt-20">
           <div className="container mx-auto px-4 md:px-6">
             <FadeIn>
               <div className="text-center max-w-3xl mx-auto mb-8 md:mb-16">
-                <h2 className="text-2xl md:text-5xl font-playfair font-bold mb-2 md:mb-4">Get In Touch</h2>
+                <h2 className="text-2xl md:text-5xl font-playfair font-bold mb-2 md:mb-4 bg-gradient-to-r from-amber-600 to-amber-800 bg-clip-text text-transparent">Get In Touch</h2>
                 <p className="text-sm md:text-xl text-gray-600">We'd love to hear from you and help plan your perfect stay</p>
               </div>
             </FadeIn>
 
-            {/* Mobile: 3 columns, Desktop: 2 columns */}
-            <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-2 gap-2 md:gap-12">
-              {/* Address - Mobile Column 1 */}
+            {/* Contact Cards - Mobile: 3 columns, Desktop: 3 columns */}
+            <div className="grid grid-cols-3 md:grid-cols-3 gap-2 md:gap-6 mb-6 md:mb-12">
+              {/* Address */}
               <FadeIn delay={0.1}>
-                <div className="bg-gray-50 rounded-xl md:rounded-3xl p-3 md:p-8">
-                  <div className="flex flex-col items-center md:items-start">
-                    <div className="w-10 h-10 md:w-12 md:h-12 bg-amber-100 rounded-full flex items-center justify-center mb-2 md:mb-0">
-                      <span className="text-amber-600 text-base md:text-xl">📍</span>
+                <div className="bg-white rounded-xl md:rounded-2xl p-3 md:p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-amber-200 group">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-10 h-10 md:w-16 md:h-16 bg-gradient-to-br from-amber-500 to-amber-600 rounded-full flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform duration-300">
+                      <span className="text-white text-base md:text-2xl">📍</span>
                     </div>
-                    <div className="text-center md:text-left mt-2 md:mt-4">
-                      <div className="font-semibold text-xs md:text-base mb-1">Address</div>
-                      <div className="text-gray-600 text-[10px] md:text-base leading-tight">{siteConfig.address}</div>
-                    </div>
+                    <h3 className="font-bold text-xs md:text-lg mb-1 md:mb-2 text-gray-800">Address</h3>
+                    <p className="text-gray-600 text-[10px] md:text-sm leading-tight md:leading-relaxed">{siteConfig.address}</p>
                   </div>
                 </div>
               </FadeIn>
 
-              {/* Phone - Mobile Column 2 */}
+              {/* Phone */}
               <FadeIn delay={0.15}>
-                <div className="bg-gray-50 rounded-xl md:rounded-3xl p-3 md:p-8">
-                  <div className="flex flex-col items-center md:items-start">
-                    <div className="w-10 h-10 md:w-12 md:h-12 bg-amber-100 rounded-full flex items-center justify-center mb-2 md:mb-0">
-                      <span className="text-amber-600 text-base md:text-xl">📞</span>
+                <div className="bg-white rounded-xl md:rounded-2xl p-3 md:p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-amber-200 group">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-10 h-10 md:w-16 md:h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform duration-300">
+                      <span className="text-white text-base md:text-2xl">📞</span>
                     </div>
-                    <div className="text-center md:text-left mt-2 md:mt-4">
-                      <div className="font-semibold text-xs md:text-base mb-1">Phone</div>
-                      <div className="text-gray-600 text-[10px] md:text-base">{siteConfig.phone}</div>
-                    </div>
+                    <h3 className="font-bold text-xs md:text-lg mb-1 md:mb-2 text-gray-800">Phone</h3>
+                    <a href={`tel:${siteConfig.phone}`} className="text-gray-600 hover:text-amber-600 text-[10px] md:text-sm transition-colors duration-300">
+                      {siteConfig.phone}
+                    </a>
                   </div>
                 </div>
               </FadeIn>
 
-              {/* Email - Mobile Column 3 */}
+              {/* Email */}
               <FadeIn delay={0.2}>
-                <div className="bg-gray-50 rounded-xl md:rounded-3xl p-3 md:p-8">
-                  <div className="flex flex-col items-center md:items-start">
-                    <div className="w-10 h-10 md:w-12 md:h-12 bg-amber-100 rounded-full flex items-center justify-center mb-2 md:mb-0">
-                      <span className="text-amber-600 text-base md:text-xl">✉️</span>
+                <div className="bg-white rounded-xl md:rounded-2xl p-3 md:p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-amber-200 group">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-10 h-10 md:w-16 md:h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform duration-300">
+                      <span className="text-white text-base md:text-2xl">✉️</span>
                     </div>
-                    <div className="text-center md:text-left mt-2 md:mt-4">
-                      <div className="font-semibold text-xs md:text-base mb-1">Email</div>
-                      <div className="text-gray-600 text-[10px] md:text-base break-all">{siteConfig.email}</div>
-                    </div>
+                    <h3 className="font-bold text-xs md:text-lg mb-1 md:mb-2 text-gray-800">Email</h3>
+                    <a href={`mailto:${siteConfig.email}`} className="text-gray-600 hover:text-amber-600 text-[10px] md:text-sm break-all transition-colors duration-300">
+                      {siteConfig.email}
+                    </a>
                   </div>
                 </div>
               </FadeIn>
             </div>
 
-            {/* Message Form - Full Width Below on Mobile */}
+            {/* Message Form - Enhanced Design */}
             <FadeIn delay={0.3}>
-              <div className="bg-amber-50 rounded-2xl md:rounded-3xl p-4 md:p-8 mt-4 md:mt-12">
-                <h3 className="text-lg md:text-2xl font-playfair font-bold mb-4 md:mb-6 text-center md:text-left">Send us a Message</h3>
-                <form className="space-y-3 md:space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                    <input 
-                      type="text" 
-                      placeholder="Your Name" 
-                      className="w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base rounded-lg md:rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    />
-                    <input 
-                      type="email" 
-                      placeholder="Your Email" 
-                      className="w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base rounded-lg md:rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    />
+              <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-10 shadow-lg border border-gray-100">
+                <div className="max-w-4xl mx-auto">
+                  <div className="text-center mb-6 md:mb-8">
+                    <h3 className="text-lg md:text-3xl font-playfair font-bold mb-2 text-gray-800">Send us a Message</h3>
+                    <p className="text-xs md:text-base text-gray-600">Fill out the form below and we'll get back to you shortly</p>
                   </div>
-                  <input 
-                    type="text" 
-                    placeholder="Subject" 
-                    className="w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base rounded-lg md:rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  />
-                  <textarea 
-                    placeholder="Your Message" 
-                    rows="3"
-                    className="w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base rounded-lg md:rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  ></textarea>
-                  <button 
-                    type="submit"
-                    className="w-full md:w-auto bg-amber-600 hover:bg-amber-700 text-white px-6 md:px-8 py-3 md:py-4 text-sm md:text-base rounded-full font-semibold transition-all duration-300 transform hover:scale-105"
-                  >
-                    Send Message
-                  </button>
-                </form>
+                  
+                  <form className="space-y-4 md:space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                      <div>
+                        <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">Your Name</label>
+                        <input 
+                          type="text" 
+                          placeholder="John Doe" 
+                          className="w-full px-4 md:px-5 py-3 md:py-4 text-sm md:text-base rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-300 hover:border-amber-300"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">Your Email</label>
+                        <input 
+                          type="email" 
+                          placeholder="john@example.com" 
+                          className="w-full px-4 md:px-5 py-3 md:py-4 text-sm md:text-base rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-300 hover:border-amber-300"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">Subject</label>
+                      <input 
+                        type="text" 
+                        placeholder="How can we help you?" 
+                        className="w-full px-4 md:px-5 py-3 md:py-4 text-sm md:text-base rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-300 hover:border-amber-300"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">Your Message</label>
+                      <textarea 
+                        placeholder="Tell us about your requirements..." 
+                        rows="5"
+                        className="w-full px-4 md:px-5 py-3 md:py-4 text-sm md:text-base rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-300 hover:border-amber-300 resize-none"
+                      ></textarea>
+                    </div>
+                    
+                    <div className="flex justify-center md:justify-start">
+                      <button 
+                        type="submit"
+                        className="bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white px-8 md:px-12 py-3 md:py-4 text-sm md:text-lg rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
+                      >
+                        <span>Send Message</span>
+                        <span className="text-lg md:text-xl">→</span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
             </FadeIn>
           </div>

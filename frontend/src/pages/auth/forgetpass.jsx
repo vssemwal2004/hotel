@@ -25,15 +25,15 @@ export default function ForgetPass() {
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 py-8 px-4 overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 py-4 md:py-8 px-3 md:px-4 overflow-hidden">
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-r from-red-200 to-yellow-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-slow"></div>
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-r from-amber-200 to-red-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-medium"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-gradient-to-r from-yellow-200 to-amber-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-fast"></div>
+          <div className="absolute -top-40 -right-40 w-60 md:w-80 h-60 md:h-80 bg-gradient-to-r from-red-200 to-yellow-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-slow"></div>
+          <div className="absolute -bottom-40 -left-40 w-60 md:w-80 h-60 md:h-80 bg-gradient-to-r from-amber-200 to-red-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-medium"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-60 md:w-80 h-60 md:h-80 bg-gradient-to-r from-yellow-200 to-amber-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-fast"></div>
         </div>
 
         <div className="max-w-6xl mx-auto relative z-10">
-          <div className="relative mx-4 md:mx-0 md:flex min-h-[600px] rounded-3xl overflow-hidden shadow-2xl bg-white/90 backdrop-blur-sm border border-white/30 transform transition-all duration-500 hover:shadow-3xl">
+          <div className="relative mx-2 md:mx-4 lg:mx-0 md:flex min-h-[450px] md:min-h-[600px] rounded-2xl md:rounded-3xl overflow-hidden shadow-xl md:shadow-2xl bg-white/90 backdrop-blur-sm border border-white/30 transform transition-all duration-500 hover:shadow-3xl">
             <div className="hidden md:flex md:w-2/5 relative bg-gradient-to-br from-red-800 via-red-700 to-amber-700 p-12 overflow-hidden group">
               {/* Animated background pattern */}
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIgMS44LTQgNC00czQgMS44IDQgNC0xLjggNC00IDQtNC0xLjgtNC00eiIvPjxwYXRoIGQ9Ik0xNiAxNmMtMi4yIDAtNCAxLjgtNCA0czEuOCA0IDQgNCA0LTEuOCA0LTRzLTEuOC00LTQtNHoiLz48cGF0aCBkPSJNNTAgMTZjLTIuMiAwLTQgMS44LTQgNHMxLjggNCA0IDQgNC0xLjggNC00LTEuOC00LTQtNHoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-10 animate-pattern-move"></div>
@@ -109,38 +109,66 @@ export default function ForgetPass() {
               <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-amber-400/50 rounded-full"></div>
             </div>
 
-            <div className="flex-1 p-8 md:p-12 flex flex-col justify-center relative">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-red-500/10 to-transparent rounded-tr-3xl transition-all duration-500 hover:opacity-80"></div>
-              <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-amber-500/10 to-transparent rounded-bl-3xl transition-all duration-500 hover:opacity-80"></div>
+            <div className="flex-1 p-5 sm:p-6 md:p-8 lg:p-12 flex flex-col justify-center relative">
+              <div className="absolute top-0 right-0 w-20 md:w-32 h-20 md:h-32 bg-gradient-to-bl from-red-500/10 to-transparent rounded-tr-2xl md:rounded-tr-3xl transition-all duration-500 hover:opacity-80"></div>
+              <div className="absolute bottom-0 left-0 w-20 md:w-32 h-20 md:h-32 bg-gradient-to-tr from-amber-500/10 to-transparent rounded-bl-2xl md:rounded-bl-3xl transition-all duration-500 hover:opacity-80"></div>
 
               <div className="max-w-md mx-auto w-full">
                 <div className="text-center md:text-left">
-                  <div className="md:hidden w-20 h-20 bg-gradient-to-br from-red-600 to-amber-500 rounded-2xl flex items-center justify-center shadow-lg mx-auto mb-6 transform transition-transform duration-300 hover:scale-105">
-                    <img src="/images/logo-icon/logo.webp" alt="Logo" className="w-12 h-12 object-contain" />
+                  <div className="md:hidden w-16 sm:w-20 h-16 sm:h-20 bg-gradient-to-br from-red-600 to-amber-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg mx-auto mb-4 sm:mb-6 transform transition-transform duration-300 hover:scale-105">
+                    <img src="/images/logo-icon/logo.webp" alt="Logo" className="w-10 sm:w-12 h-10 sm:h-12 object-contain" />
                   </div>
-                  <h3 className="font-playfair text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-amber-500">Reset password</h3>
-                  <p className="text-gray-600 mt-3 text-lg">Enter your account email and we'll send a reset link.</p>
+                  <h3 className="font-playfair text-2xl sm:text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-amber-500">Reset Password</h3>
+                  <p className="text-gray-600 mt-2 sm:mt-3 text-sm sm:text-base md:text-lg">Enter your account email and we'll send a reset link.</p>
                 </div>
 
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+                <form className="mt-6 sm:mt-8 space-y-4 sm:space-y-6" onSubmit={handleSubmit(onSubmit)}>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-                    <input
-                      {...register('email', { required: 'Email is required', pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' } })}
-                      className="w-full border-2 border-gray-200 rounded-xl p-4 focus:border-red-500 focus:ring-2 focus:ring-red-200 bg-white/70 backdrop-blur-sm"
-                      placeholder="your@email.com"
-                    />
-                    {errors.email && <p className="text-red-600 text-sm mt-2">{errors.email.message}</p>}
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">Email Address</label>
+                    <div className="relative">
+                      <input
+                        {...register('email', { required: 'Email is required', pattern: { value: /^\S+@\S+$/i, message: 'Invalid email' } })}
+                        className="w-full border-2 border-gray-200 rounded-lg sm:rounded-xl p-3 sm:p-4 pl-10 sm:pl-12 text-sm sm:text-base focus:border-red-500 focus:ring-2 focus:ring-red-200 bg-white/70 backdrop-blur-sm hover:border-gray-300 transition-all duration-300"
+                        placeholder="your@email.com"
+                      />
+                      <div className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+                        <svg className="w-4 sm:w-5 h-4 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                        </svg>
+                      </div>
+                    </div>
+                    {errors.email && <p className="text-red-600 text-xs sm:text-sm mt-1.5 sm:mt-2 flex items-center gap-1">
+                      <svg className="w-3 sm:w-4 h-3 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {errors.email.message}
+                    </p>}
                   </div>
 
-                  <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-red-600 to-amber-500 text-white py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 flex items-center justify-center gap-2">
-                    {isLoading ? (<><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>Sending...</>) : 'Send reset link'}
+                  <button 
+                    type="submit" 
+                    disabled={isLoading} 
+                    className="w-full bg-gradient-to-r from-red-600 to-amber-500 text-white py-3 sm:py-4 rounded-lg sm:rounded-xl text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 disabled:opacity-50 disabled:transform-none flex items-center justify-center gap-2 group"
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="w-4 sm:w-5 h-4 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <span className="text-sm sm:text-base">Sending...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Send reset link</span>
+                        <svg className="w-3.5 sm:w-4 h-3.5 sm:h-4 transform transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </>
+                    )}
                   </button>
                 </form>
 
-                <div className="mt-8 text-center">
+                <div className="mt-6 sm:mt-8 text-center text-xs sm:text-sm">
                   <span className="text-gray-600">Remembered your password? </span>
-                  <Link href="/auth/login" className="font-semibold text-red-600 hover:text-red-700">Sign in</Link>
+                  <Link href="/auth/login" className="font-semibold text-red-600 hover:text-red-700 transition-all duration-300 transform hover:scale-105 inline-block">Sign in</Link>
                 </div>
               </div>
             </div>
