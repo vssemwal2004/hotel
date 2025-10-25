@@ -20,17 +20,11 @@ import {
   Utensils
 } from 'lucide-react'
 
-const typeOptions = [
-  { key: 'deluxe-valley-view', title: 'Deluxe Valley View' },
-  { key: 'hillside-suite', title: 'Hillside Suite' },
-  { key: 'family-luxury-suite', title: 'Family Luxury Suite' }
-]
-
 export default function AdminRooms(){
   const { register, handleSubmit, reset, setValue, watch } = useForm({
     defaultValues: {
-      key: 'deluxe-valley-view',
-      title: 'Deluxe Valley View',
+      key: '',
+      title: '',
       basePrice: 0,
       prices: { roomOnly: 0, roomBreakfast: 0, roomBreakfastDinner: 0 },
       discount: 0,
@@ -80,8 +74,8 @@ export default function AdminRooms(){
     setLoading(true)
     try {
       const payload = {
-        key: form.key,
-        title: typeOptions.find(t=>t.key===form.key)?.title || form.title,
+        key: (form.key || '').trim(),
+        title: (form.title || '').trim(),
         basePrice: Number(form.basePrice),
         prices: {
           roomOnly: Number(form.prices?.roomOnly ?? form.basePrice),
@@ -118,13 +112,6 @@ export default function AdminRooms(){
     } finally {
       setLoading(false)
     }
-  }
-
-  const onTypeChange = (e) => {
-    const key = e.target.value
-    const t = typeOptions.find(x=>x.key===key)
-    setValue('key', key)
-    setValue('title', t?.title || '')
   }
 
   const startEdit = (t) => {
@@ -257,14 +244,23 @@ export default function AdminRooms(){
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Room Type *</label>
-                  <select 
-                    {...register('key')} 
-                    onChange={onTypeChange} 
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Room Type Key *</label>
+                  <input
+                    {...register('key', { required: true })}
+                    placeholder="e.g., deluxe-valley-view"
                     className="w-full border-2 border-gray-300 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  >
-                    {typeOptions.map(t => <option key={t.key} value={t.key}>{t.title}</option>)}
-                  </select>
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Unique URL-friendly key (use hyphens)</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Room Type Title *</label>
+                  <input
+                    {...register('title', { required: true })}
+                    placeholder="e.g., Deluxe Valley View"
+                    className="w-full border-2 border-gray-300 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Number of Rooms *</label>

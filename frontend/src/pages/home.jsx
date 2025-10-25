@@ -536,12 +536,17 @@ export default function HomePage() {
             </FadeIn>
 
             <div className="grid grid-cols-3 lg:grid-cols-3 gap-3 md:gap-8">
-              {['deluxe-valley-view','hillside-suite','family-luxury-suite'].map((k, index) => {
-                const t = types.find(x=>x.key===k)
-                const title = t?.title || (k==='deluxe-valley-view'?'Deluxe Valley View':k==='hillside-suite'?'Hillside Suite':'Family Luxury Suite')
-                const img = (t?.coverPhotos && t.coverPhotos[0]?.url) || (t?.photos && t.photos[0]?.url) || `/images/landing page/hotel.webp`
-                const features = t?.amenities?.slice(0,3) || (index===0?["King Bed","Mountain View","Free WiFi"]: index===1?["Private Balcony","Panoramic Views","Luxury Bath"]:["Two Bedrooms","Living Area","Special Amenities"]) 
-                const price = typePrices[k] ?? (index===0?4500:index===1?6500:8200)
+              {([...types]
+                .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt))
+                .slice(0,3)
+              ).map((t, index) => {
+                const k = t.key
+                const title = t.title || 'Room'
+                const img = (t.coverPhotos && t.coverPhotos[0]?.url) || (t.photos && t.photos[0]?.url) || `/images/landing page/hotel.webp`
+                const features = (t.amenities && t.amenities.length > 0) 
+                  ? t.amenities.slice(0,3)
+                  : (index===0?["King Bed","Mountain View","Free WiFi"]: index===1?["Private Balcony","Panoramic Views","Luxury Bath"]:["Two Bedrooms","Living Area","Special Amenities"]) 
+                const price = (t.prices?.roomOnly ?? t.basePrice ?? 0)
                 return (
                   <FadeIn key={k} delay={index * 0.15}>
                     <HomeRoomCard key={k} img={img} title={title} price={price} features={features} photos={[...(t?.coverPhotos||[]), ...(t?.photos||[])]} />
