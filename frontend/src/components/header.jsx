@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/router'
+import Link from 'next/link'
 import { User, X, Menu, LogOut, ChevronDown, Mail, Home as HomeIcon, BookOpen } from 'lucide-react'
 import useAuth from '../hooks/useAuth'
 
@@ -15,7 +16,8 @@ export default function Header(){
   const [checkOut, setCheckOut] = useState('')
   const [fullDay, setFullDay] = useState(false)
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
-  const dropdownRef = useRef(null)
+  const mobileDropdownRef = useRef(null)
+  const desktopDropdownRef = useRef(null)
 
   const navItems = [
     { name: 'Home', href: '/' },
@@ -48,7 +50,11 @@ export default function Header(){
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      const mobileEl = mobileDropdownRef.current
+      const desktopEl = desktopDropdownRef.current
+      const clickedInsideMobile = mobileEl && mobileEl.contains(event.target)
+      const clickedInsideDesktop = desktopEl && desktopEl.contains(event.target)
+      if (!clickedInsideMobile && !clickedInsideDesktop) {
         setShowProfileDropdown(false)
       }
     }
@@ -146,6 +152,17 @@ export default function Header(){
     setActiveNav('Home')
   }
 
+  // Robust navigation helper for dropdown items (handles mobile click quirks)
+  const navFromDropdown = (href) => (e) => {
+    e?.preventDefault?.()
+    e?.stopPropagation?.()
+    // Trigger navigation first for reliability on mobile
+    router.push(href)
+    // Then close UI states
+    setShowProfileDropdown(false)
+    setOpen(false)
+  }
+
   return (
     <>
       {/* Main Header */}
@@ -195,7 +212,7 @@ export default function Header(){
             <div className="flex items-center gap-3 sm:gap-4">
               {/* Mobile Profile Icon - Show if logged in */}
               {!loading && user && (
-                <div className="lg:hidden relative" ref={dropdownRef}>
+                <div className="lg:hidden relative" ref={mobileDropdownRef}>
                   <button
                     onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                     className={`flex items-center gap-1 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-300 ${
@@ -240,31 +257,19 @@ export default function Header(){
                       {/* Menu Options */}
                       <div className="py-1">
                         <button
-                          onClick={(e) => { 
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setShowProfileDropdown(false); 
-                            setOpen(false);
-                            setTimeout(() => {
-                              router.push('/bookings');
-                            }, 100);
-                          }}
-                          className="w-full px-4 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-amber-50 transition-colors flex items-center gap-2"
+                          type="button"
+                          onMouseDown={navFromDropdown('/bookings')}
+                          onTouchStart={navFromDropdown('/bookings')}
+                          className="w-full flex px-4 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-amber-50 transition-colors items-center gap-2"
                         >
                           <BookOpen size={16} className="text-amber-600" />
                           <span>Your Bookings</span>
                         </button>
                         <button
-                          onClick={(e) => { 
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setShowProfileDropdown(false); 
-                            setOpen(false);
-                            setTimeout(() => {
-                              router.push('/');
-                            }, 100);
-                          }}
-                          className="w-full px-4 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-amber-50 transition-colors flex items-center gap-2"
+                          type="button"
+                          onMouseDown={navFromDropdown('/')}
+                          onTouchStart={navFromDropdown('/')}
+                          className="w-full flex px-4 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-amber-50 transition-colors items-center gap-2"
                         >
                           <HomeIcon size={16} className="text-amber-600" />
                           <span>Back to Home</span>
@@ -280,9 +285,7 @@ export default function Header(){
                             setShowProfileDropdown(false); 
                             setOpen(false);
                             await logout();
-                            setTimeout(() => {
-                              router.push('/');
-                            }, 100);
+                            router.replace('/');
                           }}
                           className="w-full px-4 py-2.5 text-left text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
                         >
@@ -297,7 +300,7 @@ export default function Header(){
 
               {/* Desktop Profile Dropdown */}
               {!loading && user ? (
-                <div className="hidden lg:block relative" ref={dropdownRef}>
+                <div className="hidden lg:block relative" ref={desktopDropdownRef}>
                   <button
                     onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                     className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 shadow-md hover:shadow-lg ${
@@ -341,34 +344,22 @@ export default function Header(){
 
                       {/* Navigation Links */}
                       <div className="py-2">
-                        <button
-                          onClick={(e) => { 
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setShowProfileDropdown(false);
-                            setTimeout(() => {
-                              router.push('/');
-                            }, 100);
-                          }}
-                          className="w-full px-5 py-3 text-left text-sm font-medium text-gray-700 hover:bg-amber-50 transition-colors flex items-center gap-3 group"
+                        <Link
+                          href="/"
+                          onClick={(e) => { e.stopPropagation(); setShowProfileDropdown(false); }}
+                          className="w-full flex px-5 py-3 text-left text-sm font-medium text-gray-700 hover:bg-amber-50 transition-colors items-center gap-3 group"
                         >
                           <HomeIcon size={18} className="text-amber-600 group-hover:scale-110 transition-transform" />
                           <span className="group-hover:translate-x-1 transition-transform">Home</span>
-                        </button>
-                        <button
-                          onClick={(e) => { 
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setShowProfileDropdown(false);
-                            setTimeout(() => {
-                              router.push('/bookings');
-                            }, 100);
-                          }}
-                          className="w-full px-5 py-3 text-left text-sm font-medium text-gray-700 hover:bg-amber-50 transition-colors flex items-center gap-3 group"
+                        </Link>
+                        <Link
+                          href="/bookings"
+                          onClick={(e) => { e.stopPropagation(); setShowProfileDropdown(false); }}
+                          className="w-full flex px-5 py-3 text-left text-sm font-medium text-gray-700 hover:bg-amber-50 transition-colors items-center gap-3 group"
                         >
                           <BookOpen size={18} className="text-amber-600 group-hover:scale-110 transition-transform" />
                           <span className="group-hover:translate-x-1 transition-transform">Your Bookings</span>
-                        </button>
+                        </Link>
                       </div>
 
                       {/* Logout Section */}
@@ -379,9 +370,7 @@ export default function Header(){
                             e.stopPropagation();
                             setShowProfileDropdown(false);
                             await logout();
-                            setTimeout(() => {
-                              router.push('/');
-                            }, 100);
+                            router.replace('/');
                           }}
                           className="w-full px-5 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-3 group"
                         >
