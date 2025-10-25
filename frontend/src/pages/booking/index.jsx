@@ -49,6 +49,7 @@ export default function BookingIndex(){
   const [extraBeds, setExtraBeds] = useState(0)
   const [extraPersons, setExtraPersons] = useState(0)
   const [creating, setCreating] = useState(false)
+  const [showMobileSummary, setShowMobileSummary] = useState(true)
 
   const checkIn = useMemo(()=> Array.isArray(qi)?qi[0]:qi, [qi])
   const checkOut = useMemo(()=> Array.isArray(qo)?qo[0]:qo, [qo])
@@ -254,6 +255,82 @@ export default function BookingIndex(){
               </div>
             )}
           </FadeIn>
+
+          {/* Mobile Booking Summary at Top */}
+          {cart.length > 0 && (
+            <div className="lg:hidden sticky top-20 z-20 mb-4">
+              <div className="rounded-2xl border-2 border-amber-200 shadow-lg overflow-hidden bg-white">
+                <button
+                  type="button"
+                  onClick={() => setShowMobileSummary(v => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white"
+                >
+                  <div className="flex items-center gap-2 font-semibold">
+                    <ShoppingCart size={18} />
+                    <span>Booking Summary</span>
+                    <span className="ml-2 text-amber-100 text-xs">{cart.length} item{cart.length>1?'s':''}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm leading-none opacity-90">Total</div>
+                    <div className="text-lg font-bold">₹{total.toLocaleString()}</div>
+                  </div>
+                </button>
+                {showMobileSummary && (
+                  <div className="p-4 bg-white">
+                    <div className="space-y-3 mb-4 max-h-72 overflow-y-auto pr-2">
+                      {cart.map((c, i) => (
+                        <div key={i} className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-3 border border-amber-200">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <div className="font-semibold text-gray-900 text-sm">{c.title}</div>
+                              <div className="text-xs text-gray-600">× {c.quantity} • {c.guests.length} guest{c.guests.length>1?'s':''}</div>
+                            </div>
+                            <button
+                              onClick={() => setCart(prev => prev.filter((_, idx) => idx !== i))}
+                              className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
+                              title="Remove"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t border-amber-200 mt-2 text-sm">
+                            <span className="text-gray-600">{nights} night{nights>1?'s':''}</span>
+                            <span className="font-bold text-green-600">₹{(c.basePrice * c.quantity * nights).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between border-t border-amber-200 pt-3 mb-3">
+                      <span className="text-sm text-gray-700">Grand Total</span>
+                      <span className="text-xl font-extrabold text-amber-600">₹{total.toLocaleString()}</span>
+                    </div>
+                    <button
+                      disabled={creating || cart.length === 0}
+                      onClick={createAndPay}
+                      className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold rounded-xl disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                    >
+                      {creating ? (
+                        <>
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                          >
+                            <Calendar size={18} />
+                          </motion.div>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Check size={18} />
+                          Confirm & Pay
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Main Content - Split Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
