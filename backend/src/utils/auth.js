@@ -14,11 +14,13 @@ export function verifyToken(token) {
 export function cookieOptions() {
   const domain = process.env.COOKIE_DOMAIN
   const useDomain = domain && domain !== 'localhost' ? domain : undefined
-  // In local development across ports (e.g., 3000 -> 5000), use 'none' for cross-origin
-  const sameSite = process.env.COOKIE_SAMESITE || (isProd ? 'none' : 'none')
+  // SameSite: allow cross-site in production (if frontend and API are on different subdomains)
+  // Prefer lax locally unless you specifically need cross-port cookies
+  const sameSite = process.env.COOKIE_SAMESITE || (isProd ? 'none' : 'lax')
   return {
     httpOnly: true,
-    secure: false, // Set false for local development (http://localhost)
+    // Secure must be true for SameSite=None cookies on HTTPS (production)
+    secure: isProd,
     sameSite,
     domain: useDomain,
     path: '/',

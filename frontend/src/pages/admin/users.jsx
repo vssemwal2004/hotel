@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import AdminLayout from '../../layouts/AdminLayout'
 import api from '../../utils/api'
+import { useToast } from '../../components/ToastProvider'
 import { useForm } from 'react-hook-form'
 import { 
   UserPlus, 
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react'
 
 export default function AdminUsers(){
+  const { show } = useToast()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -45,6 +47,7 @@ export default function AdminUsers(){
       setUsers(data.users || [])
     } catch (e) {
       console.error('Failed to fetch users:', e)
+      show({ type: 'error', title: 'Failed to load users', message: e?.response?.data?.message || e.message })
     } finally {
       setLoading(false)
     }
@@ -59,16 +62,16 @@ export default function AdminUsers(){
       if (editingId) {
         // Update existing user
         await api.put(`/users/${editingId}`, formData)
-        alert('User updated successfully!')
+        show({ type: 'success', title: 'User updated' })
       } else {
         // Create new user
         await api.post('/users', formData)
-        alert('User created successfully!')
+        show({ type: 'success', title: 'User created' })
       }
       fetchUsers()
       handleCancel()
     } catch (e) {
-      alert(e?.response?.data?.message || 'Failed to save user')
+      show({ type: 'error', title: 'Save failed', message: e?.response?.data?.message || 'Failed to save user' })
     }
   }
 
@@ -88,10 +91,10 @@ export default function AdminUsers(){
     if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return
     try {
       await api.delete(`/users/${id}`)
-      alert('User deleted successfully!')
+      show({ type: 'success', title: 'User deleted' })
       fetchUsers()
     } catch (e) {
-      alert(e?.response?.data?.message || 'Failed to delete user')
+      show({ type: 'error', title: 'Delete failed', message: e?.response?.data?.message || 'Failed to delete user' })
     }
   }
 
