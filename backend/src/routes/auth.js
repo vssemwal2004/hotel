@@ -1,7 +1,9 @@
 import { Router } from 'express'
 import { z } from 'zod'
+import crypto from 'crypto'
 import User from '../models/User.js'
 import { signToken, verifyToken, cookieOptions } from '../utils/auth.js'
+import { sendPasswordResetEmail } from '../utils/email.js'
 import { OAuth2Client } from 'google-auth-library'
 
 const router = Router()
@@ -83,6 +85,102 @@ router.get('/me', async (req, res) => {
     res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role } })
   } catch (e) {
     return res.status(401).json({ message: 'Invalid token' })
+  }
+})
+
+// Forgot password - request reset
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const { email } = req.body || {}
+    if (!email) return res.status(400).json({ message: 'Email is required' })
+
+    const user = await User.findOne({ email: email.toLowerCase() })
+    
+    // Always return success to prevent email enumeration
+    if (!user) {
+      return res.json({ message: 'If an account with that email exists, a password reset link has been sent.' })
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex')
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex')
+
+    // Save token and expiry (1 hour)
+    user.resetPasswordToken = hashedToken
+    user.resetPasswordExpires = Date.now() + 3600000 // 1 hour
+    await user.save()
+
+    // Send email
+    const emailSent = await sendPasswordResetEmail(user, resetToken)
+    if (!emailSent) {
+      console.error('Failed to send password reset email to:', email)
+    }
+
+    res.json({ message: 'If an account with that email exists, a password reset link has been sent.' })
+  } catch (err) {
+    console.error('Forgot password error:', err)
+    next(err)
+  }
+})
+
+// Verify reset token
+router.post('/verify-reset-token', async (req, res) => {
+  try {
+    const { token } = req.body || {}
+    if (!token) return res.status(400).json({ valid: false, message: 'Token is required' })
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
+    
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() }
+    })
+
+    if (!user) {
+      return res.status(400).json({ valid: false, message: 'Invalid or expired reset token' })
+    }
+
+    res.json({ valid: true, message: 'Token is valid' })
+  } catch (err) {
+    console.error('Verify reset token error:', err)
+    res.status(500).json({ valid: false, message: 'Server error' })
+  }
+})
+
+// Reset password
+router.post('/reset-password', async (req, res, next) => {
+  try {
+    const { token, password } = req.body || {}
+    
+    if (!token || !password) {
+      return res.status(400).json({ message: 'Token and password are required' })
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' })
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
+    
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() }
+    })
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' })
+    }
+
+    // Update password and clear reset token
+    user.password = password
+    user.resetPasswordToken = undefined
+    user.resetPasswordExpires = undefined
+    await user.save()
+
+    res.json({ message: 'Password has been reset successfully. You can now login with your new password.' })
+  } catch (err) {
+    console.error('Reset password error:', err)
+    next(err)
   }
 })
 

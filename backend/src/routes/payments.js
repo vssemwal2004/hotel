@@ -3,7 +3,9 @@ import Razorpay from 'razorpay'
 import crypto from 'crypto'
 import Booking from '../models/Booking.js'
 import RoomType from '../models/RoomType.js'
+import User from '../models/User.js'
 import { authRequired } from '../middleware/auth.js'
+import { sendBookingConfirmationToUser, sendBookingNotificationToAdmin } from '../utils/email.js'
 
 const router = Router()
 
@@ -88,6 +90,19 @@ router.post('/verify', authRequired, async (req, res, next) => {
       status: 'paid'
     }
     await booking.save()
+
+    // Fetch user details for email
+    const user = await User.findById(booking.user).select('name email phone')
+    
+    // Send confirmation emails (don't wait, fire and forget)
+    if (user) {
+      sendBookingConfirmationToUser(booking, user).catch(err => 
+        console.error('Failed to send user confirmation email:', err)
+      )
+      sendBookingNotificationToAdmin(booking, user).catch(err => 
+        console.error('Failed to send admin notification email:', err)
+      )
+    }
 
     res.json({ booking })
   } catch (e) { next(e) }
