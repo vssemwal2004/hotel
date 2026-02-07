@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { authRequired, adminRequired, rolesRequired } from '../middleware/auth.js'
 import Booking from '../models/Booking.js'
 import RoomType from '../models/RoomType.js'
+import { sendBookingConfirmationToUser, sendBookingNotificationToAdmin } from '../utils/email.js'
 
 const router = Router()
 
@@ -294,7 +295,19 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
         await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: -it.quantity } })
       }
       booking.status = 'paid'
+      booking.payment = {
+        provider: 'offline',
+        status: 'paid'
+      }
       await booking.save()
+
+      // Send confirmation emails for paid manual bookings
+      sendBookingConfirmationToUser(booking, user).catch(err => 
+        console.error('Failed to send user confirmation email:', err)
+      )
+      sendBookingNotificationToAdmin(booking, user).catch(err => 
+        console.error('Failed to send admin notification email:', err)
+      )
     }
 
     // Hydrate basic user fields for response

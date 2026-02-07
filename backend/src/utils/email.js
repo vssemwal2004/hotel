@@ -1,4 +1,8 @@
 import nodemailer from 'nodemailer'
+import dns from 'dns'
+
+// Force IPv4 to avoid ENETUNREACH errors with IPv6
+dns.setDefaultResultOrder('ipv4first')
 
 // Create reusable transporter
 function getTransporter() {
@@ -10,7 +14,9 @@ function getTransporter() {
     auth: {
       user: process.env.SMTP_USER || process.env.ADMIN_EMAIL,
       pass: process.env.SMTP_PASS || process.env.SMTP_APP_PASSWORD
-    }
+    },
+    // Force IPv4
+    family: 4
   }
   
   return nodemailer.createTransport(transportConfig)
