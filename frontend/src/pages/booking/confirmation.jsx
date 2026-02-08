@@ -176,6 +176,25 @@ export default function Confirmation(){
                   ))}
                 </div>
 
+                {/* GST Breakdown */}
+                {(booking.gstAmount > 0 || booking.gstPercentage > 0) && (
+                  <div className="bg-purple-50 rounded-xl p-4 border border-purple-200 space-y-2">
+                    <div className="flex justify-between text-sm text-gray-600">
+                      <span>Subtotal</span>
+                      <span className="font-medium">₹{(booking.subtotal || (booking.total - (booking.gstAmount || 0))).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-gray-600">
+                      <span>GST ({booking.gstPercentage || 0}%)</span>
+                      <span className="font-medium">₹{(booking.gstAmount || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between text-base font-bold border-t border-purple-200 pt-2">
+                      <span>Total</span>
+                      <span className="text-green-600">₹{booking.total?.toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                )}
+                </div>
+
                 {/* QR Placeholder */}
                 <div className="mt-2 flex items-center justify-center">
                   <div className="w-48 h-48 bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center text-gray-400">

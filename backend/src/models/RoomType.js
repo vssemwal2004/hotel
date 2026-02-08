@@ -19,6 +19,9 @@ const roomTypeSchema = new mongoose.Schema(
     status: { type: String, enum: ['available', 'blocked', 'maintenance'], default: 'available' },
     amenities: [{ type: String }],
     count: { type: Number, required: true, min: 0 },
+    // GST Configuration
+    gstEnabled: { type: Boolean, default: true }, // Enable/disable GST for this room type
+    gstPercentage: { type: Number, min: 0, max: 100, default: null }, // Custom GST % (null = auto slab-based)
     // Gallery photos shown in "See Photos" modal
     photos: [
       new mongoose.Schema({

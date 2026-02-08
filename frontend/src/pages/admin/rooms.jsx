@@ -37,7 +37,9 @@ export default function AdminRooms(){
       count: 0,
       description: '',
       photos: [],
-      coverPhotos: []
+      coverPhotos: [],
+      gstEnabled: true,
+      gstPercentage: null
     }
   })
   const [types, setTypes] = useState([])
@@ -76,11 +78,11 @@ export default function AdminRooms(){
       const payload = {
         key: (form.key || '').trim(),
         title: (form.title || '').trim(),
-        basePrice: Number(form.basePrice),
+        basePrice: Number(form.prices?.roomOnly || 0), // Use roomOnly as basePrice
         prices: {
-          roomOnly: Number(form.prices?.roomOnly ?? form.basePrice),
-          roomBreakfast: Number(form.prices?.roomBreakfast ?? form.basePrice),
-          roomBreakfastDinner: Number(form.prices?.roomBreakfastDinner ?? form.basePrice)
+          roomOnly: Number(form.prices?.roomOnly || 0),
+          roomBreakfast: Number(form.prices?.roomBreakfast || 0),
+          roomBreakfastDinner: Number(form.prices?.roomBreakfastDinner || 0)
         },
         discount: Number(form.discount || 0),
         maxAdults: Number(form.maxAdults || 0),
@@ -90,7 +92,9 @@ export default function AdminRooms(){
         status: form.status,
         amenities: Array.isArray(form.amenities) ? form.amenities : (form.amenities ? [form.amenities] : []),
         count: Number(form.count),
-        description: form.description || ''
+        description: form.description || '',
+        gstEnabled: form.gstEnabled !== undefined ? Boolean(form.gstEnabled) : true,
+        gstPercentage: form.gstPercentage !== '' && form.gstPercentage !== null ? Number(form.gstPercentage) : null
       }
   const fd = new FormData()
   fd.append('data', JSON.stringify(payload))
@@ -134,6 +138,8 @@ export default function AdminRooms(){
     setValue('description', t.description || '')
     setValue('photos', t.photos || [])
     setValue('coverPhotos', t.coverPhotos || [])
+    setValue('gstEnabled', t.gstEnabled !== undefined ? t.gstEnabled : true)
+    setValue('gstPercentage', t.gstPercentage !== undefined ? t.gstPercentage : null)
   setCoverFiles([])
   setGalleryFiles([])
   }
@@ -348,6 +354,52 @@ export default function AdminRooms(){
                     required
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* GST Configuration */}
+            <div className="mb-6 bg-gradient-to-r from-purple-50 to-indigo-50 p-4 md:p-6 rounded-2xl border-2 border-purple-200">
+              <h3 className="text-base md:text-lg font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
+                <IndianRupee size={20} className="text-purple-600" />
+                GST Configuration
+              </h3>
+              
+              {/* GST Enable Toggle */}
+              <div className="mb-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    {...register('gstEnabled')}
+                    className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                  />
+                  <div>
+                    <span className="text-sm font-semibold text-gray-900 block">Enable GST for this room type</span>
+                    <span className="text-xs text-gray-600">When enabled, GST will be calculated based on Indian tax slabs</span>
+                  </div>
+                </label>
+              </div>
+
+              {/* Custom GST Percentage */}
+              <div className="bg-white rounded-xl p-3 md:p-4 border-2 border-purple-200">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Custom GST Percentage (%)
+                </label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  max="100"
+                  step="0.01"
+                  placeholder="Leave blank for automatic slab calculation"
+                  {...register('gstPercentage')} 
+                  className="w-full border-2 border-purple-300 rounded-lg p-2.5 md:p-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                />
+                <p className="text-xs text-gray-600 mt-2">
+                  <strong>Indian GST Slabs:</strong><br/>
+                  • Up to ₹1,000/night: 0% GST<br/>
+                  • ₹1,001 - ₹7,500/night: 5% GST<br/>
+                  • Above ₹7,500/night: 18% GST<br/>
+                  Leave empty to use automatic slab-based calculation
+                </p>
               </div>
             </div>
 
@@ -592,7 +644,7 @@ export default function AdminRooms(){
                   </div>
 
                   {/* Info */}
-                  <div className="flex items-center justify-between text-xs md:text-sm text-gray-600 mb-3 md:mb-4">
+                  <div className="flex items-center justify-between text-xs md:text-sm text-gray-600 mb-2">
                     <div className="flex items-center gap-1">
                       <Bed size={16} className="text-purple-600" />
                       <span>{t.count || 0} rooms</span>
@@ -602,6 +654,20 @@ export default function AdminRooms(){
                         <Check size={16} className="text-green-600" />
                         <span>{t.amenities.length} amenities</span>
                       </div>
+                    )}
+                  </div>
+
+                  {/* GST Info Badge */}
+                  <div className="flex items-center gap-2 mb-3 md:mb-4">
+                    {t.gstEnabled !== false ? (
+                      <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-[10px] md:text-xs font-medium">
+                        <IndianRupee size={12} />
+                        GST: {t.gstPercentage !== null && t.gstPercentage !== undefined ? `${t.gstPercentage}%` : 'Auto Slab'}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 px-2 py-1 rounded-full text-[10px] md:text-xs font-medium">
+                        GST Disabled
+                      </span>
                     )}
                   </div>
 

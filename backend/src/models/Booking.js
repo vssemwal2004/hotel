@@ -24,6 +24,9 @@ const bookingSchema = new mongoose.Schema({
   fullDay: { type: Boolean, default: false },
   nights: { type: Number, required: true, min: 1 },
   items: [itemSchema],
+  subtotal: { type: Number, min: 0 }, // Pre-tax amount
+  gstPercentage: { type: Number, min: 0, default: 0 }, // GST % applied
+  gstAmount: { type: Number, min: 0, default: 0 }, // GST amount
   total: { type: Number, required: true, min: 0 },
   // status: pending -> paid -> completed | cancelled
   status: { type: String, enum: ['pending','paid','completed','cancelled'], default: 'pending' },

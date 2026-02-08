@@ -2,11 +2,13 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { useRef, useState, useEffect } from 'react'
+import { useRouter } from 'next/router'
 import Header from '../components/header' // Import your custom header
 import BookingBar from '../components/BookingBar' // Import BookingBar component
 import Footer from '../components/Footer' // Import Footer component
 import api from '../utils/api'
 import siteConfig from '../utils/siteConfig'
+import { useAuthContext } from '../context/AuthContext'
 
 // Animation Components
 const FadeIn = ({ children, delay = 0, direction = "up", duration = 0.8 }) => (
@@ -554,6 +556,24 @@ export default function HomePage() {
                 )
               })}
             </div>
+
+            {/* View More Button */}
+            <FadeIn delay={0.5}>
+              <div className="text-center mt-8 md:mt-12">
+                <Link href="/booking">
+                  <motion.button
+                    className="inline-flex items-center gap-2 px-8 py-3 md:px-10 md:py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold text-sm md:text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    View All Rooms
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </motion.button>
+                </Link>
+              </div>
+            </FadeIn>
           </div>
         </section>
 
@@ -884,14 +904,29 @@ export default function HomePage() {
 
 function HomeRoomCard({ img, title, price, features, photos = [] }){
   const [isHovered, setIsHovered] = useState(false)
+  const router = useRouter()
+  const { user } = useAuthContext()
+
+  const handleRoomClick = () => {
+    // Check if user is logged in
+    if (!user) {
+      // Redirect to login page
+      router.push('/auth/login')
+    } else {
+      // Navigate to booking page to see room details
+      router.push('/booking')
+    }
+  }
+
   // Removed per-card booking CTA per request. Single global Book Now is kept at the top.
 
   return (
     <motion.div
-      className="bg-white rounded-xl md:rounded-3xl overflow-hidden shadow-lg md:shadow-xl hover:shadow-xl md:hover:shadow-2xl transition-all duration-500"
+      className="bg-white rounded-xl md:rounded-3xl overflow-hidden shadow-lg md:shadow-xl hover:shadow-xl md:hover:shadow-2xl transition-all duration-500 cursor-pointer"
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
       whileHover={{ y: -10 }}
+      onClick={handleRoomClick}
     >
       <div className="relative overflow-hidden">
         <motion.img 

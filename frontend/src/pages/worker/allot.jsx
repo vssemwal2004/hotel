@@ -4,6 +4,7 @@ import useAuth from '../../hooks/useAuth'
 import { useRouter } from 'next/router'
 import api from '../../utils/api'
 import { CalendarCheck, Users, Home, CheckCircle, XCircle, Mail, User, Phone, Plus, Trash2 } from 'lucide-react'
+import { calculateGST, formatGSTLabel } from '../../utils/gst'
 
 export default function WorkerAllot(){
   const { user, loading } = useAuth()
@@ -361,7 +362,7 @@ export default function WorkerAllot(){
                   ) : (
                     roomTypes.map(rt => (
                       <option key={rt.key} value={rt.key}>
-                        {rt.title} - ₹{rt.basePrice} (Available: {rt.count})
+                        {rt.title} - ₹{rt.basePrice || rt.prices?.roomOnly || 0} (Available: {rt.count})
                       </option>
                     ))
                   )}
@@ -380,6 +381,36 @@ export default function WorkerAllot(){
               </div>
             </div>
           </div>
+
+          {/* Price & GST Breakdown */}
+          {roomTypeKey && roomTypes.length > 0 && (() => {
+            const selectedRT = roomTypes.find(rt => rt.key === roomTypeKey)
+            if (!selectedRT) return null
+            const pricePerNight = selectedRT.prices?.roomOnly || selectedRT.basePrice || 0
+            const roomSubtotal = pricePerNight * (Number(quantity) || 1)
+            const gstResult = calculateGST(roomSubtotal, selectedRT, pricePerNight)
+            return (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border-2 border-blue-200">
+                <h3 className="text-sm md:text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+                  💰 Price Breakdown
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Room Charge ({Number(quantity) || 1} room × ₹{pricePerNight.toLocaleString()})</span>
+                    <span className="font-medium text-gray-900">₹{roomSubtotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">{formatGSTLabel(gstResult.gstPercentage)}</span>
+                    <span className="font-medium text-gray-900">₹{gstResult.gstAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-base font-bold border-t border-blue-300 pt-2 mt-2">
+                    <span className="text-gray-900">Total Amount</span>
+                    <span className="text-green-600">₹{gstResult.totalAmount.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Payment Status */}
           <div className="bg-gradient-to-r from-teal-50 to-emerald-50 p-4 rounded-xl border-2 border-teal-200">

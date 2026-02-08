@@ -5,6 +5,7 @@ import { authRequired, adminRequired, rolesRequired } from '../middleware/auth.j
 import Booking from '../models/Booking.js'
 import RoomType from '../models/RoomType.js'
 import { sendBookingConfirmationToUser, sendBookingNotificationToAdmin } from '../utils/email.js'
+import { calculateGST } from '../utils/gst.js'
 
 const router = Router()
 
@@ -102,7 +103,20 @@ router.post('/', authRequired, async (req, res, next) => {
         subtotal
       }
     })
-    const total = items.reduce((s,a)=>s+a.subtotal,0)
+    const subtotalAmount = items.reduce((s,a)=>s+a.subtotal,0)
+
+    // Calculate GST dynamically using the first item's room type (or slab-based)
+    const firstItemType = typeMap[data.items[0].roomTypeKey]
+    const pricePerNight = (firstItemType.prices?.roomOnly ?? firstItemType.basePrice) || 0
+    const gstEnabled = firstItemType.gstEnabled !== false
+    const customGSTPercentage = (gstEnabled && firstItemType.gstPercentage !== null && firstItemType.gstPercentage !== undefined) 
+      ? firstItemType.gstPercentage : null
+    const gstResult = calculateGST(subtotalAmount, customGSTPercentage, pricePerNight)
+    
+    // If GST is disabled for the room type, set everything to 0
+    const finalGSTPercentage = gstEnabled ? gstResult.gstPercentage : 0
+    const finalGSTAmount = gstEnabled ? gstResult.gstAmount : 0
+    const total = subtotalAmount + finalGSTAmount
 
     // Create booking (pending)
     const booking = await Booking.create({
@@ -112,6 +126,9 @@ router.post('/', authRequired, async (req, res, next) => {
       fullDay,
       nights,
       items,
+      subtotal: subtotalAmount,
+      gstPercentage: finalGSTPercentage,
+      gstAmount: finalGSTAmount,
       total,
       status: 'pending'
     })
@@ -271,7 +288,19 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
         subtotal
       }
     })
-    const total = items.reduce((s,a)=>s+a.subtotal,0)
+    const manualSubtotal = items.reduce((s,a)=>s+a.subtotal,0)
+
+    // Calculate GST dynamically
+    const firstType = typeMap[data.items[0].roomTypeKey]
+    const manualPricePerNight = (firstType.prices?.roomOnly ?? firstType.basePrice) || 0
+    const manualGSTEnabled = firstType.gstEnabled !== false
+    const manualCustomGST = (manualGSTEnabled && firstType.gstPercentage !== null && firstType.gstPercentage !== undefined) 
+      ? firstType.gstPercentage : null
+    const manualGSTResult = calculateGST(manualSubtotal, manualCustomGST, manualPricePerNight)
+    
+    const manualGSTPercentage = manualGSTEnabled ? manualGSTResult.gstPercentage : 0
+    const manualGSTAmount = manualGSTEnabled ? manualGSTResult.gstAmount : 0
+    const manualTotal = manualSubtotal + manualGSTAmount
 
     let booking = await Booking.create({
       user: user._id,
@@ -280,7 +309,10 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
       fullDay,
       nights,
       items,
-      total,
+      subtotal: manualSubtotal,
+      gstPercentage: manualGSTPercentage,
+      gstAmount: manualGSTAmount,
+      total: manualTotal,
       status: 'pending'
     })
 

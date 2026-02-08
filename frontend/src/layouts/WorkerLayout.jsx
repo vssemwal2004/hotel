@@ -9,7 +9,9 @@ import {
   Menu, 
   X, 
   LogOut,
-  ChevronRight
+  ChevronRight,
+  History,
+  DoorOpen
 } from 'lucide-react'
 
 // WorkerLayout provides a professional responsive worker layout with sidebar
@@ -39,6 +41,8 @@ export default function WorkerLayout({ children }){
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/worker', color: 'text-teal-500' },
     { icon: CalendarCheck, label: 'Room Allotment', href: '/worker/allot', color: 'text-emerald-500' },
+    { icon: DoorOpen, label: 'Available Rooms', href: '/worker/rooms', color: 'text-amber-500' },
+    { icon: History, label: 'Customers History', href: '/worker/history', color: 'text-blue-500' },
   ]
 
   const isActive = (href) => router.pathname === href

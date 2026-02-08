@@ -178,9 +178,12 @@ export default function WorkerPage(){
     )
   }
 
-  // Filter bookings by status
+  // Filter bookings by status (exclude completed - moved to history page)
   const displayBookings = useMemo(() => {
     let list = results.length === 0 ? all : results
+    // Exclude completed bookings - they are shown in Customers History page
+    list = list.filter(b => b.status !== 'completed')
+    
     // status filter
     if (statusFilter !== 'all') list = list.filter(b => b.status === statusFilter)
 
@@ -203,13 +206,14 @@ export default function WorkerPage(){
     return list
   }, [results, all, statusFilter, timeFilter])
 
-  // Stats calculation
+  // Stats calculation (exclude completed - shown in history)
   const stats = useMemo(() => {
-    const total = all.length
+    const activeBookings = all.filter(b => b.status !== 'completed')
+    const total = activeBookings.length
     const pending = all.filter(b => b.status === 'pending').length
     const paid = all.filter(b => b.status === 'paid').length
     const completed = all.filter(b => b.status === 'completed').length
-    const totalRevenue = all.reduce((sum, b) => sum + (b.total || 0), 0)
+    const totalRevenue = activeBookings.reduce((sum, b) => sum + (b.total || 0), 0)
     return { total, pending, paid, completed, totalRevenue }
   }, [all])
 
@@ -231,11 +235,11 @@ export default function WorkerPage(){
       {/* Header */}
       <div className="mb-6 md:mb-8">
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Worker Dashboard</h1>
-        <p className="text-gray-600">Manage bookings, track payments, and handle guest check-ins</p>
+        <p className="text-gray-600">Manage active bookings, track payments, and handle guest check-ins. <span className="text-teal-600 font-medium">Checkout history is in "Customers History"</span></p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
         <div className="bg-white rounded-xl md:rounded-2xl shadow-lg border-2 border-gray-100 p-3 md:p-6 hover:shadow-xl transition-all duration-300">
           <div className="flex flex-col md:flex-row items-center md:gap-3 mb-2">
             <div className="p-2 md:p-3 bg-blue-100 rounded-lg md:rounded-xl mb-2 md:mb-0">
@@ -243,7 +247,7 @@ export default function WorkerPage(){
               <Calendar size={24} className="hidden md:block text-blue-600" />
             </div>
             <div className="text-center md:text-left">
-              <p className="text-gray-600 text-xs md:text-sm">Total</p>
+              <p className="text-gray-600 text-xs md:text-sm">Active</p>
               <p className="text-xl md:text-3xl font-bold text-gray-900">{stats.total}</p>
             </div>
           </div>
@@ -275,20 +279,7 @@ export default function WorkerPage(){
           </div>
         </div>
 
-        <div className="bg-white rounded-xl md:rounded-2xl shadow-lg border-2 border-blue-200 p-3 md:p-6 hover:shadow-xl transition-all duration-300">
-          <div className="flex flex-col md:flex-row items-center md:gap-3 mb-2">
-            <div className="p-2 md:p-3 bg-blue-100 rounded-lg md:rounded-xl mb-2 md:mb-0">
-              <CheckCircle size={18} className="md:hidden text-blue-600" />
-              <CheckCircle size={24} className="hidden md:block text-blue-600" />
-            </div>
-            <div className="text-center md:text-left">
-              <p className="text-gray-600 text-xs md:text-sm">Done</p>
-              <p className="text-xl md:text-3xl font-bold text-blue-700">{stats.completed}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl md:rounded-2xl shadow-lg border-2 border-teal-200 p-3 md:p-6 hover:shadow-xl transition-all duration-300 col-span-3 md:col-span-3 lg:col-span-1">
+        <div className="bg-white rounded-xl md:rounded-2xl shadow-lg border-2 border-teal-200 p-3 md:p-6 hover:shadow-xl transition-all duration-300">
           <div className="flex flex-col md:flex-row items-center md:gap-3 mb-2">
             <div className="p-2 md:p-3 bg-teal-100 rounded-lg md:rounded-xl mb-2 md:mb-0">
               <DollarSign size={18} className="md:hidden text-teal-600" />
@@ -342,7 +333,7 @@ export default function WorkerPage(){
           <div className="flex flex-wrap gap-2">
             {[{
               key: 'all',
-              label: 'All',
+              label: 'All Active',
               count: stats.total,
               color: 'gray',
               bg: 'bg-gray-100',
@@ -366,15 +357,6 @@ export default function WorkerPage(){
               bg: 'bg-emerald-100',
               border: 'border-emerald-300',
               text: 'text-emerald-700',
-              icon: CheckCircle
-            },{
-              key: 'completed',
-              label: 'Completed',
-              count: stats.completed,
-              color: 'blue',
-              bg: 'bg-blue-100',
-              border: 'border-blue-300',
-              text: 'text-blue-700',
               icon: CheckCircle
             }].map((tab) => {
               const Icon = tab.icon

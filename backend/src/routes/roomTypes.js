@@ -2,7 +2,8 @@ import { Router } from 'express'
 import path from 'path'
 import { z } from 'zod'
 import RoomType from '../models/RoomType.js'
-import { authRequired, adminRequired } from '../middleware/auth.js'
+import Booking from '../models/Booking.js'
+import { authRequired, adminRequired, rolesRequired } from '../middleware/auth.js'
 import { memoryUploadFields, uploadBufferToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js'
 
 const router = Router()
@@ -37,7 +38,9 @@ const upsertSchema = z.object({
   status: z.enum(['available','blocked','maintenance']).optional().default('available'),
   amenities: z.array(z.string()).optional().default([]),
   count: z.number().int().min(0),
-  description: z.string().optional().default('')
+  description: z.string().optional().default(''),
+  gstEnabled: z.boolean().optional().default(true),
+  gstPercentage: z.number().min(0).max(100).nullable().optional().default(null)
 })
 
 // Public list
@@ -163,6 +166,53 @@ router.delete('/:id/photo', authRequired, adminRequired, async (req, res, next) 
     }
     await doc.save()
     res.json({ type: doc })
+  } catch (e) { next(e) }
+})
+
+// Worker/Admin: Room availability stats
+router.get('/availability/stats', authRequired, rolesRequired('admin','worker'), async (req, res, next) => {
+  try {
+    const types = await RoomType.find({}).sort({ title: 1 })
+    
+    // Get active bookings (paid status = rooms currently occupied)
+    const activeBookings = await Booking.find({ status: 'paid' })
+    
+    // Calculate booked rooms per type from active bookings
+    const bookedMap = {}
+    for (const booking of activeBookings) {
+      for (const item of booking.items) {
+        bookedMap[item.roomTypeKey] = (bookedMap[item.roomTypeKey] || 0) + item.quantity
+      }
+    }
+    
+    const stats = types.map(t => {
+      const booked = bookedMap[t.key] || 0
+      const available = t.count
+      const totalRooms = available + booked
+      return {
+        key: t.key,
+        title: t.title,
+        totalRooms,
+        available,
+        booked,
+        status: t.status,
+        pricePerNight: t.prices?.roomOnly || t.basePrice || 0,
+        maxAdults: t.maxAdults || 2,
+        maxChildren: t.maxChildren || 1,
+        amenities: t.amenities || [],
+        coverPhoto: (t.coverPhotos?.[0]?.url) || (t.photos?.[0]?.url) || null
+      }
+    })
+    
+    const summary = {
+      totalRoomTypes: types.length,
+      totalRooms: stats.reduce((s, r) => s + r.totalRooms, 0),
+      totalAvailable: stats.reduce((s, r) => s + r.available, 0),
+      totalBooked: stats.reduce((s, r) => s + r.booked, 0),
+      activeBookingsCount: activeBookings.length
+    }
+    
+    res.json({ stats, summary })
   } catch (e) { next(e) }
 })
 

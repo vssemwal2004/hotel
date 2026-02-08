@@ -4,6 +4,7 @@ import api from '../../utils/api'
 import { useRouter } from 'next/router'
 import { Calendar, Users, Bed, Wifi, Tv, Coffee, Utensils, Sparkles, Check, X, ChevronRight, ShoppingCart, Tag, Info } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { calculateGST, formatGSTLabel } from '../../utils/gst'
 
 function diffNights(checkIn, checkOut, fullDay){
   if (fullDay) return 1
@@ -50,6 +51,7 @@ export default function BookingIndex(){
   const [extraPersons, setExtraPersons] = useState(0)
   const [creating, setCreating] = useState(false)
   const [showMobileSummary, setShowMobileSummary] = useState(true)
+  const [expandedDesc, setExpandedDesc] = useState(null) // track which room's description is expanded
 
   const checkIn = useMemo(()=> Array.isArray(qi)?qi[0]:qi, [qi])
   const checkOut = useMemo(()=> Array.isArray(qo)?qo[0]:qo, [qo])
@@ -150,7 +152,25 @@ export default function BookingIndex(){
     const extras = ((selecting?.extraBedPerPerson ?? 0) * 0) // placeholder not used in cart items
     return combo * nights
   }
-  const total = useMemo(() => cart.reduce((s,a)=> s + (a.basePrice * a.quantity * nights) + (nights * ((types.find(t=>t.key===a.key)?.extraBedPerPerson||0) * (a.extraBeds||0) + (types.find(t=>t.key===a.key)?.extraPersonPerNight||0) * (a.extraPersons||0))), 0), [cart, nights, types])
+  
+  // Calculate total with dynamic GST based on Indian tax slabs
+  const subtotal = useMemo(() => cart.reduce((s,a)=> s + (a.basePrice * a.quantity * nights) + (nights * ((types.find(t=>t.key===a.key)?.extraBedPerPerson||0) * (a.extraBeds||0) + (types.find(t=>t.key===a.key)?.extraPersonPerNight||0) * (a.extraPersons||0))), 0), [cart, nights, types])
+  
+  // Calculate GST dynamically
+  const gstData = useMemo(() => {
+    if (cart.length === 0 || subtotal === 0) {
+      return { gstPercentage: 0, gstAmount: 0, totalAmount: 0 }
+    }
+    // Get the first room type for GST configuration (you can enhance this for multi-room carts)
+    const firstCartItem = cart[0]
+    const roomType = types.find(t => t.key === firstCartItem.key) || {}
+    const pricePerNight = subtotal / nights
+    return calculateGST(subtotal, roomType, pricePerNight)
+  }, [cart, subtotal, types, nights])
+  
+  const taxAmount = gstData.gstAmount
+  const gstPercentage = gstData.gstPercentage
+  const total = gstData.totalAmount || subtotal
 
   const createAndPay = async () => {
     if (!checkIn || (!fullDay && !checkOut)) return alert('Missing dates')
@@ -343,16 +363,19 @@ export default function BookingIndex(){
                 const discountedPrice = discountPercent > 0 
                   ? Math.round(originalPrice * (1 - discountPercent / 100))
                   : originalPrice
-                const taxesAndFees = Math.round(discountedPrice * 0.05) // 5% taxes
-                const totalPerNight = discountedPrice + taxesAndFees
+                
+                // Calculate GST dynamically for this room type
+                const roomGST = calculateGST(discountedPrice, t, discountedPrice)
+                const taxesAndFees = roomGST.gstAmount
+                const gstPercent = roomGST.gstPercentage
+                const totalPerNight = roomGST.totalAmount
 
                 return (
                   <FadeIn key={t._id} delay={idx * 0.05}>
-                    <div className="bg-gradient-to-r from-amber-50/80 via-white to-orange-50/80 rounded-2xl overflow-hidden hover:from-amber-50 hover:to-orange-50 transition-all duration-300 border border-amber-100/50">
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-0">
+                    <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100">
                       
-                      {/* Room Image - Left Side */}
-                      <div className="md:col-span-3 relative h-48 md:h-auto">
+                      {/* Top: Full-width Image */}
+                      <div className="relative w-full h-56 md:h-72">
                         {((t.coverPhotos && t.coverPhotos[0]) || (t.photos && t.photos[0])) ? (
                           <img 
                             src={(t.coverPhotos && t.coverPhotos[0]?.url) || (t.photos && t.photos[0]?.url)} 
@@ -361,133 +384,162 @@ export default function BookingIndex(){
                           />
                         ) : (
                           <div className="w-full h-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
-                            <Bed size={48} className="text-white opacity-50" />
+                            <Bed size={56} className="text-white opacity-50" />
                           </div>
                         )}
-                        {discountPercent > 0 && (
-                          <div className="absolute top-3 left-3 bg-red-500 text-white px-3 py-1 rounded-full font-bold text-xs shadow-lg">
-                            {discountPercent}% OFF
-                          </div>
-                        )}
-                        {t.count === 0 && (
-                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                            <div className="bg-white px-4 py-2 rounded-lg text-red-600 font-bold text-sm">
-                              SOLD OUT
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Room Details - Middle */}
-                      <div className="md:col-span-6 p-5 flex flex-col justify-between">
-                        <div>
-                          <div className="flex items-start justify-between mb-3">
-                            <div>
-                              <h3 className="text-xl font-bold text-gray-900 mb-1">{t.title}</h3>
-                              <p className="text-xs text-gray-500">
-                                {t.count > 0 ? `${t.count} room${t.count > 1 ? 's' : ''} available` : 'No rooms available'}
-                              </p>
-                            </div>
-                            {/* See Photos button */}
-                            <button
-                              type="button"
-                              onClick={() => setSelecting({ ...t, __photosOnly: true })}
-                              className="text-amber-700 hover:text-amber-800 text-sm font-semibold underline"
-                            >
-                              See Photos
-                            </button>
-                          </div>
-
-                          {/* Amenities - Compact Grid */}
-                          <div className="mb-3">
-                            <div className="flex flex-wrap gap-2">
-                              {(t.amenities || []).slice(0, 6).map((amenity, i) => (
-                                <div key={i} className="flex items-center gap-1 text-xs text-gray-600 bg-white px-2 py-1 rounded-md border border-gray-200">
-                                  <Check size={12} className="text-green-600 flex-shrink-0" />
-                                  <span className="truncate">{amenity}</span>
-                                </div>
-                              ))}
-                              {(t.amenities || []).length > 6 && (
-                                <div className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-md border border-amber-200">
-                                  +{(t.amenities || []).length - 6} more
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Meal Options - Compact */}
-                          {(t.prices?.roomBreakfast > originalPrice || t.prices?.roomBreakfastDinner > originalPrice) && (
-                            <div className="text-xs text-gray-600 flex flex-wrap gap-3">
-                              {t.prices?.roomBreakfast > originalPrice && (
-                                <div className="flex items-center gap-1">
-                                  <Coffee size={12} className="text-amber-600" />
-                                  <span>+Breakfast: ₹{t.prices.roomBreakfast - originalPrice}</span>
-                                </div>
-                              )}
-                              {t.prices?.roomBreakfastDinner > originalPrice && (
-                                <div className="flex items-center gap-1">
-                                  <Utensils size={12} className="text-amber-600" />
-                                  <span>+Dinner: ₹{t.prices.roomBreakfastDinner - originalPrice}</span>
-                                </div>
-                              )}
-                            </div>
+                        {/* Overlay badges */}
+                        <div className="absolute top-3 left-3 flex items-center gap-2">
+                          {discountPercent > 0 && (
+                            <span className="bg-red-500 text-white px-3 py-1 rounded-full font-bold text-xs shadow-lg">
+                              {discountPercent}% OFF
+                            </span>
+                          )}
+                          {t.count > 0 ? (
+                            <span className="bg-green-500/90 text-white px-3 py-1 rounded-full font-medium text-xs shadow">
+                              {t.count} room{t.count > 1 ? 's' : ''} left
+                            </span>
+                          ) : (
+                            <span className="bg-red-600/90 text-white px-3 py-1 rounded-full font-medium text-xs shadow">
+                              Sold Out
+                            </span>
                           )}
                         </div>
+                        {/* See Photos */}
+                        <button
+                          type="button"
+                          onClick={() => setSelecting({ ...t, __photosOnly: true })}
+                          className="absolute top-3 right-3 bg-white/90 hover:bg-white text-gray-800 px-3 py-1.5 rounded-full text-xs font-semibold shadow-md transition-all flex items-center gap-1"
+                        >
+                          <Sparkles size={12} />
+                          See Photos
+                        </button>
+                        {/* Sold out overlay */}
+                        {t.count === 0 && (
+                          <div className="absolute inset-0 bg-black/40" />
+                        )}
                       </div>
 
-                      {/* Pricing & Booking - Right Side */}
-                      <div className="md:col-span-3 p-5 bg-gradient-to-br from-amber-50/50 to-orange-50/50 border-l border-amber-100 flex flex-col justify-between">
-                        <div>
-                          <div className="text-right mb-3">
-                            <div className="flex items-baseline justify-end gap-2 mb-1">
-                              <span className="text-2xl font-bold text-amber-600">₹{discountedPrice.toLocaleString()}</span>
+                      {/* Bottom: Details */}
+                      <div className="p-5 md:p-6">
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                          
+                          {/* Left: Room Info */}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">{t.title}</h3>
+
+                            {/* Description - truncated with View More */}
+                            {t.description && (
+                              <div className="mb-3">
+                                <p className="text-sm text-gray-600 leading-relaxed">
+                                  {t.description.length > 120 
+                                    ? t.description.slice(0, 120) + '...' 
+                                    : t.description
+                                  }
+                                </p>
+                                {t.description.length > 120 && (
+                                  <button 
+                                    onClick={() => setExpandedDesc(expandedDesc === t._id ? null : t._id)}
+                                    className="text-amber-600 hover:text-amber-700 text-sm font-semibold mt-1 inline-flex items-center gap-1"
+                                  >
+                                    {expandedDesc === t._id ? 'Show Less' : 'View More'}
+                                    <ChevronRight size={14} className={`transition-transform ${expandedDesc === t._id ? 'rotate-90' : ''}`} />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Expanded Description Card */}
+                            {expandedDesc === t._id && t.description && (
+                              <motion.div 
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4 max-h-60 overflow-y-auto"
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <h4 className="text-sm font-bold text-gray-900">Room Details</h4>
+                                  <button onClick={() => setExpandedDesc(null)} className="text-gray-400 hover:text-gray-600">
+                                    <X size={16} />
+                                  </button>
+                                </div>
+                                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{t.description}</p>
+                              </motion.div>
+                            )}
+
+                            {/* Amenities */}
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {(t.amenities || []).slice(0, 5).map((amenity, i) => (
+                                <span key={i} className="inline-flex items-center gap-1 text-xs text-gray-700 bg-gray-50 px-2.5 py-1.5 rounded-lg border border-gray-200">
+                                  <Check size={12} className="text-green-500 flex-shrink-0" />
+                                  {amenity}
+                                </span>
+                              ))}
+                              {(t.amenities || []).length > 5 && (
+                                <span className="text-xs text-amber-600 bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200 font-medium">
+                                  +{(t.amenities || []).length - 5} more
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Meal Add-ons */}
+                            {(t.prices?.roomBreakfast > originalPrice || t.prices?.roomBreakfastDinner > originalPrice) && (
+                              <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+                                {t.prices?.roomBreakfast > originalPrice && (
+                                  <span className="inline-flex items-center gap-1 bg-orange-50 px-2.5 py-1.5 rounded-lg border border-orange-200">
+                                    <Coffee size={12} className="text-orange-500" />
+                                    +Breakfast: ₹{t.prices.roomBreakfast - originalPrice}
+                                  </span>
+                                )}
+                                {t.prices?.roomBreakfastDinner > originalPrice && (
+                                  <span className="inline-flex items-center gap-1 bg-orange-50 px-2.5 py-1.5 rounded-lg border border-orange-200">
+                                    <Utensils size={12} className="text-orange-500" />
+                                    +Full Board: ₹{t.prices.roomBreakfastDinner - originalPrice}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Right: Pricing & Book */}
+                          <div className="md:w-52 flex-shrink-0 md:text-right md:border-l md:border-gray-100 md:pl-6">
+                            <div className="flex items-baseline md:justify-end gap-2 mb-1">
+                              <span className="text-3xl font-bold text-amber-600">₹{discountedPrice.toLocaleString()}</span>
                               {discountPercent > 0 && (
                                 <span className="text-sm text-gray-400 line-through">₹{originalPrice.toLocaleString()}</span>
                               )}
                             </div>
-                            <p className="text-xs text-gray-600">per night</p>
-                            <p className="text-xs text-gray-500 mt-1">+₹{taxesAndFees} taxes</p>
+                            <p className="text-xs text-gray-500 mb-1">per night</p>
+                            <p className="text-xs text-green-600 font-medium">+₹{taxesAndFees.toLocaleString()} ({gstPercent}% GST)</p>
+
+                            <div className="bg-gray-50 rounded-lg p-3 my-3 border border-gray-200 md:text-left">
+                              <div className="text-xs text-gray-500 mb-0.5">Total for {nights} night{nights > 1 ? 's' : ''}</div>
+                              <div className="text-lg font-bold text-gray-900">₹{(totalPerNight * nights).toLocaleString()}</div>
+                              <div className="text-[10px] text-gray-400">Includes taxes & fees</div>
+                            </div>
+
+                            <button
+                              disabled={t.count === 0}
+                              onClick={() => addToCart(t)}
+                              className={`w-full py-3 px-4 rounded-xl font-semibold text-white transition-all duration-300 flex items-center justify-center gap-2 text-sm ${
+                                t.count === 0
+                                  ? 'bg-gray-400 cursor-not-allowed'
+                                  : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-lg hover:shadow-xl transform hover:scale-105'
+                              }`}
+                            >
+                              {t.count === 0 ? (
+                                <><X size={16} /> Sold Out</>
+                              ) : (
+                                <><ShoppingCart size={16} /> Book Now</>
+                              )}
+                            </button>
+                            <p className="text-[10px] text-gray-400 mt-2 flex items-center md:justify-center gap-1">
+                              <Info size={10} /> Non-Refundable
+                            </p>
                           </div>
-
-                          <div className="bg-white rounded-lg p-3 mb-3 border border-amber-200/50">
-                            <div className="text-xs text-gray-600 mb-1">Total for {nights} night{nights > 1 ? 's' : ''}</div>
-                            <div className="text-lg font-bold text-gray-900">₹{(totalPerNight * nights).toLocaleString()}</div>
-                            <div className="text-xs text-gray-500">Includes taxes & fees</div>
-                          </div>
-                        </div>
-
-                        {/* Book Now Button */}
-                        <button
-                          disabled={t.count === 0}
-                          onClick={() => addToCart(t)}
-                          className={`w-full py-3 px-4 rounded-xl font-semibold text-white transition-all duration-300 flex items-center justify-center gap-2 ${
-                            t.count === 0
-                              ? 'bg-gray-400 cursor-not-allowed'
-                              : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 transform hover:scale-105 shadow-lg hover:shadow-xl'
-                          }`}
-                        >
-                          {t.count === 0 ? (
-                            <>
-                              <X size={18} />
-                              Sold Out
-                            </>
-                          ) : (
-                            <>
-                              <ShoppingCart size={18} />
-                              Book Now
-                            </>
-                          )}
-                        </button>
-
-                        {/* Non-Refundable */}
-                        <div className="flex items-center justify-center gap-1 text-xs text-gray-500 mt-2">
-                          <Info size={12} />
-                          <span>Non-Refundable</span>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </FadeIn>
+                  </FadeIn>
               )
             })}
 
@@ -572,14 +624,13 @@ export default function BookingIndex(){
                           </span>
                         </div>
                         
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Subtotal</span>
-                          <span className="font-semibold text-gray-900">₹{total.toLocaleString()}</span>
+                        <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+                          <span>Subtotal</span>
+                          <span>₹{subtotal.toLocaleString()}</span>
                         </div>
-                        
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-500">Taxes & Fees</span>
-                          <span className="text-green-600 font-medium">Included ✓</span>
+                        <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+                          <span>{formatGSTLabel(gstPercentage)}</span>
+                          <span>₹{taxAmount.toLocaleString()}</span>
                         </div>
                       </div>
 
@@ -968,9 +1019,9 @@ export default function BookingIndex(){
                         </div>
                       )}
                       <div className="border-t border-amber-300 pt-2 mt-2">
-                        <div className="flex items-center justify-between text-lg">
-                          <span className="font-bold text-gray-900">Total Amount</span>
-                          <span className="font-bold text-amber-600">
+                        <div className="flex items-center justify-between text-base mb-2">
+                          <span className="text-gray-700">Subtotal</span>
+                          <span className="text-gray-900">
                             ₹{(
                               (selecting.prices?.[packageType] ?? selecting.basePrice) * quantity * nights +
                               (selecting.extraBedPerPerson * extraBeds * nights) +
@@ -978,6 +1029,29 @@ export default function BookingIndex(){
                             ).toLocaleString()}
                           </span>
                         </div>
+                        {(() => {
+                          const modalSubtotal = (selecting.prices?.[packageType] ?? selecting.basePrice) * quantity * nights +
+                            (selecting.extraBedPerPerson * extraBeds * nights) +
+                            (selecting.extraPersonPerNight * extraPersons * nights)
+                          const pricePerNight = (selecting.prices?.[packageType] ?? selecting.basePrice)
+                          const modalGST = calculateGST(modalSubtotal, selecting, pricePerNight)
+                          return (
+                            <>
+                              <div className="flex items-center justify-between text-base mb-2">
+                                <span className="text-gray-700">{formatGSTLabel(modalGST.gstPercentage)}</span>
+                                <span className="text-gray-900">
+                                  ₹{modalGST.gstAmount.toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-lg border-t border-amber-300 pt-2">
+                                <span className="font-bold text-gray-900">Total Amount</span>
+                                <span className="font-bold text-amber-600">
+                                  ₹{modalGST.totalAmount.toLocaleString()}
+                                </span>
+                              </div>
+                            </>
+                          )
+                        })()}
                         <div className="text-xs text-gray-600 text-right mt-1">Includes all taxes & fees</div>
                       </div>
                     </div>
