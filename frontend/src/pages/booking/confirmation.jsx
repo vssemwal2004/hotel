@@ -193,7 +193,6 @@ export default function Confirmation(){
                     </div>
                   </div>
                 )}
-                </div>
 
                 {/* QR Placeholder */}
                 <div className="mt-2 flex items-center justify-center">
