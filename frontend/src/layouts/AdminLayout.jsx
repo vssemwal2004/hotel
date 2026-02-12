@@ -13,10 +13,14 @@ import {
   X, 
   LogOut,
   ChevronRight,
+  ChevronDown,
   Home,
   MessageSquare,
   Mail,
-  Image
+  Image,
+  LogIn,
+  LogOut as LogOutIcon,
+  History
 } from 'lucide-react'
 
 // AdminLayout provides a professional responsive admin layout with sidebar
@@ -24,7 +28,16 @@ export default function AdminLayout({ children }){
   const { user, loading, logout } = useAuth()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [bookingsExpanded, setBookingsExpanded] = useState(false)
 
+  // Auto-expand bookings menu if on a bookings sub-page
+  useEffect(() => {
+    if (router.pathname.startsWith('/admin/bookings')) {
+      setBookingsExpanded(true)
+    }
+  }, [router.pathname])
+
+  // Authentication check
   useEffect(() => {
     if (!loading) {
       if (!user) router.replace('/auth/login')
@@ -45,15 +58,33 @@ export default function AdminLayout({ children }){
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/admin', color: 'text-blue-500' },
-    { icon: CalendarCheck, label: 'Bookings', href: '/admin/bookings', color: 'text-green-500' },
+    { 
+      icon: CalendarCheck, 
+      label: 'Bookings', 
+      color: 'text-green-500',
+      expandable: true,
+      subItems: [
+        { icon: LogIn, label: 'Check-In', href: '/admin/bookings/check-in', color: 'text-blue-400' },
+        { icon: LogOutIcon, label: 'Check-Out', href: '/admin/bookings/check-out', color: 'text-orange-400' },
+        { icon: History, label: 'History', href: '/admin/bookings/history', color: 'text-purple-400' },
+      ]
+    },
     { icon: Bed, label: 'Room Types', href: '/admin/rooms', color: 'text-purple-500' },
+    { icon: Bed, label: 'Available Rooms', href: '/admin/available-rooms', color: 'text-emerald-500' },
     { icon: Users, label: 'Users', href: '/admin/users', color: 'text-pink-500' },
     { icon: MessageSquare, label: 'Testimonials', href: '/admin/testimonials', color: 'text-amber-500' },
     { icon: Image, label: 'Gallery', href: '/admin/gallery', color: 'text-cyan-500' },
     { icon: Mail, label: 'Messages', href: '/admin/messages', color: 'text-red-500' },
   ]
 
-  const isActive = (href) => router.pathname === href
+  const isActive = (href) => {
+    if (!href) return false
+    return router.pathname === href
+  }
+
+  const isBookingsActive = () => {
+    return router.pathname.startsWith('/admin/bookings')
+  }
 
   const handleLogout = async () => {
     await logout()
@@ -137,6 +168,65 @@ export default function AdminLayout({ children }){
         <nav className="p-4 space-y-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
           {menuItems.map((item) => {
             const Icon = item.icon
+
+            if (item.expandable) {
+              // Expandable menu (Bookings)
+              const isExpanded = bookingsExpanded
+              const isAnySubActive = isBookingsActive()
+              
+              return (
+                <div key={item.label}>
+                  <button
+                    onClick={() => setBookingsExpanded(!bookingsExpanded)}
+                    className={`
+                      w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group
+                      ${isAnySubActive 
+                        ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg shadow-green-500/30' 
+                        : 'hover:bg-white/10 text-slate-300 hover:text-white'
+                      }
+                    `}
+                  >
+                    <Icon size={20} className={isAnySubActive ? 'text-white' : item.color} />
+                    <span className="flex-1 font-medium text-left">{item.label}</span>
+                    {isExpanded ? (
+                      <ChevronDown size={18} className={isAnySubActive ? 'text-white/80' : 'text-slate-400'} />
+                    ) : (
+                      <ChevronRight size={18} className={isAnySubActive ? 'text-white/80' : 'text-slate-400'} />
+                    )}
+                  </button>
+                  
+                  {/* Submenu */}
+                  {isExpanded && (
+                    <div className="mt-1 ml-4 space-y-1">
+                      {item.subItems.map((subItem) => {
+                        const SubIcon = subItem.icon
+                        const subActive = isActive(subItem.href)
+                        return (
+                          <a
+                            key={subItem.href}
+                            href={subItem.href}
+                            onClick={() => setSidebarOpen(false)}
+                            className={`
+                              flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200
+                              ${subActive 
+                                ? 'bg-white/10 text-white border-l-2 border-amber-400' 
+                                : 'hover:bg-white/5 text-slate-400 hover:text-white'
+                              }
+                            `}
+                          >
+                            <SubIcon size={16} className={subActive ? 'text-amber-400' : subItem.color} />
+                            <span className="text-sm font-medium">{subItem.label}</span>
+                            {subActive && <ChevronRight size={14} className="ml-auto text-amber-400" />}
+                          </a>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+            
+            // Regular menu item
             const active = isActive(item.href)
             return (
               <a

@@ -10,8 +10,11 @@ import {
   X, 
   LogOut,
   ChevronRight,
+  ChevronDown,
   History,
-  DoorOpen
+  DoorOpen,
+  LogIn,
+  LogOut as LogOutIcon
 } from 'lucide-react'
 
 // WorkerLayout provides a professional responsive worker layout with sidebar
@@ -19,6 +22,14 @@ export default function WorkerLayout({ children }){
   const { user, loading, logout } = useAuth()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [bookingsExpanded, setBookingsExpanded] = useState(false)
+
+  // Auto-expand bookings menu if on a bookings sub-page
+  useEffect(() => {
+    if (router.pathname.startsWith('/worker/bookings')) {
+      setBookingsExpanded(true)
+    }
+  }, [router.pathname])
 
   useEffect(() => {
     if (!loading) {
@@ -42,10 +53,27 @@ export default function WorkerLayout({ children }){
     { icon: LayoutDashboard, label: 'Dashboard', href: '/worker', color: 'text-teal-500' },
     { icon: CalendarCheck, label: 'Room Allotment', href: '/worker/allot', color: 'text-emerald-500' },
     { icon: DoorOpen, label: 'Available Rooms', href: '/worker/rooms', color: 'text-amber-500' },
-    { icon: History, label: 'Customers History', href: '/worker/history', color: 'text-blue-500' },
+    { 
+      icon: History, 
+      label: 'Customer Bookings', 
+      color: 'text-purple-500',
+      expandable: true,
+      subItems: [
+        { icon: LogIn, label: 'Check-In', href: '/worker/bookings/check-in', color: 'text-blue-400' },
+        { icon: LogOutIcon, label: 'Check-Out', href: '/worker/bookings/check-out', color: 'text-orange-400' },
+        { icon: History, label: 'History', href: '/worker/bookings/history', color: 'text-purple-400' },
+      ]
+    },
   ]
 
-  const isActive = (href) => router.pathname === href
+  const isActive = (href) => {
+    if (!href) return false
+    return router.pathname === href
+  }
+
+  const isBookingsActive = () => {
+    return router.pathname.startsWith('/worker/bookings')
+  }
 
   const handleLogout = async () => {
     await logout()
@@ -138,6 +166,66 @@ export default function WorkerLayout({ children }){
           <nav className="flex-1 overflow-y-auto py-4 px-3">
             <div className="space-y-1">
               {menuItems.map((item) => {
+                const Icon = item.icon
+
+                if (item.expandable) {
+                  // Expandable menu (Customer Bookings)
+                  const isExpanded = bookingsExpanded
+                  const isAnySubActive = isBookingsActive()
+                  
+                  return (
+                    <div key={item.label}>
+                      <button
+                        onClick={() => setBookingsExpanded(!bookingsExpanded)}
+                        className={`
+                          w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
+                          ${isAnySubActive 
+                            ? 'bg-white/10 text-white shadow-lg backdrop-blur-sm border border-white/20' 
+                            : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                          }
+                        `}
+                      >
+                        <Icon size={20} className={isAnySubActive ? item.color : 'text-slate-400'} />
+                        <span className={`flex-1 font-medium text-left ${isAnySubActive ? 'font-semibold' : ''}`}>{item.label}</span>
+                        {isExpanded ? (
+                          <ChevronDown size={18} className={isAnySubActive ? 'text-teal-300' : 'text-slate-400'} />
+                        ) : (
+                          <ChevronRight size={18} className={isAnySubActive ? 'text-teal-300' : 'text-slate-400'} />
+                        )}
+                      </button>
+                      
+                      {/* Submenu */}
+                      {isExpanded && (
+                        <div className="mt-1 ml-4 space-y-1">
+                          {item.subItems.map((subItem) => {
+                            const SubIcon = subItem.icon
+                            const subActive = isActive(subItem.href)
+                            return (
+                              <Link
+                                key={subItem.href}
+                                href={subItem.href}
+                                onClick={() => setSidebarOpen(false)}
+                                className={`
+                                  flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200
+                                  ${subActive 
+                                    ? 'bg-white/10 text-white border-l-2 border-teal-400' 
+                                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                                  }
+                                `}
+                              >
+                                <SubIcon size={16} className={subActive ? 'text-teal-400' : subItem.color} />
+                                <span className="text-sm font-medium">{subItem.label}</span>
+                                {subActive && <ChevronRight size={14} className="ml-auto text-teal-300" />}
+                              </Link>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
+                
+                // Regular menu item
                 const active = isActive(item.href)
                 return (
                   <Link
@@ -152,7 +240,7 @@ export default function WorkerLayout({ children }){
                       }
                     `}
                   >
-                    <item.icon 
+                    <Icon 
                       size={20} 
                       className={`${active ? item.color : 'text-slate-400'} transition-colors`}
                     />

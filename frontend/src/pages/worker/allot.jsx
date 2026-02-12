@@ -14,6 +14,7 @@ export default function WorkerAllot(){
   // Main booking fields
   const [checkIn, setCheckIn] = useState('')
   const [fullDay, setFullDay] = useState(false)
+  const [nights, setNights] = useState(1)
   const [checkOut, setCheckOut] = useState('')
   const [roomTypes, setRoomTypes] = useState([])
   const [roomTypeKey, setRoomTypeKey] = useState('')
@@ -47,6 +48,18 @@ export default function WorkerAllot(){
       }
     })()
   }, [authorized])
+
+  // Auto-calculate checkout date when fullDay is true
+  useEffect(() => {
+    if (fullDay && checkIn && nights > 0) {
+      const checkInDate = new Date(checkIn)
+      const checkOutDate = new Date(checkInDate)
+      checkOutDate.setDate(checkOutDate.getDate() + Number(nights))
+      // Format to datetime-local format (YYYY-MM-DDTHH:MM)
+      const formatted = checkOutDate.toISOString().slice(0, 16)
+      setCheckOut(formatted)
+    }
+  }, [fullDay, checkIn, nights])
 
   // Add new guest
   const addGuest = () => {
@@ -98,8 +111,8 @@ export default function WorkerAllot(){
           email: primaryGuest.email.trim() || `guest${Date.now()}@hotel.com` 
         },
         checkIn,
+        checkOut, // Always send checkOut (calculated or manual)
         fullDay,
-        ...(fullDay ? {} : { checkOut }),
         items: [ { 
           roomTypeKey, 
           quantity: Number(quantity), 
@@ -116,6 +129,8 @@ export default function WorkerAllot(){
         setGuests([{ name: '', email: '', phone: '', age: 21, type: 'adult' }])
         setCheckIn('')
         setCheckOut('')
+        setNights(1)
+        setFullDay(false)
         setQuantity(1)
         setResult(null)
       }, 3000)
@@ -324,10 +339,22 @@ export default function WorkerAllot(){
                     checked={fullDay}
                     onChange={e => setFullDay(e.target.checked)}
                   />
-                  <span className="text-xs md:text-sm font-semibold text-gray-700">Full Day Booking</span>
+                  <span className="text-xs md:text-sm font-semibold text-gray-700">Auto-calculate Check-out</span>
                 </label>
               </div>
-              {!fullDay && (
+              {fullDay ? (
+                <div>
+                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Number of Nights *</label>
+                  <input
+                    required
+                    type="number"
+                    min={1}
+                    className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm md:text-base focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                    value={nights}
+                    onChange={e => setNights(e.target.value)}
+                  />
+                </div>
+              ) : (
                 <div>
                   <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Check-out Date & Time *</label>
                   <input
@@ -340,6 +367,16 @@ export default function WorkerAllot(){
                 </div>
               )}
             </div>
+            {/* Show auto-calculated checkout when fullDay is true */}
+            {fullDay && checkOut && (
+              <div className="mt-3 text-sm bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
+                <span className="text-teal-700 font-semibold">Auto-calculated Check-out:</span>{' '}
+                <span className="text-teal-900">{new Date(checkOut).toLocaleString('en-IN', { 
+                  dateStyle: 'medium', 
+                  timeStyle: 'short' 
+                })}</span>
+              </div>
+            )}
           </div>
 
           {/* Room Details */}

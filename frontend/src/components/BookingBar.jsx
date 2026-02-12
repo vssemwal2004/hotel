@@ -11,6 +11,8 @@ export default function BookingBar() {
   const [checkOut, setCheckOut] = useState('')
   const [checkInTime, setCheckInTime] = useState('14:00')
   const [checkOutTime, setCheckOutTime] = useState('11:00')
+  const [nights, setNights] = useState(1)
+  const [autoCalculate, setAutoCalculate] = useState(false)
   const [rooms, setRooms] = useState(1)
   const [adults, setAdults] = useState(2)
   const [children, setChildren] = useState(0)
@@ -25,6 +27,16 @@ export default function BookingBar() {
     setCheckIn(formatDate(today))
     setCheckOut(formatDate(tomorrow))
   }, [])
+
+  // Auto-calculate checkout when enabled
+  useEffect(() => {
+    if (autoCalculate && checkIn && nights > 0) {
+      const checkInDate = new Date(checkIn)
+      const checkOutDate = new Date(checkInDate)
+      checkOutDate.setDate(checkOutDate.getDate() + Number(nights))
+      setCheckOut(formatDate(checkOutDate))
+    }
+  }, [autoCalculate, checkIn, nights])
 
   const formatDate = (date) => {
     const year = date.getFullYear()
@@ -89,7 +101,7 @@ export default function BookingBar() {
       <div className="max-w-7xl mx-auto">
         {/* Booking Form - Mobile: All fields inline, Desktop: Horizontal Layout */}
         <div className="bg-white rounded-3xl shadow-2xl border-2 border-amber-200 overflow-hidden hover:shadow-amber-300/50 transition-all duration-500">
-          <div className="flex flex-wrap md:grid md:grid-cols-2 lg:grid-cols-7 gap-2 md:gap-0 divide-y-0 md:divide-y-0 md:divide-x divide-amber-100 p-3 md:p-0">
+          <div className="flex flex-wrap md:grid md:grid-cols-2 lg:grid-cols-8 gap-2 md:gap-0 divide-y-0 md:divide-y-0 md:divide-x divide-amber-100 p-3 md:p-0">
             
             {/* Check-In Date & Time - Compact Mobile */}
             <div className="p-3 md:p-5 lg:col-span-1 hover:bg-amber-50 transition-colors group flex-1 min-w-[140px]">
@@ -115,6 +127,46 @@ export default function BookingBar() {
               </div>
             </div>
 
+            {/* Nights / Auto Calculate Toggle - Compact Mobile */}
+            <div className="p-3 md:p-5 lg:col-span-1 hover:bg-amber-50 transition-colors group flex-1 min-w-[100px]">
+              <label className="flex items-center gap-1 md:gap-2 text-[10px] md:text-xs font-bold text-amber-700 mb-2 md:mb-3 uppercase tracking-wide">
+                <Calendar className="w-3 h-3 md:w-4 md:h-4 text-amber-600" />
+                Nights
+              </label>
+              {autoCalculate ? (
+                <div className="flex items-center gap-2 md:gap-3">
+                  <button
+                    onClick={() => setNights(Math.max(1, nights - 1))}
+                    className="w-7 h-7 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 hover:from-amber-200 hover:to-amber-300 text-amber-800 font-bold transition-all shadow-md hover:shadow-lg transform hover:scale-110 active:scale-95 text-sm md:text-base"
+                    disabled={nights <= 1}
+                  >
+                    -
+                  </button>
+                  <span className="flex-1 text-center text-base md:text-xl font-bold text-gray-800 min-w-[1.5rem] md:min-w-[2rem]">
+                    {nights}
+                  </span>
+                  <button
+                    onClick={() => setNights(Math.min(30, nights + 1))}
+                    className="w-7 h-7 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 hover:from-amber-200 hover:to-amber-300 text-amber-800 font-bold transition-all shadow-md hover:shadow-lg transform hover:scale-110 active:scale-95 text-sm md:text-base"
+                    disabled={nights >= 30}
+                  >
+                    +
+                  </button>
+                </div>
+              ) : (
+                <div className="text-xs md:text-sm text-gray-500 italic">Manual</div>
+              )}
+              <div className="flex items-center gap-1 mt-1 md:mt-2">
+                <input
+                  type="checkbox"
+                  checked={autoCalculate}
+                  onChange={(e) => setAutoCalculate(e.target.checked)}
+                  className="w-3 h-3 text-amber-600 rounded"
+                />
+                <span className="text-[9px] md:text-[10px] text-amber-700 font-medium">Auto</span>
+              </div>
+            </div>
+
             {/* Check-Out Date & Time - Compact Mobile */}
             <div className="p-3 md:p-5 lg:col-span-1 hover:bg-amber-50 transition-colors group flex-1 min-w-[140px]">
               <label className="flex items-center gap-1 md:gap-2 text-[10px] md:text-xs font-bold text-amber-700 mb-2 md:mb-3 uppercase tracking-wide">
@@ -125,8 +177,9 @@ export default function BookingBar() {
                 type="date"
                 value={checkOut}
                 onChange={(e) => setCheckOut(e.target.value)}
+                disabled={autoCalculate}
                 min={checkIn || formatDate(new Date())}
-                className="w-full text-sm md:text-base font-semibold text-gray-800 border-none outline-none focus:ring-0 bg-transparent cursor-pointer"
+                className="w-full text-sm md:text-base font-semibold text-gray-800 border-none outline-none focus:ring-0 bg-transparent cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <div className="flex items-center gap-1 md:gap-2 mt-1 md:mt-2">
                 <Clock className="w-2.5 h-2.5 md:w-3 md:h-3 text-amber-500" />

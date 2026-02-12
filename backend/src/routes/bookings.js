@@ -251,11 +251,15 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
     const fullDay = !!data.fullDay
     let nights = 1
     let checkOut = null
-    if (!fullDay) {
-      if (!data.checkOut) return res.status(400).json({ message: 'checkOut is required when fullDay is false' })
+    
+    // If checkOut is provided, use it to calculate nights
+    if (data.checkOut) {
       checkOut = new Date(data.checkOut)
       if (!(checkOut > checkIn)) return res.status(400).json({ message: 'checkOut must be after checkIn' })
       nights = nightsBetween(checkIn, checkOut)
+    } else if (!fullDay) {
+      // If fullDay is false and no checkOut, return error
+      return res.status(400).json({ message: 'checkOut is required when fullDay is false' })
     }
 
     const types = await RoomType.find({ key: { $in: data.items.map(i=>i.roomTypeKey) } })
