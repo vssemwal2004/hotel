@@ -175,22 +175,24 @@ export default function BookingsPage() {
           return bookingDay.getTime() === today.getTime()
         } else if (dateFilter === 'week') {
           const weekAgo = new Date(today)
-  // Calculate counts with date filter applied
-  const currentCount = filterBookings().filter(b => {
-    const now = new Date()
-    const checkIn = new Date(b.checkIn)
-    const checkOut = b.checkOut ? new Date(b.checkOut) : checkIn
-    return (b.status === 'paid' || b.status === 'pending') && checkOut >= now
-  }).length
-
-  const pastCount = filterBookings().filter(b => {
-    const checkOut = b.checkOut ? new Date(b.checkOut) : new Date(b.checkIn)
-    return b.status === 'completed' || (checkOut < new Date() && b.status !== 'cancelled')
-  }).length
-
-  const cancelledCount = filterBookings().filter(b => b.status === 'cancelled').length
-  const allCount = filterBookings(
-      })allCount
+          weekAgo.setDate(weekAgo.getDate() - 7)
+          return bookingDate >= weekAgo
+        } else if (dateFilter === 'month') {
+          const monthAgo = new Date(today)
+          monthAgo.setMonth(monthAgo.getMonth() - 1)
+          return bookingDate >= monthAgo
+        } else if (dateFilter === 'custom') {
+          if (customStartDate && customEndDate) {
+            const start = new Date(customStartDate)
+            start.setHours(0, 0, 0, 0)
+            const end = new Date(customEndDate)
+            end.setHours(23, 59, 59, 999)
+            return bookingDate >= start && bookingDate <= end
+          }
+          return true
+        }
+        return true
+      })
     }
     
     return filtered
