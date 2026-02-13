@@ -53,22 +53,44 @@ export default function CheckInPage() {
     const now = new Date()
     now.setHours(0, 0, 0, 0)
 
-    // Filter by check-in date range
+    // First filter: Only show currently ongoing bookings (checked in but not checked out yet)
+    filtered = filtered.filter(b => {
+      if (!b.checkIn || !b.checkOut) return false
+      
+      const checkInDate = new Date(b.checkIn)
+      const checkOutDate = new Date(b.checkOut)
+      
+      // Validate dates
+      if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) return false
+      
+      checkInDate.setHours(0, 0, 0, 0)
+      checkOutDate.setHours(0, 0, 0, 0)
+      
+      // Show bookings where check-in has happened and check-out hasn't happened yet
+      // Check-in date should be today or in the past, check-out should be today or in the future
+      return checkInDate <= now && checkOutDate >= now
+    })
+
+    // Optional: Filter by check-in date range (only if not showing 'all')
     if (dateFilter !== 'all') {
       filtered = filtered.filter(b => {
+        if (!b.checkIn) return false
         const checkInDate = new Date(b.checkIn)
         checkInDate.setHours(0, 0, 0, 0)
 
         if (dateFilter === 'today') {
+          // Checked in today
           return checkInDate.getTime() === now.getTime()
         } else if (dateFilter === 'week') {
-          const weekEnd = new Date(now)
-          weekEnd.setDate(weekEnd.getDate() + 7)
-          return checkInDate >= now && checkInDate <= weekEnd
+          // Checked in within the last 7 days
+          const weekAgo = new Date(now)
+          weekAgo.setDate(weekAgo.getDate() - 7)
+          return checkInDate >= weekAgo && checkInDate <= now
         } else if (dateFilter === 'month') {
-          const monthEnd = new Date(now)
-          monthEnd.setMonth(monthEnd.getMonth() + 1)
-          return checkInDate >= now && checkInDate <= monthEnd
+          // Checked in within the last 30 days
+          const monthAgo = new Date(now)
+          monthAgo.setDate(monthAgo.getDate() - 30)
+          return checkInDate >= monthAgo && checkInDate <= now
         } else if (dateFilter === 'custom' && customStartDate && customEndDate) {
           const start = new Date(customStartDate)
           const end = new Date(customEndDate)
