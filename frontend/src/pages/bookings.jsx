@@ -255,7 +255,8 @@ export default function BookingsPage() {
         <div className="container mx-auto max-w-7xl">
           {/* Page Header */}
           <motion.div
-            initial={{ opa6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
           >
             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
               Your Bookings
@@ -325,12 +326,37 @@ export default function BookingsPage() {
                     setActiveTab(tab.id)
                     setExpandedBooking(null)
                   }}
-                  className={`flex items-center justify-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg text-sm
-                  }}
-                  className={`flex items-center justify-center gap-2 px-3 py-2 sm:px-5 sm:py-3 rounded-lg text-sm sm:text-base font-semibold transition-all duration-300 ${
+                  className={`flex items-center justify-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg text-sm sm:text-base font-semibold transition-all duration-300 ${
                     activeTab === tab.id
                       ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg'
-                      : 'bg-white te4">
+                      : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                    activeTab === tab.id ? 'bg-white/20' : 'bg-gray-100'
+                  }`}>
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Bookings List */}
+          <div className="space-y-4">
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 border-4 border-amber-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading your bookings...</p>
+              </div>
+            ) : filteredBookings.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-xl shadow-md">
+                <Calendar size={48} className="mx-auto text-gray-300 mb-3" />
+                <p className="text-gray-600 text-lg font-semibold">No bookings found</p>
+                <p className="text-gray-500 text-sm mt-1">You haven't made any reservations yet</p>
+              </div>
+            ) : (
               <AnimatePresence mode="popLayout">
                 {filteredBookings.map((booking, index) => {
                   const statusInfo = getStatusInfo(booking.status)
@@ -428,26 +454,24 @@ export default function BookingsPage() {
                               {isExpanded ? (
                                 <ChevronUp size={16} className="text-amber-600" />
                               ) : (
-                                <ChevronDown size={16xs text-gray-600">{formatTime(booking.checkIn)}</p>
-                                </div>
-                              </div>
-
-                              {/* Check-out */}
-                              {booking.checkOut && (
-                                <div className="flex items-center gap-3">
-                                  <div className="p-3 rounded-lg bg-blue-100">
-                                    <Calendar size={20} className="text-blue-600" />
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-gray-500 font-medium">Check-out</p>
-                                    <p className="font-semibold text-gray-900">{formatDate(booking.checkOut)}</p>
-                                    <p className="text-xs text-gray-600">{formatTime(booking.checkOut)}</p>
-                                  </div>
-                                </div>
+                                <ChevronDown size={16} className="text-amber-600" />
                               )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
 
-                              {/* Nights */}
-                              <div className="4 bg-gradient-to-br from-gray-50 to-amber-50/30">
+                      {/* Expanded Content */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="border-t border-gray-200"
+                          >
+                            <div className="p-4 bg-gradient-to-br from-gray-50 to-amber-50/30">
                               <h4 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
                                 <Bed className="text-amber-600" size={20} />
                                 Room Details
@@ -477,7 +501,7 @@ export default function BookingsPage() {
 
                                     {/* Guests */}
                                     {item.guests && item.guests.length > 0 && (
-                                      <div className="mt-3 pt-3 border-t border-gray-100">
+                                      <div className="mt-4 pt-4 border-t border-gray-100">
                                         <p className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
                                           <Users size={14} className="text-amber-600" />
                                           Guests ({item.guests.length})
@@ -514,52 +538,7 @@ export default function BookingsPage() {
                                   <button onClick={() => payWithRazorpay(booking)} className="flex-1 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all shadow-md hover:shadow-lg text-sm">
                                     Pay with Razorpay
                                   </button>
-                                  <button className="px-4 py-2.5 bg-white text-red-600 font-semibold rounded-lg hover:bg-red-50 transition-all border-2 border-red-200 text-sm
-                                          <span>{item.subtotal.toLocaleString('en-IN')}</span>
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    {/* Guests */}
-                                    {item.guests && item.guests.length > 0 && (
-                                      <div className="mt-4 pt-4 border-t border-gray-100">
-                                        <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                                          <Users size={16} className="text-amber-600" />
-                                          Guests ({item.guests.length})
-                                        </p>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                          {item.guests.map((guest, gIdx) => (
-                                            <div 
-                                              key={gIdx}
-                                              className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-lg"
-                                            >
-                                              <div className="w-8 h-8 rounded-full bg-amber-200 flex items-center justify-center">
-                                                <span className="text-xs font-bold text-amber-700">
-                                                  {guest.name.charAt(0).toUpperCase()}
-                                                </span>
-                                              </div>
-                                              <div>
-                                                <p className="text-sm font-semibold text-gray-900">{guest.name}</p>
-                                                <p className="text-xs text-gray-600">
-                                                  {guest.type === 'adult' ? 'Adult' : 'Child'} • {guest.age} years
-                                                </p>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-
-                              {/* Action Buttons */}
-                              {booking.status === 'pending' && (
-                                <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                                  <button onClick={() => payWithRazorpay(booking)} className="flex-1 px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all shadow-lg hover:shadow-xl">
-                                    Pay with Razorpay
-                                  </button>
-                                  <button className="px-6 py-3 bg-white text-red-600 font-semibold rounded-lg hover:bg-red-50 transition-all border-2 border-red-200">
+                                  <button className="px-4 py-2.5 bg-white text-red-600 font-semibold rounded-lg hover:bg-red-50 transition-all border-2 border-red-200 text-sm">
                                     Cancel Booking
                                   </button>
                                 </div>
@@ -572,8 +551,8 @@ export default function BookingsPage() {
                   )
                 })}
               </AnimatePresence>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
