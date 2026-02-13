@@ -48,6 +48,8 @@ export default function AdminRooms(){
   const [galleryFiles, setGalleryFiles] = useState([])
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [roomNumbers, setRoomNumbers] = useState([])
+  const [newRoomNumber, setNewRoomNumber] = useState('')
 
   const loadTypes = async () => {
     try {
@@ -94,7 +96,8 @@ export default function AdminRooms(){
         count: Number(form.count),
         description: form.description || '',
         gstEnabled: form.gstEnabled !== undefined ? Boolean(form.gstEnabled) : true,
-        gstPercentage: form.gstPercentage !== '' && form.gstPercentage !== null ? Number(form.gstPercentage) : null
+        gstPercentage: form.gstPercentage !== '' && form.gstPercentage !== null ? Number(form.gstPercentage) : null,
+        roomNumbers: roomNumbers.filter(rn => rn && rn.trim())
       }
   const fd = new FormData()
   fd.append('data', JSON.stringify(payload))
@@ -106,8 +109,10 @@ export default function AdminRooms(){
         await api.post('/room-types', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
       }
       reset()
-  setCoverFiles([])
-  setGalleryFiles([])
+      setCoverFiles([])
+      setGalleryFiles([])
+      setRoomNumbers([])
+      setNewRoomNumber('')
       setEditingId(null)
       setShowForm(false)
       await loadTypes()
@@ -138,6 +143,7 @@ export default function AdminRooms(){
     setValue('description', t.description || '')
     setValue('photos', t.photos || [])
     setValue('coverPhotos', t.coverPhotos || [])
+    setRoomNumbers(t.roomNumbers || [])
     setValue('gstEnabled', t.gstEnabled !== undefined ? t.gstEnabled : true)
     setValue('gstPercentage', t.gstPercentage !== undefined ? t.gstPercentage : null)
   setCoverFiles([])
@@ -147,6 +153,8 @@ export default function AdminRooms(){
   const cancelEdit = () => {
     setEditingId(null)
     setShowForm(false)
+    setRoomNumbers([])
+    setNewRoomNumber('')
     reset()
   setCoverFiles([])
   setGalleryFiles([])
@@ -277,6 +285,7 @@ export default function AdminRooms(){
                     className="w-full border-2 border-gray-300 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-1">This should match the number of room numbers you add</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Availability Status *</label>
@@ -303,6 +312,79 @@ export default function AdminRooms(){
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Room Numbers Management */}
+            <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 md:p-6 rounded-2xl border-2 border-blue-200">
+              <h3 className="text-base md:text-lg font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
+                <Bed size={20} className="text-blue-600" />
+                Room Numbers ({roomNumbers.length})
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Assign individual room numbers to each room of this type. Workers will use these to allot specific rooms to guests.
+              </p>
+              
+              {/* Add Room Number */}
+              <div className="flex gap-2 mb-4">
+                <input
+                  type="text"
+                  value={newRoomNumber}
+                  onChange={(e) => setNewRoomNumber(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      if (newRoomNumber.trim() && !roomNumbers.includes(newRoomNumber.trim())) {
+                        setRoomNumbers([...roomNumbers, newRoomNumber.trim()])
+                        setNewRoomNumber('')
+                      }
+                    }
+                  }}
+                  placeholder="Enter room number (e.g., 101, 102)"
+                  className="flex-1 border-2 border-blue-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (newRoomNumber.trim() && !roomNumbers.includes(newRoomNumber.trim())) {
+                      setRoomNumbers([...roomNumbers, newRoomNumber.trim()])
+                      setNewRoomNumber('')
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+                >
+                  <Plus size={18} />
+                  Add
+                </button>
+              </div>
+
+              {/* Room Numbers List */}
+              {roomNumbers.length > 0 ? (
+                <div className="bg-white rounded-xl p-4 border-2 border-blue-200">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                    {roomNumbers.map((rn, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between bg-blue-50 border-2 border-blue-200 rounded-lg p-2 group hover:border-blue-400 transition-colors"
+                      >
+                        <span className="text-sm font-semibold text-blue-900">{rn}</span>
+                        <button
+                          type="button"
+                          onClick={() => setRoomNumbers(roomNumbers.filter((_, i) => i !== idx))}
+                          className="text-red-600 hover:text-red-800 opacity-70 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl p-6 border-2 border-dashed border-blue-300 text-center">
+                  <Bed size={32} className="mx-auto text-blue-300 mb-2" />
+                  <p className="text-sm text-gray-600">No room numbers added yet</p>
+                  <p className="text-xs text-gray-500 mt-1">Add room numbers to help workers track individual rooms</p>
+                </div>
+              )}
             </div>
 
             {/* Pricing */}

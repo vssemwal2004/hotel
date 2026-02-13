@@ -40,6 +40,36 @@ function nightsBetween(start, end) {
   return Math.max(1, Math.ceil((e - s) / ms))
 }
 
+// Helper function to check room number availability
+async function getAvailableRoomNumbers(roomTypeKey, checkIn, checkOut, excludeBookingId = null) {
+  const roomType = await RoomType.findOne({ key: roomTypeKey })
+  if (!roomType || !roomType.roomNumbers || roomType.roomNumbers.length === 0) {
+    return []
+  }
+
+  // Find all bookings that overlap with the requested date range
+  const overlappingBookings = await Booking.find({
+    _id: { $ne: excludeBookingId },
+    status: { $in: ['paid', 'pending'] },
+    checkIn: { $lt: checkOut },
+    checkOut: { $gt: checkIn },
+    'items.roomTypeKey': roomTypeKey
+  })
+
+  // Collect all allotted room numbers
+  const allottedRoomNumbers = new Set()
+  overlappingBookings.forEach(booking => {
+    booking.items
+      .filter(item => item.roomTypeKey === roomTypeKey)
+      .forEach(item => {
+        (item.allottedRoomNumbers || []).forEach(rn => allottedRoomNumbers.add(rn))
+      })
+  })
+
+  // Return available room numbers
+  return roomType.roomNumbers.filter(rn => !allottedRoomNumbers.has(rn))
+}
+
 // Create booking (requires auth)
 router.post('/', authRequired, async (req, res, next) => {
   try {
@@ -175,6 +205,203 @@ router.get('/', authRequired, rolesRequired('admin','worker'), async (req, res, 
   try {
     const list = await Booking.find({}).populate('user','name email').sort({ createdAt: -1 })
     res.json({ bookings: list })
+  } catch (e) { next(e) }
+})
+
+// Get available room numbers for a room type and date range
+router.get('/available-rooms/:roomTypeKey', authRequired, rolesRequired('admin','worker'), async (req, res, next) => {
+  try {
+    const { roomTypeKey } = req.params
+    const { checkIn, checkOut } = req.query
+    
+    if (!checkIn || !checkOut) {
+      return res.status(400).json({ message: 'checkIn and checkOut dates are required' })
+    }
+
+    const availableRooms = await getAvailableRoomNumbers(
+      roomTypeKey,
+      new Date(checkIn),
+      new Date(checkOut)
+    )
+
+    res.json({ 
+      roomTypeKey,
+      availableRoomNumbers: availableRooms,
+      count: availableRooms.length
+    })
+  } catch (e) { next(e) }
+})
+
+// Allot room numbers to a booking (worker/admin only)
+router.post('/:id/allot-rooms', authRequired, rolesRequired('admin','worker'), async (req, res, next) => {
+  try {
+    const booking = await Booking.findById(req.params.id)
+    if (!booking) return res.status(404).json({ message: 'Booking not found' })
+    
+    const { allotments } = req.body // { roomTypeKey: string, roomNumbers: string[] }[]
+    if (!Array.isArray(allotments)) {
+      return res.status(400).json({ message: 'allotments must be an array' })
+    }
+
+    // Validate that all room numbers are available
+    for (const allotment of allotments) {
+      const availableRooms = await getAvailableRoomNumbers(
+        allotment.roomTypeKey,
+        booking.checkIn,
+        booking.checkOut,
+        booking._id
+      )
+      
+      for (const rn of allotment.roomNumbers) {
+        if (!availableRooms.includes(rn)) {
+          return res.status(409).json({ 
+            message: `Room ${rn} is not available for the booking period` 
+          })
+        }
+      }
+      
+      // Find the item and update allotted room numbers
+      const item = booking.items.find(it => it.roomTypeKey === allotment.roomTypeKey)
+      if (!item) {
+        return res.status(400).json({ 
+          message: `Room type ${allotment.roomTypeKey} not found in booking` 
+        })
+      }
+      
+      if (allotment.roomNumbers.length > item.quantity) {
+        return res.status(400).json({ 
+          message: `Too many rooms allotted for ${item.title}. Booked: ${item.quantity}, Trying to allot: ${allotment.roomNumbers.length}` 
+        })
+      }
+      
+      item.allottedRoomNumbers = allotment.roomNumbers
+    }
+
+    await booking.save()
+    res.json({ booking })
+  } catch (e) { next(e) }
+})
+
+// Update booking (extend checkout, add guests, etc.)
+router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, res, next) => {
+  try {
+    const booking = await Booking.findById(req.params.id)
+    if (!booking) return res.status(404).json({ message: 'Booking not found' })
+    
+    const { checkOut, items, additionalGuests } = req.body
+    let recalculate = false
+
+    // Update checkout date
+    if (checkOut) {
+      const newCheckOut = new Date(checkOut)
+      if (newCheckOut <= booking.checkIn) {
+        return res.status(400).json({ message: 'Check-out must be after check-in' })
+      }
+      
+      // Validate that allotted rooms are still available for the extended period
+      if (booking.checkOut && newCheckOut > booking.checkOut) {
+        for (const item of booking.items) {
+          if (item.allottedRoomNumbers && item.allottedRoomNumbers.length > 0) {
+            const availableRooms = await getAvailableRoomNumbers(
+              item.roomTypeKey,
+              booking.checkOut,
+              newCheckOut,
+              booking._id
+            )
+            
+            for (const rn of item.allottedRoomNumbers) {
+              if (!availableRooms.includes(rn)) {
+                return res.status(409).json({ 
+                  message: `Room ${rn} is not available for the extended period` 
+                })
+              }
+            }
+          }
+        }
+      }
+      
+      booking.checkOut = newCheckOut
+      booking.nights = nightsBetween(booking.checkIn, newCheckOut)
+      recalculate = true
+    }
+
+    // Add more rooms
+    if (items && Array.isArray(items)) {
+      for (const newItem of items) {
+        const roomType = await RoomType.findOne({ key: newItem.roomTypeKey })
+        if (!roomType) {
+          return res.status(400).json({ message: `Invalid room type ${newItem.roomTypeKey}` })
+        }
+        
+        // Check availability
+        if (roomType.count < newItem.quantity) {
+          return res.status(409).json({ message: `${roomType.title} rooms not available` })
+        }
+        
+        // Check if this room type is already in booking
+        const existingItem = booking.items.find(it => it.roomTypeKey === newItem.roomTypeKey)
+        if (existingItem) {
+          existingItem.quantity += newItem.quantity
+          if (newItem.guests) {
+            existingItem.guests.push(...newItem.guests)
+          }
+        } else {
+          const base = (roomType.prices && roomType.prices[newItem.packageType]) 
+            ? roomType.prices[newItem.packageType] 
+            : (roomType.basePrice || 0)
+          const subtotal = base * newItem.quantity * booking.nights
+          booking.items.push({
+            roomTypeKey: roomType.key,
+            title: roomType.title,
+            basePrice: base,
+            quantity: newItem.quantity,
+            guests: newItem.guests || [],
+            subtotal,
+            allottedRoomNumbers: []
+          })
+        }
+        
+        // Decrease available count
+        if (booking.status === 'paid') {
+          await RoomType.updateOne({ key: newItem.roomTypeKey }, { $inc: { count: -newItem.quantity } })
+        }
+      }
+      recalculate = true
+    }
+
+    // Add more guests to existing items
+    if (additionalGuests && Array.isArray(additionalGuests)) {
+      for (const guestUpdate of additionalGuests) {
+        const item = booking.items.find(it => it.roomTypeKey === guestUpdate.roomTypeKey)
+        if (item) {
+          item.guests.push(...(guestUpdate.guests || []))
+        }
+      }
+    }
+
+    // Recalculate totals if needed
+    if (recalculate) {
+      let newSubtotal = 0
+      for (const item of booking.items) {
+        item.subtotal = item.basePrice * item.quantity * booking.nights
+        newSubtotal += item.subtotal
+      }
+      
+      const firstItem = booking.items[0]
+      const roomType = await RoomType.findOne({ key: firstItem.roomTypeKey })
+      const pricePerNight = (roomType.prices?.roomOnly ?? roomType.basePrice) || 0
+      const gstEnabled = roomType.gstEnabled !== false
+      const customGST = (gstEnabled && roomType.gstPercentage !== null) ? roomType.gstPercentage : null
+      const gstResult = calculateGST(newSubtotal, customGST, pricePerNight)
+      
+      booking.subtotal = newSubtotal
+      booking.gstPercentage = gstEnabled ? gstResult.gstPercentage : 0
+      booking.gstAmount = gstEnabled ? gstResult.gstAmount : 0
+      booking.total = newSubtotal + (gstEnabled ? gstResult.gstAmount : 0)
+    }
+
+    await booking.save()
+    res.json({ booking })
   } catch (e) { next(e) }
 })
 

@@ -38,6 +38,7 @@ const upsertSchema = z.object({
   status: z.enum(['available','blocked','maintenance']).optional().default('available'),
   amenities: z.array(z.string()).optional().default([]),
   count: z.number().int().min(0),
+  roomNumbers: z.array(z.string()).optional().default([]),
   description: z.string().optional().default(''),
   gstEnabled: z.boolean().optional().default(true),
   gstPercentage: z.number().min(0).max(100).nullable().optional().default(null)

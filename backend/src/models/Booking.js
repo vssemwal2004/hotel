@@ -14,7 +14,9 @@ const itemSchema = new mongoose.Schema({
   basePrice: { type: Number, required: true },
   quantity: { type: Number, required: true, min: 1 },
   guests: [guestSchema],
-  subtotal: { type: Number, required: true, min: 0 }
+  subtotal: { type: Number, required: true, min: 0 },
+  // Room numbers allotted to this item (worker assigns during check-in)
+  allottedRoomNumbers: [{ type: String }]
 }, { _id: false })
 
 const bookingSchema = new mongoose.Schema({

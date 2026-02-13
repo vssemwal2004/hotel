@@ -12,7 +12,8 @@ import {
   Users, 
   Calendar,
   Home,
-  Filter
+  Filter,
+  Edit
 } from 'lucide-react'
 
 export default function WorkerPage(){
@@ -552,6 +553,13 @@ export default function WorkerPage(){
                 <div className="flex flex-wrap justify-end gap-3 pt-4 border-t-2 border-gray-100">
                   {b.status === 'pending' && (
                     <>
+                      <button 
+                        onClick={() => router.push(`/worker/bookings/edit-booking?id=${b._id}`)} 
+                        className="px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        <Edit size={20} />
+                        Edit Booking
+                      </button>
                       <button 
                         onClick={() => markPaid(b._id)} 
                         className={`px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2 ${ui.actionBtn}`}

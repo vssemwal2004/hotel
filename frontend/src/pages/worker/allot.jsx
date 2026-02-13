@@ -21,6 +21,11 @@ export default function WorkerAllot(){
   const [quantity, setQuantity] = useState(1)
   const [markPaid, setMarkPaid] = useState(true)
   
+  // Room Number Selection
+  const [availableRoomNumbers, setAvailableRoomNumbers] = useState([])
+  const [selectedRoomNumbers, setSelectedRoomNumbers] = useState([])
+  const [fetchingRooms, setFetchingRooms] = useState(false)
+  
   // Main Guest (Guardian) Information
   const [mainGuest, setMainGuest] = useState({
     name: '',
@@ -75,6 +80,55 @@ export default function WorkerAllot(){
       setCheckOut(formatted)
     }
   }, [fullDay, checkIn, nights])
+
+  // Fetch available room numbers when room type or dates change
+  useEffect(() => {
+    const fetchAvailableRoomNumbers = async () => {
+      if (!roomTypeKey || !checkIn || !checkOut) {
+        setAvailableRoomNumbers([])
+        setSelectedRoomNumbers([])
+        return
+      }
+
+      setFetchingRooms(true)
+      try {
+        const { data } = await api.get(`/bookings/available-rooms/${roomTypeKey}`, {
+          params: {
+            checkIn,
+            checkOut
+          }
+        })
+        
+        const available = data.availableRoomNumbers || []
+        setAvailableRoomNumbers(available)
+        
+        // Reset selected rooms if they're no longer available
+        setSelectedRoomNumbers(prev => 
+          prev.filter(rn => available.includes(rn)).slice(0, Number(quantity))
+        )
+      } catch (error) {
+        console.error('Error fetching available rooms:', error)
+        setAvailableRoomNumbers([])
+        setSelectedRoomNumbers([])
+      } finally {
+        setFetchingRooms(false)
+      }
+    }
+
+    fetchAvailableRoomNumbers()
+  }, [roomTypeKey, checkIn, checkOut, quantity])
+
+  // Handle room number selection
+  const handleRoomNumberChange = (index, value) => {
+    const newSelected = [...selectedRoomNumbers]
+    newSelected[index] = value
+    setSelectedRoomNumbers(newSelected.filter(Boolean))
+  }
+
+  // Remove a selected room number
+  const removeRoomNumber = (roomNumber) => {
+    setSelectedRoomNumbers(prev => prev.filter(rn => rn !== roomNumber))
+  }
 
   // Update main guest field
   const updateMainGuest = (field, value) => {
@@ -160,7 +214,8 @@ export default function WorkerAllot(){
       items: [ { 
         roomTypeKey, 
         quantity: Number(quantity), 
-        guests: guestList 
+        guests: guestList,
+        allottedRoomNumbers: selectedRoomNumbers.length > 0 ? selectedRoomNumbers : undefined
       } ],
       paid: markPaid,
       guestIdInfo: {
@@ -592,6 +647,83 @@ export default function WorkerAllot(){
                 />
               </div>
             </div>
+
+            {/* Room Number Selection - Only show if room type is selected and dates are set */}
+            {roomTypeKey && checkIn && checkOut && (
+              <div className="mt-4">
+                {fetchingRooms ? (
+                  <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-sm text-blue-700 font-semibold">Loading available rooms...</span>
+                    </div>
+                  </div>
+                ) : availableRoomNumbers.length > 0 ? (
+                  <div className="bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-300 rounded-lg p-4">
+                    <label className="block text-xs md:text-sm font-semibold text-gray-900 mb-3">
+                      Select Room Number(s) (Optional)
+                      <span className="text-gray-600 font-normal ml-2">- {availableRoomNumbers.length} rooms available</span>
+                    </label>
+                    <div className="space-y-3">
+                      {Array.from({ length: Number(quantity) || 1 }).map((_, index) => (
+                        <div key={index} className="relative">
+                          <select
+                            className="w-full border-2 border-purple-300 bg-white rounded-lg px-3 py-2.5 pr-10 text-sm md:text-base focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all appearance-none font-semibold"
+                            value={selectedRoomNumbers[index] || ''}
+                            onChange={(e) => handleRoomNumberChange(index, e.target.value)}
+                          >
+                            <option value="">-- Select Room {index + 1} --</option>
+                            {availableRoomNumbers
+                              .filter(rn => !selectedRoomNumbers.includes(rn) || rn === selectedRoomNumbers[index])
+                              .map(roomNumber => (
+                                <option key={roomNumber} value={roomNumber}>
+                                  Room {roomNumber}
+                                </option>
+                              ))}
+                          </select>
+                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Selected Rooms Display */}
+                    {selectedRoomNumbers.length > 0 && (
+                      <div className="mt-3 bg-green-50 border-2 border-green-300 rounded-lg p-3">
+                        <p className="text-xs font-semibold text-green-800 mb-2">Selected Rooms:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedRoomNumbers.map(rn => (
+                            <span key={rn} className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-bold">
+                              Room {rn}
+                              <button
+                                type="button"
+                                onClick={() => removeRoomNumber(rn)}
+                                className="hover:bg-green-700 rounded-full p-0.5 transition-colors"
+                              >
+                                <X size={14} />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-900">No room numbers available</p>
+                        <p className="text-xs text-amber-700 mt-1">Admin hasn't added room numbers for this room type or all rooms are booked.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Price & GST Breakdown */}

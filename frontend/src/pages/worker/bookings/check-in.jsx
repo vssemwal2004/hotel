@@ -14,7 +14,9 @@ import {
   Eye,
   Check,
   Clock,
-  IndianRupee
+  IndianRupee,
+  DoorOpen,
+  Edit
 } from 'lucide-react'
 
 export default function WorkerCheckInPage() {
@@ -272,8 +274,10 @@ export default function WorkerCheckInPage() {
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Check-In</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Nights</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Rooms</th>
+                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Allotted</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Amount</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -313,10 +317,48 @@ export default function WorkerCheckInPage() {
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
+                        {booking.items?.some(item => item.allottedRoomNumbers && item.allottedRoomNumbers.length > 0) ? (
+                          <div className="text-xs">
+                            {booking.items.map((item, idx) => 
+                              item.allottedRoomNumbers && item.allottedRoomNumbers.length > 0 ? (
+                                <div key={idx} className="mb-1">
+                                  <span className="font-semibold text-gray-700">{item.title}:</span>
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {item.allottedRoomNumbers.map(rn => (
+                                      <span key={rn} className="inline-block px-2 py-0.5 bg-green-100 text-green-700 rounded font-semibold">
+                                        {rn}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : null
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-500 italic">Not allotted</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5">
                         <p className="text-base font-bold text-green-600">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</p>
                       </td>
                       <td className="px-3 py-2.5">
                         {getStatusBadge(booking.status)}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <button
+                          onClick={() => router.push(`/worker/bookings/allot-rooms?id=${booking._id}`)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors mr-2"
+                        >
+                          <DoorOpen size={14} />
+                          Allot
+                        </button>
+                        <button
+                          onClick={() => router.push(`/worker/bookings/edit-booking?id=${booking._id}`)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          <Edit size={14} />
+                          Edit
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -352,6 +394,42 @@ export default function WorkerCheckInPage() {
                       <p className="text-sm font-bold text-green-600">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</p>
                     </div>
                   </div>
+                  
+                  {/* Allotted Rooms */}
+                  {booking.items?.some(item => item.allottedRoomNumbers && item.allottedRoomNumbers.length > 0) && (
+                    <div className="bg-white rounded-lg p-2 border border-green-200 mb-2">
+                      <p className="text-xs text-gray-600 mb-1">Allotted Rooms:</p>
+                      {booking.items.map((item, idx) => 
+                        item.allottedRoomNumbers && item.allottedRoomNumbers.length > 0 ? (
+                          <div key={idx} className="mb-1">
+                            <span className="text-xs font-semibold text-gray-700">{item.title}:</span>
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {item.allottedRoomNumbers.map(rn => (
+                                <span key={rn} className="inline-block px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs font-semibold">
+                                  {rn}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null
+                      )}
+                    </div>
+                  )}
+                  
+                  <button
+                    onClick={() => router.push(`/worker/bookings/allot-rooms?id=${booking._id}`)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors mb-2"
+                  >
+                    <DoorOpen size={16} />
+                    Allot Rooms
+                  </button>
+                  <button
+                    onClick={() => router.push(`/worker/bookings/edit-booking?id=${booking._id}`)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                  >
+                    <Edit size={16} />
+                    Edit Booking
+                  </button>
                 </div>
               ))}
             </div>
