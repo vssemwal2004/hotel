@@ -77,6 +77,20 @@ export default function WorkerPage(){
     }
   }
 
+  const cancelBooking = async (id) => {
+    if (!confirm('Are you sure you want to cancel this booking? This action cannot be undone and notifications will be sent to the customer and admin.')) {
+      return
+    }
+    try {
+      await api.post(`/bookings/${id}/cancel`)
+      setResults(prev => prev.map(b => b._id === id ? { ...b, status: 'cancelled' } : b))
+      setAll(prev => prev.map(b => b._id === id ? { ...b, status: 'cancelled' } : b))
+      alert('Booking cancelled successfully. Emails have been sent to the customer and admin.')
+    } catch (e) {
+      alert(e?.response?.data?.message || 'Failed to cancel booking')
+    }
+  }
+
   const checkout = async (id) => {
     try {
       await api.post(`/bookings/${id}/checkout`)
@@ -123,6 +137,15 @@ export default function WorkerPage(){
           actionBtn: 'bg-blue-700 hover:bg-blue-800 text-white', // not used here
           actionGradient: '',
           checkedLabel: 'bg-blue-600 text-white border-blue-700'
+        }
+      case 'cancelled':
+        return {
+          card: 'bg-red-50 border-red-200',
+          header: 'from-red-50 to-red-100',
+          amountText: 'text-red-700',
+          actionBtn: 'bg-red-600 hover:bg-red-700 text-white',
+          actionGradient: '',
+          checkedLabel: 'bg-red-100 text-red-700 border-red-300'
         }
       default:
         return {
@@ -213,8 +236,9 @@ export default function WorkerPage(){
     const pending = all.filter(b => b.status === 'pending').length
     const paid = all.filter(b => b.status === 'paid').length
     const completed = all.filter(b => b.status === 'completed').length
+    const cancelled = all.filter(b => b.status === 'cancelled').length
     const totalRevenue = activeBookings.reduce((sum, b) => sum + (b.total || 0), 0)
-    return { total, pending, paid, completed, totalRevenue }
+    return { total, pending, paid, completed, cancelled, totalRevenue }
   }, [all])
 
   if (loading || !authorized) {
@@ -358,6 +382,15 @@ export default function WorkerPage(){
               border: 'border-emerald-300',
               text: 'text-emerald-700',
               icon: CheckCircle
+            },{
+              key: 'cancelled',
+              label: 'Cancelled',
+              count: stats.cancelled,
+              color: 'red',
+              bg: 'bg-red-100',
+              border: 'border-red-300',
+              text: 'text-red-700',
+              icon: XCircle
             }].map((tab) => {
               const Icon = tab.icon
               const active = statusFilter === tab.key
@@ -518,13 +551,22 @@ export default function WorkerPage(){
                 {/* Action Buttons */}
                 <div className="flex flex-wrap justify-end gap-3 pt-4 border-t-2 border-gray-100">
                   {b.status === 'pending' && (
-                    <button 
-                      onClick={() => markPaid(b._id)} 
-                      className={`px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2 ${ui.actionBtn}`}
-                    >
-                      <CheckCircle size={20} />
-                      Mark as Paid
-                    </button>
+                    <>
+                      <button 
+                        onClick={() => markPaid(b._id)} 
+                        className={`px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2 ${ui.actionBtn}`}
+                      >
+                        <CheckCircle size={20} />
+                        Mark as Paid
+                      </button>
+                      <button 
+                        onClick={() => cancelBooking(b._id)} 
+                        className="px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        <XCircle size={20} />
+                        Cancel Booking
+                      </button>
+                    </>
                   )}
                   {b.status === 'paid' && (
                     <button 
@@ -539,6 +581,12 @@ export default function WorkerPage(){
                     <div className={`px-6 py-3 rounded-xl font-semibold flex items-center gap-2 border-2 ${ui.checkedLabel}`}>
                       <CheckCircle size={20} />
                       Checked Out
+                    </div>
+                  )}
+                  {b.status === 'cancelled' && (
+                    <div className="px-6 py-3 rounded-xl font-semibold flex items-center gap-2 border-2 border-red-300 bg-red-50 text-red-700">
+                      <XCircle size={20} />
+                      Cancelled
                     </div>
                   )}
                 </div>

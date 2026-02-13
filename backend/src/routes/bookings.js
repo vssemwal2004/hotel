@@ -4,7 +4,8 @@ import { z } from 'zod'
 import { authRequired, adminRequired, rolesRequired } from '../middleware/auth.js'
 import Booking from '../models/Booking.js'
 import RoomType from '../models/RoomType.js'
-import { sendBookingConfirmationToUser, sendBookingNotificationToAdmin } from '../utils/email.js'
+import User from '../models/User.js'
+import { sendBookingConfirmationToUser, sendBookingNotificationToAdmin, sendCancellationToUser, sendCancellationToAdmin } from '../utils/email.js'
 import { calculateGST } from '../utils/gst.js'
 
 const router = Router()
@@ -364,5 +365,46 @@ router.post('/:id/checkout', authRequired, rolesRequired('admin','worker'), asyn
     booking.status = 'completed'
     await booking.save()
     res.json({ booking })
+  } catch (e) { next(e) }
+})
+
+// Cancel booking: mark as cancelled and send notifications
+router.post('/:id/cancel', authRequired, rolesRequired('admin','worker'), async (req, res, next) => {
+  try {
+    const booking = await Booking.findById(req.params.id).populate('user', 'name email phone')
+    if (!booking) return res.status(404).json({ message: 'Booking not found' })
+    
+    // Only allow cancelling pending or paid bookings
+    if (booking.status === 'cancelled') {
+      return res.status(400).json({ message: 'Booking is already cancelled' })
+    }
+    if (booking.status === 'completed') {
+      return res.status(400).json({ message: 'Cannot cancel completed bookings' })
+    }
+
+    // If booking was paid, restore room availability
+    if (booking.status === 'paid') {
+      for (const it of booking.items) {
+        await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: it.quantity } })
+      }
+    }
+
+    // Mark as cancelled
+    booking.status = 'cancelled'
+    await booking.save()
+
+    // Send cancellation notifications
+    sendCancellationToUser(booking, booking.user).catch(err => 
+      console.error('Failed to send cancellation email to user:', err)
+    )
+    sendCancellationToAdmin(booking, booking.user, req.user).catch(err => 
+      console.error('Failed to send cancellation notification to admin:', err)
+    )
+
+    res.json({ 
+      success: true,
+      message: 'Booking cancelled successfully',
+      booking 
+    })
   } catch (e) { next(e) }
 })
