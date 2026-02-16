@@ -14,7 +14,8 @@ import {
   Eye,
   Download,
   FileText,
-  TrendingUp
+  TrendingUp,
+  Edit
 } from 'lucide-react'
 
 export default function WorkerHistoryPage() {
@@ -31,6 +32,13 @@ export default function WorkerHistoryPage() {
 
   useEffect(() => {
     fetchBookings()
+  }, [])
+
+  // Auto-refresh when page gains focus
+  useEffect(() => {
+    const onFocus = () => fetchBookings()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
   }, [])
 
   useEffect(() => {
@@ -291,9 +299,10 @@ export default function WorkerHistoryPage() {
               className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white"
             >
               <option value="all">All Statuses</option>
-              <option value="paid">Paid</option>
+              <option value="paid">Confirmed (Paid)</option>
               <option value="pending">Pending</option>
               <option value="cancelled">Cancelled</option>
+              <option value="completed">Completed</option>
               <option value="failed">Failed</option>
             </select>
             <ChevronDown size={16} className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -375,9 +384,11 @@ export default function WorkerHistoryPage() {
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Check-Out</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Nights</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Rooms</th>
+                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Allotted</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Amount</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Date</th>
+                    <th className="px-3 py-2 text-center text-xs font-bold text-gray-700 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -413,10 +424,32 @@ export default function WorkerHistoryPage() {
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
-                          <Bed size={12} />
-                          {booking.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0}
-                        </span>
+                        <div>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                            <Bed size={12} />
+                            {booking.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0}
+                          </span>
+                          <p className="text-[10px] text-gray-500 mt-1 truncate max-w-[140px]">{(booking.items || []).map(it => it.title).join(', ')}</p>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {booking.items?.some(item => item.allottedRoomNumbers && item.allottedRoomNumbers.length > 0) ? (
+                          <div className="text-xs">
+                            {booking.items.map((item, idx) =>
+                              item.allottedRoomNumbers && item.allottedRoomNumbers.length > 0 ? (
+                                <div key={idx} className="mb-1">
+                                  <div className="flex flex-wrap gap-1">
+                                    {item.allottedRoomNumbers.map(rn => (
+                                      <span key={rn} className="inline-block px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-semibold">{rn}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : null
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-gray-400 italic">Not allotted</span>
+                        )}
                       </td>
                       <td className="px-3 py-2.5">
                         <p className="text-base font-bold text-green-600">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</p>
@@ -428,6 +461,26 @@ export default function WorkerHistoryPage() {
                         <p className="text-xs text-gray-600">
                           {new Date(booking.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
                         </p>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center justify-center gap-1">
+                          {booking.status === 'pending' && (
+                            <button
+                              onClick={() => router.push(`/worker/bookings/edit-booking?id=${booking._id}`)}
+                              className="p-1.5 rounded-md hover:bg-blue-100 text-gray-500 hover:text-blue-600 transition-colors"
+                              title="Edit Booking"
+                            >
+                              <Edit size={16} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => router.push(`/worker/bookings/check-in?highlight=${booking._id}`)}
+                            className="p-1.5 rounded-md hover:bg-purple-100 text-gray-500 hover:text-purple-600 transition-colors"
+                            title="View Details"
+                          >
+                            <Eye size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -462,6 +515,35 @@ export default function WorkerHistoryPage() {
                       <p className="text-xs text-gray-600 mb-0.5">Amount</p>
                       <p className="text-sm font-bold text-green-600">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</p>
                     </div>
+                  </div>
+                  {/* Room details + allotted rooms */}
+                  <div className="mb-2">
+                    <p className="text-[10px] text-gray-500 mb-1">{(booking.items || []).map(it => `${it.title} x${it.quantity}`).join(', ')}</p>
+                    {booking.items?.some(item => item.allottedRoomNumbers?.length > 0) && (
+                      <div className="flex flex-wrap gap-1">
+                        {booking.items.flatMap(it => (it.allottedRoomNumbers || []).map(rn => (
+                          <span key={`${it.roomTypeKey}-${rn}`} className="inline-block px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-semibold">🚪 {rn}</span>
+                        )))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-end gap-1.5 mt-2 pt-2 border-t border-purple-100">
+                    {booking.status === 'pending' && (
+                      <button
+                        onClick={() => router.push(`/worker/bookings/edit-booking?id=${booking._id}`)}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-xs font-semibold transition-colors"
+                      >
+                        <Edit size={14} />
+                        Edit
+                      </button>
+                    )}
+                    <button
+                      onClick={() => router.push(`/worker/bookings/check-in?highlight=${booking._id}`)}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg text-xs font-semibold transition-colors"
+                    >
+                      <Eye size={14} />
+                      View
+                    </button>
                   </div>
                 </div>
               ))}

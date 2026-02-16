@@ -12,7 +12,9 @@ import {
   AlertCircle,
   Plus,
   Minus,
-  Users
+  Users,
+  Check,
+  DoorOpen
 } from 'lucide-react'
 
 export default function EditBookingPage() {
@@ -28,6 +30,9 @@ export default function EditBookingPage() {
   const [newGuestName, setNewGuestName] = useState({}) // { roomTypeKey: string }
   const [newGuestAge, setNewGuestAge] = useState({}) // { roomTypeKey: number }
   const [newGuestType, setNewGuestType] = useState({}) // { roomTypeKey: 'adult' | 'child' }
+  const [availableRooms, setAvailableRooms] = useState({}) // { roomTypeKey: [roomNumbers] }
+  const [selectedRooms, setSelectedRooms] = useState({}) // { roomTypeKey: [selectedRoomNumbers] }
+  const [fetchingRooms, setFetchingRooms] = useState(false)
 
   useEffect(() => {
     if (id) {
@@ -47,10 +52,16 @@ export default function EditBookingPage() {
         
         // Initialize additional guests state
         const initialGuests = {}
+        const initialSelected = {}
         bookingData.items?.forEach(item => {
           initialGuests[item.roomTypeKey] = []
+          initialSelected[item.roomTypeKey] = item.allottedRoomNumbers || []
         })
         setAdditionalGuests(initialGuests)
+        setSelectedRooms(initialSelected)
+        
+        // Fetch available rooms
+        await fetchAvailableRooms(bookingData)
       }
     } catch (error) {
       console.error('Error fetching booking:', error)
@@ -88,6 +99,61 @@ export default function EditBookingPage() {
     }))
   }
 
+  const fetchAvailableRooms = async (bookingData) => {
+    setFetchingRooms(true)
+    try {
+      const availableRoomsData = {}
+      
+      for (const item of bookingData.items) {
+        try {
+          const { data } = await api.get(`/bookings/available-rooms/${item.roomTypeKey}`, {
+            params: {
+              checkIn: bookingData.checkIn,
+              checkOut: bookingData.checkOut
+            }
+          })
+          
+          // Include currently allotted rooms
+          const currentlyAllotted = item.allottedRoomNumbers || []
+          const allAvailable = [...new Set([...data.availableRoomNumbers, ...currentlyAllotted])]
+          availableRoomsData[item.roomTypeKey] = allAvailable.sort()
+        } catch (error) {
+          console.error(`Error fetching rooms for ${item.roomTypeKey}:`, error)
+          availableRoomsData[item.roomTypeKey] = []
+        }
+      }
+      
+      setAvailableRooms(availableRoomsData)
+    } catch (error) {
+      console.error('Error fetching available rooms:', error)
+    } finally {
+      setFetchingRooms(false)
+    }
+  }
+
+  const toggleRoomSelection = (roomTypeKey, roomNumber, maxQuantity) => {
+    setSelectedRooms(prev => {
+      const currentSelected = prev[roomTypeKey] || []
+      
+      if (currentSelected.includes(roomNumber)) {
+        return {
+          ...prev,
+          [roomTypeKey]: currentSelected.filter(rn => rn !== roomNumber)
+        }
+      } else {
+        if (currentSelected.length < maxQuantity) {
+          return {
+            ...prev,
+            [roomTypeKey]: [...currentSelected, roomNumber]
+          }
+        } else {
+          alert(`You can only select ${maxQuantity} room(s) for this room type`)
+          return prev
+        }
+      }
+    })
+  }
+
   const saveChanges = async () => {
     setSaving(true)
     try {
@@ -111,6 +177,28 @@ export default function EditBookingPage() {
       
       if (guestsToAdd.length > 0) {
         updates.additionalGuests = guestsToAdd
+      }
+      
+      // Check if room allotments changed
+      const allotments = []
+      for (const item of booking.items) {
+        const selected = selectedRooms[item.roomTypeKey] || []
+        const current = item.allottedRoomNumbers || []
+        
+        if (JSON.stringify(selected.sort()) !== JSON.stringify(current.sort())) {
+          if (selected.length > 0 && selected.length !== item.quantity) {
+            alert(`Please select exactly ${item.quantity} room(s) for ${item.title}`)
+            return
+          }
+          allotments.push({
+            roomTypeKey: item.roomTypeKey,
+            roomNumbers: selected
+          })
+        }
+      }
+      
+      if (allotments.length > 0) {
+        updates.allotments = allotments
       }
       
       if (Object.keys(updates).length === 0) {
@@ -170,6 +258,27 @@ export default function EditBookingPage() {
         <div className="text-center py-20">
           <AlertCircle size={48} className="mx-auto text-red-500 mb-3" />
           <p className="text-gray-600">Booking not found</p>
+        </div>
+      </WorkerLayout>
+    )
+  }
+
+  // Prevent editing cancelled bookings
+  if (booking.status === 'cancelled') {
+    return (
+      <WorkerLayout>
+        <div className="text-center py-20">
+          <X size={48} className="mx-auto text-red-500 mb-3" />
+          <p className="text-xl font-bold text-gray-900 mb-2">Booking Cancelled</p>
+          <p className="text-gray-600 mb-6">
+            Cannot edit cancelled bookings.
+          </p>
+          <button
+            onClick={() => router.back()}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+          >
+            Go Back
+          </button>
         </div>
       </WorkerLayout>
     )
@@ -353,6 +462,95 @@ export default function EditBookingPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Room Number Selection */}
+        <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4">
+            <h3 className="text-xl font-bold flex items-center gap-2">
+              <DoorOpen size={24} />
+              Select Room Numbers (Optional)
+            </h3>
+          </div>
+          <div className="p-4 md:p-6">
+            {fetchingRooms ? (
+              <div className="text-center py-6">
+                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                <p className="text-gray-600">Loading available rooms...</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {booking.items?.map((item, idx) => {
+                  const available = availableRooms[item.roomTypeKey] || []
+                  const selected = selectedRooms[item.roomTypeKey] || []
+                  
+                  return (
+                    <div key={idx} className="border-2 border-gray-200 rounded-lg overflow-hidden">
+                      <div className="bg-gradient-to-r from-purple-100 to-purple-200 p-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-bold text-gray-900">{item.title}</h4>
+                            <p className="text-sm text-gray-600">
+                              Quantity: {item.quantity} | Selected: {selected.length}/{item.quantity}
+                            </p>
+                          </div>
+                          <Bed size={24} className="text-purple-600" />
+                        </div>
+                      </div>
+
+                      <div className="p-4">
+                        {available.length === 0 ? (
+                          <div className="text-center py-4">
+                            <AlertCircle size={32} className="mx-auto text-gray-300 mb-2" />
+                            <p className="text-sm text-gray-500">No room numbers configured</p>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-xs text-gray-500 mb-2">- {available.length} rooms available</p>
+                            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                              {available.map((roomNumber) => {
+                                const isSelected = selected.includes(roomNumber)
+                                return (
+                                  <button
+                                    key={roomNumber}
+                                    onClick={() => toggleRoomSelection(item.roomTypeKey, roomNumber, item.quantity)}
+                                    className={`relative p-2 rounded-lg border-2 font-semibold text-sm transition-all ${
+                                      isSelected
+                                        ? 'bg-green-500 border-green-600 text-white shadow-md'
+                                        : 'bg-white border-gray-300 text-gray-700 hover:border-purple-400'
+                                    }`}
+                                  >
+                                    {roomNumber}
+                                    {isSelected && (
+                                      <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5">
+                                        <Check size={10} className="text-green-600" />
+                                      </div>
+                                    )}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                            {selected.length > 0 && (
+                              <div className="mt-3 p-2 bg-green-50 rounded border border-green-200">
+                                <p className="text-xs font-semibold text-green-700">Selected Rooms:</p>
+                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                  {selected.map(rn => (
+                                    <span key={rn} className="inline-block px-2 py-0.5 bg-green-500 text-white rounded text-xs font-bold">
+                                      Room {rn}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

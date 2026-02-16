@@ -23,6 +23,7 @@ export default function WorkerCheckOutPage() {
   const [filteredBookings, setFilteredBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all') // all, paid, pending
   const [dateFilter, setDateFilter] = useState('week') // week, month, custom
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
@@ -31,9 +32,16 @@ export default function WorkerCheckOutPage() {
     fetchBookings()
   }, [])
 
+  // Auto-refresh when page gains focus
+  useEffect(() => {
+    const onFocus = () => fetchBookings()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [])
+
   useEffect(() => {
     filterBookings()
-  }, [searchQuery, dateFilter, customStartDate, customEndDate, bookings])
+  }, [searchQuery, statusFilter, dateFilter, customStartDate, customEndDate, bookings])
 
   const fetchBookings = async () => {
     setLoading(true)
@@ -53,14 +61,20 @@ export default function WorkerCheckOutPage() {
     now.setHours(0, 0, 0, 0)
 
     // First filter: Only show completed bookings (checked out)
+    // Exclude cancelled bookings
     filtered = filtered.filter(b => {
-      if (!b.checkOut) return false
+      if (!b.checkOut || b.status === 'cancelled') return false
       const checkOutDate = new Date(b.checkOut)
       checkOutDate.setHours(0, 0, 0, 0)
       
       // Show bookings where check-out date has passed
       return checkOutDate < now
     })
+
+    // Filter by payment status
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(b => b.status === statusFilter)
+    }
 
     // Filter by check-out date range
     if (dateFilter !== 'all') {
@@ -180,7 +194,7 @@ export default function WorkerCheckOutPage() {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-md p-3 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Search */}
           <div className="relative">
             <Search size={16} className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -191,6 +205,21 @@ export default function WorkerCheckOutPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             />
+          </div>
+
+          {/* Status Filter */}
+          <div className="relative">
+            <Filter size={16} className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none bg-white"
+            >
+              <option value="all">All Status</option>
+              <option value="paid">Paid Only</option>
+              <option value="pending">Pending Only</option>
+            </select>
+            <ChevronDown size={16} className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
 
           {/* Date Filter */}
@@ -261,6 +290,7 @@ export default function WorkerCheckOutPage() {
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Check-Out</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Nights</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Rooms</th>
+                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Allotted</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Amount</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
                   </tr>
@@ -296,10 +326,32 @@ export default function WorkerCheckOutPage() {
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
-                          <Bed size={12} />
-                          {booking.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0}
-                        </span>
+                        <div>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                            <Bed size={12} />
+                            {booking.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0}
+                          </span>
+                          <p className="text-[10px] text-gray-500 mt-1 truncate max-w-[140px]">{(booking.items || []).map(it => it.title).join(', ')}</p>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {booking.items?.some(item => item.allottedRoomNumbers && item.allottedRoomNumbers.length > 0) ? (
+                          <div className="text-xs">
+                            {booking.items.map((item, idx) =>
+                              item.allottedRoomNumbers && item.allottedRoomNumbers.length > 0 ? (
+                                <div key={idx} className="mb-1">
+                                  <div className="flex flex-wrap gap-1">
+                                    {item.allottedRoomNumbers.map(rn => (
+                                      <span key={rn} className="inline-block px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-semibold">{rn}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : null
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-gray-400 italic">Not allotted</span>
+                        )}
                       </td>
                       <td className="px-3 py-2.5">
                         <p className="text-base font-bold text-green-600">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</p>
@@ -340,6 +392,17 @@ export default function WorkerCheckOutPage() {
                       <p className="text-xs text-gray-600 mb-0.5">Amount</p>
                       <p className="text-sm font-bold text-green-600">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</p>
                     </div>
+                  </div>
+                  {/* Room details + allotted rooms */}
+                  <div className="mb-2">
+                    <p className="text-[10px] text-gray-500 mb-1">{(booking.items || []).map(it => `${it.title} x${it.quantity}`).join(', ')}</p>
+                    {booking.items?.some(item => item.allottedRoomNumbers?.length > 0) && (
+                      <div className="flex flex-wrap gap-1">
+                        {booking.items.flatMap(it => (it.allottedRoomNumbers || []).map(rn => (
+                          <span key={`${it.roomTypeKey}-${rn}`} className="inline-block px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-semibold">🚪 {rn}</span>
+                        )))}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

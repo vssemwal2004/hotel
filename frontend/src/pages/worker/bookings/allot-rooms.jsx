@@ -183,6 +183,32 @@ export default function AllotRoomsPage() {
     )
   }
 
+  // Prevent allotment for non-paid bookings
+  if (booking.status !== 'paid') {
+    return (
+      <WorkerLayout>
+        <div className="text-center py-20">
+          <AlertCircle size={48} className="mx-auto text-amber-500 mb-3" />
+          <p className="text-xl font-bold text-gray-900 mb-2">Payment Required</p>
+          <p className="text-gray-600 mb-4">
+            Room allotment is only available for paid bookings.
+          </p>
+          <p className="text-sm text-gray-500 mb-6">
+            Current Status: <span className={`font-semibold ${booking.status === 'pending' ? 'text-amber-600' : 'text-red-600'}`}>
+              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+            </span>
+          </p>
+          <button
+            onClick={() => router.back()}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
+      </WorkerLayout>
+    )
+  }
+
   return (
     <WorkerLayout>
       {/* Header */}

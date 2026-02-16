@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import WorkerLayout from '../layouts/WorkerLayout'
 import useAuth from '../hooks/useAuth'
 import { useRouter } from 'next/router'
@@ -13,8 +13,15 @@ import {
   Calendar,
   Home,
   Filter,
-  Edit
+  Edit,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  RefreshCw
 } from 'lucide-react'
+
+const ROWS_PER_PAGE = 15
 
 export default function WorkerPage(){
   const { user, loading } = useAuth()
@@ -26,6 +33,8 @@ export default function WorkerPage(){
   const [error, setError] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [timeFilter, setTimeFilter] = useState('all') // all | day | week | month
+  const [selectedBooking, setSelectedBooking] = useState(null) // popup booking detail
+  const [page, setPage] = useState(1)
 
   const authorized = useMemo(() => {
     if (!user) return false
@@ -37,18 +46,28 @@ export default function WorkerPage(){
     if (!authorized) router.replace('/auth/login')
   }, [authorized, loading, router])
 
+  // Fetch all bookings
+  const fetchAllBookings = useCallback(async () => {
+    if (!authorized) return
+    try {
+      const { data } = await api.get('/bookings')
+      setAll(data.bookings || [])
+    } catch (e) {
+      console.warn('Failed to fetch all bookings', e?.response?.data || e?.message)
+    }
+  }, [authorized])
+
   // Load all bookings on mount for worker/admin
   useEffect(() => {
-    if (!authorized) return
-    (async () => {
-      try {
-        const { data } = await api.get('/bookings')
-        setAll(data.bookings || [])
-      } catch (e) {
-        console.warn('Failed to fetch all bookings', e?.response?.data || e?.message)
-      }
-    })()
-  }, [authorized])
+    fetchAllBookings()
+  }, [fetchAllBookings])
+
+  // Auto-refresh when page gains focus (e.g. after navigating back from allot-rooms)
+  useEffect(() => {
+    const onFocus = () => fetchAllBookings()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [fetchAllBookings])
 
   const doSearch = async (e) => {
     e?.preventDefault()
@@ -71,8 +90,8 @@ export default function WorkerPage(){
   const markPaid = async (id) => {
     try {
       await api.post(`/bookings/${id}/pay`)
-      setResults(prev => prev.map(b => b._id === id ? { ...b, status: 'paid' } : b))
-      setAll(prev => prev.map(b => b._id === id ? { ...b, status: 'paid' } : b))
+      await fetchAllBookings()
+      if (selectedBooking?._id === id) setSelectedBooking(prev => ({ ...prev, status: 'paid' }))
     } catch (e) {
       alert(e?.response?.data?.message || 'Failed to mark as paid')
     }
@@ -84,8 +103,8 @@ export default function WorkerPage(){
     }
     try {
       await api.post(`/bookings/${id}/cancel`)
-      setResults(prev => prev.map(b => b._id === id ? { ...b, status: 'cancelled' } : b))
-      setAll(prev => prev.map(b => b._id === id ? { ...b, status: 'cancelled' } : b))
+      await fetchAllBookings()
+      if (selectedBooking?._id === id) setSelectedBooking(prev => ({ ...prev, status: 'cancelled' }))
       alert('Booking cancelled successfully. Emails have been sent to the customer and admin.')
     } catch (e) {
       alert(e?.response?.data?.message || 'Failed to cancel booking')
@@ -95,8 +114,8 @@ export default function WorkerPage(){
   const checkout = async (id) => {
     try {
       await api.post(`/bookings/${id}/checkout`)
-      setResults(prev => prev.map(b => b._id === id ? { ...b, status: 'completed' } : b))
-      setAll(prev => prev.map(b => b._id === id ? { ...b, status: 'completed' } : b))
+      await fetchAllBookings()
+      if (selectedBooking?._id === id) setSelectedBooking(prev => ({ ...prev, status: 'completed' }))
     } catch (e) {
       alert(e?.response?.data?.message || 'Failed to checkout')
     }
@@ -109,95 +128,24 @@ export default function WorkerPage(){
     minute: '2-digit' 
   }) : '—'
 
-  // Card/UI styles per status to make the whole tab clearly distinct
-  const getStatusStyles = (status) => {
-    switch (status) {
-      case 'pending':
-        return {
-          card: 'bg-amber-50 border-amber-200 text-black',
-          header: 'from-amber-50 to-amber-100',
-          amountText: 'text-amber-800',
-          actionBtn: 'bg-amber-600 hover:bg-amber-700 text-black', // dark yellow
-          actionGradient: '',
-          checkedLabel: 'bg-amber-100 text-amber-800 border-amber-300'
-        }
-      case 'paid':
-        return {
-          card: 'bg-emerald-50 border-emerald-200',
-          header: 'from-emerald-50 to-green-50',
-          amountText: 'text-emerald-700',
-          actionBtn: 'bg-emerald-700 hover:bg-emerald-800 text-white', // dark green
-          actionGradient: '',
-          checkedLabel: 'bg-emerald-100 text-emerald-700 border-emerald-300'
-        }
-      case 'completed':
-        return {
-          card: 'bg-blue-50 border-blue-200',
-          header: 'from-blue-50 to-indigo-50',
-          amountText: 'text-blue-700',
-          actionBtn: 'bg-blue-700 hover:bg-blue-800 text-white', // not used here
-          actionGradient: '',
-          checkedLabel: 'bg-blue-600 text-white border-blue-700'
-        }
-      case 'cancelled':
-        return {
-          card: 'bg-red-50 border-red-200',
-          header: 'from-red-50 to-red-100',
-          amountText: 'text-red-700',
-          actionBtn: 'bg-red-600 hover:bg-red-700 text-white',
-          actionGradient: '',
-          checkedLabel: 'bg-red-100 text-red-700 border-red-300'
-        }
-      default:
-        return {
-          card: 'bg-white border-gray-100',
-          header: 'from-teal-50 to-emerald-50',
-          amountText: 'text-teal-700',
-          actionBtn: 'bg-teal-600 hover:bg-teal-700 text-white',
-          actionGradient: '',
-          checkedLabel: 'bg-gray-100 text-gray-700 border-gray-300'
-        }
-    }
-  }
+  const formatShortDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'
 
-  // Status badge styling
-  const getStatusBadge = (status) => {
+  // Status badge (compact)
+  const getStatusBadge = (status, size = 'sm') => {
     const configs = {
-      pending: { 
-        bg: 'bg-amber-100', 
-        text: 'text-amber-700', 
-        border: 'border-amber-300',
-        icon: Clock,
-        label: 'Pending' 
-      },
-      paid: { 
-        bg: 'bg-emerald-100', 
-        text: 'text-emerald-700', 
-        border: 'border-emerald-300',
-        icon: CheckCircle,
-        label: 'Paid' 
-      },
-      completed: { 
-        bg: 'bg-blue-100', 
-        text: 'text-blue-700', 
-        border: 'border-blue-300',
-        icon: CheckCircle,
-        label: 'Completed' 
-      },
-      cancelled: { 
-        bg: 'bg-red-100', 
-        text: 'text-red-700', 
-        border: 'border-red-300',
-        icon: XCircle,
-        label: 'Cancelled' 
-      }
+      pending:   { bg: 'bg-amber-100',   text: 'text-amber-700',   dot: 'bg-amber-500',   label: 'Pending' },
+      paid:      { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500', label: 'Paid' },
+      completed: { bg: 'bg-blue-100',    text: 'text-blue-700',    dot: 'bg-blue-500',    label: 'Completed' },
+      cancelled: { bg: 'bg-red-100',     text: 'text-red-700',     dot: 'bg-red-500',     label: 'Cancelled' },
+      confirmed: { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500', label: 'Confirmed' },
+      failed:    { bg: 'bg-red-100',     text: 'text-red-700',     dot: 'bg-red-500',     label: 'Failed' }
     }
-    const config = configs[status] || configs.pending
-    const Icon = config.icon
+    const c = configs[status] || configs.pending
+    const px = size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-3 py-1 text-xs'
     return (
-      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border-2 ${config.bg} ${config.text} ${config.border}`}>
-        <Icon size={16} />
-        {config.label}
+      <span className={`inline-flex items-center gap-1 ${px} rounded-full font-semibold ${c.bg} ${c.text}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`}></span>
+        {c.label}
       </span>
     )
   }
@@ -205,23 +153,14 @@ export default function WorkerPage(){
   // Filter bookings by status (exclude completed - moved to history page)
   const displayBookings = useMemo(() => {
     let list = results.length === 0 ? all : results
-    // Exclude completed bookings - they are shown in Customers History page
     list = list.filter(b => b.status !== 'completed')
-    
-    // status filter
     if (statusFilter !== 'all') list = list.filter(b => b.status === statusFilter)
-
-    // time filter (based on createdAt)
     if (timeFilter !== 'all') {
       const now = new Date()
       const from = new Date(now)
-      if (timeFilter === 'day') {
-        from.setDate(now.getDate() - 1)
-      } else if (timeFilter === 'week') {
-        from.setDate(now.getDate() - 7)
-      } else if (timeFilter === 'month') {
-        from.setMonth(now.getMonth() - 1)
-      }
+      if (timeFilter === 'day') from.setDate(now.getDate() - 1)
+      else if (timeFilter === 'week') from.setDate(now.getDate() - 7)
+      else if (timeFilter === 'month') from.setMonth(now.getMonth() - 1)
       list = list.filter(b => {
         const created = b.createdAt ? new Date(b.createdAt) : null
         return created ? created >= from : true
@@ -229,6 +168,16 @@ export default function WorkerPage(){
     }
     return list
   }, [results, all, statusFilter, timeFilter])
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(displayBookings.length / ROWS_PER_PAGE))
+  const paginatedBookings = useMemo(() => {
+    const start = (page - 1) * ROWS_PER_PAGE
+    return displayBookings.slice(start, start + ROWS_PER_PAGE)
+  }, [displayBookings, page])
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1) }, [statusFilter, timeFilter, results])
 
   // Stats calculation (exclude completed - shown in history)
   const stats = useMemo(() => {
@@ -242,13 +191,20 @@ export default function WorkerPage(){
     return { total, pending, paid, completed, cancelled, totalRevenue }
   }, [all])
 
+  // Close modal on Escape
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') setSelectedBooking(null) }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
   if (loading || !authorized) {
     return (
       <WorkerLayout>
         <div className="min-h-[60vh] flex items-center justify-center">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading bookings...</p>
+            <p className="text-gray-600 text-sm">Loading bookings...</p>
           </div>
         </div>
       </WorkerLayout>
@@ -258,349 +214,423 @@ export default function WorkerPage(){
   return (
     <WorkerLayout>
       {/* Header */}
-      <div className="mb-6 md:mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Worker Dashboard</h1>
-        <p className="text-gray-600">Manage active bookings, track payments, and handle guest check-ins. <span className="text-teal-600 font-medium">Checkout history is in "Customers History"</span></p>
+      <div className="mb-4 flex items-start justify-between">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Worker Dashboard</h1>
+          <p className="text-xs md:text-sm text-gray-500">Manage bookings & payments. <span className="text-teal-600 font-medium">History in "Customers History"</span></p>
+        </div>
+        <button
+          onClick={fetchAllBookings}
+          className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium text-xs md:text-sm transition-colors shadow-md"
+        >
+          <RefreshCw size={16} />
+          Refresh
+        </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
-        <div className="bg-white rounded-xl md:rounded-2xl shadow-lg border-2 border-gray-100 p-3 md:p-6 hover:shadow-xl transition-all duration-300">
-          <div className="flex flex-col md:flex-row items-center md:gap-3 mb-2">
-            <div className="p-2 md:p-3 bg-blue-100 rounded-lg md:rounded-xl mb-2 md:mb-0">
-              <Calendar size={18} className="md:hidden text-blue-600" />
-              <Calendar size={24} className="hidden md:block text-blue-600" />
+      {/* Compact Stats Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 mb-4">
+        {[
+          { label: 'Active',  value: stats.total,  icon: Calendar,    color: 'blue',    border: 'border-blue-200' },
+          { label: 'Pending', value: stats.pending, icon: Clock,       color: 'amber',   border: 'border-amber-200' },
+          { label: 'Paid',    value: stats.paid,    icon: CheckCircle, color: 'emerald',  border: 'border-emerald-200' },
+          { label: 'Revenue', value: `₹${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'teal', border: 'border-teal-200' }
+        ].map((s, i) => {
+          const Icon = s.icon
+          return (
+            <div key={i} className={`bg-white rounded-lg shadow-sm border ${s.border} p-2.5 md:p-3 flex items-center gap-2.5`}>
+              <div className={`p-1.5 bg-${s.color}-100 rounded-lg`}>
+                <Icon size={16} className={`text-${s.color}-600`} />
+              </div>
+              <div>
+                <p className="text-[10px] md:text-xs text-gray-500 leading-tight">{s.label}</p>
+                <p className={`text-sm md:text-lg font-bold text-${s.color}-700 leading-tight`}>{s.value}</p>
+              </div>
             </div>
-            <div className="text-center md:text-left">
-              <p className="text-gray-600 text-xs md:text-sm">Active</p>
-              <p className="text-xl md:text-3xl font-bold text-gray-900">{stats.total}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl md:rounded-2xl shadow-lg border-2 border-amber-200 p-3 md:p-6 hover:shadow-xl transition-all duration-300">
-          <div className="flex flex-col md:flex-row items-center md:gap-3 mb-2">
-            <div className="p-2 md:p-3 bg-amber-100 rounded-lg md:rounded-xl mb-2 md:mb-0">
-              <Clock size={18} className="md:hidden text-amber-600" />
-              <Clock size={24} className="hidden md:block text-amber-600" />
-            </div>
-            <div className="text-center md:text-left">
-              <p className="text-gray-600 text-xs md:text-sm">Pending</p>
-              <p className="text-xl md:text-3xl font-bold text-amber-700">{stats.pending}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl md:rounded-2xl shadow-lg border-2 border-emerald-200 p-3 md:p-6 hover:shadow-xl transition-all duration-300">
-          <div className="flex flex-col md:flex-row items-center md:gap-3 mb-2">
-            <div className="p-2 md:p-3 bg-emerald-100 rounded-lg md:rounded-xl mb-2 md:mb-0">
-              <CheckCircle size={18} className="md:hidden text-emerald-600" />
-              <CheckCircle size={24} className="hidden md:block text-emerald-600" />
-            </div>
-            <div className="text-center md:text-left">
-              <p className="text-gray-600 text-xs md:text-sm">Paid</p>
-              <p className="text-xl md:text-3xl font-bold text-emerald-700">{stats.paid}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl md:rounded-2xl shadow-lg border-2 border-teal-200 p-3 md:p-6 hover:shadow-xl transition-all duration-300">
-          <div className="flex flex-col md:flex-row items-center md:gap-3 mb-2">
-            <div className="p-2 md:p-3 bg-teal-100 rounded-lg md:rounded-xl mb-2 md:mb-0">
-              <DollarSign size={18} className="md:hidden text-teal-600" />
-              <DollarSign size={24} className="hidden md:block text-teal-600" />
-            </div>
-            <div className="text-center md:text-left">
-              <p className="text-gray-600 text-xs md:text-sm">Revenue</p>
-              <p className="text-lg md:text-2xl font-bold text-teal-700">₹{stats.totalRevenue.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
+          )
+        })}
       </div>
 
-      {/* Search & Filter Section */}
-      <div className="bg-white rounded-2xl shadow-lg border-2 border-gray-100 p-4 md:p-6 mb-6">
-        <form onSubmit={doSearch} className="flex flex-col md:flex-row gap-3 mb-4">
+      {/* Search + Filters (compact) */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-4">
+        <form onSubmit={doSearch} className="flex gap-2 mb-3">
           <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by guest email, name, or booking ID..."
-              className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+              placeholder="Search by email, name, or booking ID..."
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
             />
           </div>
-          <button 
-            type="submit" 
-            disabled={searching} 
-            className="px-6 py-3 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:transform-none flex items-center justify-center gap-2"
-          >
-            {searching ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                Searching...
-              </>
-            ) : (
-              <>
-                <Search size={20} />
-                Search
-              </>
-            )}
+          <button type="submit" disabled={searching} className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium flex items-center gap-1.5 disabled:opacity-50 transition-colors">
+            {searching ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <Search size={14} />}
+            <span className="hidden sm:inline">{searching ? 'Searching...' : 'Search'}</span>
           </button>
         </form>
 
-        {/* Status Tabs */}
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <Filter size={16} className="text-gray-500" />
-            <span className="text-xs md:text-sm font-semibold text-gray-700">Status:</span>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          {/* Status pills */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mr-1">Status:</span>
+            {[
+              { key: 'all', label: 'All', count: stats.total },
+              { key: 'pending', label: 'Pending', count: stats.pending },
+              { key: 'paid', label: 'Paid', count: stats.paid },
+              { key: 'cancelled', label: 'Cancelled', count: stats.cancelled }
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setStatusFilter(tab.key)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${
+                  statusFilter === tab.key
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {tab.label} <span className="opacity-75">({tab.count})</span>
+              </button>
+            ))}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {[{
-              key: 'all',
-              label: 'All Active',
-              count: stats.total,
-              color: 'gray',
-              bg: 'bg-gray-100',
-              border: 'border-gray-300',
-              text: 'text-gray-700',
-              icon: Search
-            },{
-              key: 'pending',
-              label: 'Pending',
-              count: stats.pending,
-              color: 'amber',
-              bg: 'bg-amber-100',
-              border: 'border-amber-300',
-              text: 'text-amber-700',
-              icon: Clock
-            },{
-              key: 'paid',
-              label: 'Paid',
-              count: stats.paid,
-              color: 'emerald',
-              bg: 'bg-emerald-100',
-              border: 'border-emerald-300',
-              text: 'text-emerald-700',
-              icon: CheckCircle
-            },{
-              key: 'cancelled',
-              label: 'Cancelled',
-              count: stats.cancelled,
-              color: 'red',
-              bg: 'bg-red-100',
-              border: 'border-red-300',
-              text: 'text-red-700',
-              icon: XCircle
-            }].map((tab) => {
-              const Icon = tab.icon
-              const active = statusFilter === tab.key
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setStatusFilter(tab.key)}
-                  className={`px-3 md:px-4 py-2 rounded-xl border-2 text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
-                    active
-                      ? `${tab.bg} ${tab.text} ${tab.border} shadow-sm`
-                      : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  <Icon size={16} />
-                  <span>{tab.label}</span>
-                  <span className={`ml-1 px-2 py-0.5 rounded-lg text-[10px] font-bold ${active ? 'bg-white/70' : 'bg-gray-100 text-gray-600'}`}>
-                    {tab.count}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Time Filter */}
-          <div className="flex items-center gap-2 mt-1">
-            <Filter size={16} className="text-gray-500" />
-            <span className="text-xs md:text-sm font-semibold text-gray-700">Time:</span>
-            <div className="flex flex-wrap gap-2">
-              {[{ key: 'all', label: 'All' }, { key: 'day', label: 'Today' }, { key: 'week', label: 'This 7 days' }, { key: 'month', label: 'This 30 days' }].map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => setTimeFilter(t.key)}
-                  className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 ${
-                    timeFilter === t.key ? 'bg-teal-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
+          {/* Time pills */}
+          <div className="flex items-center gap-1.5 sm:ml-auto flex-wrap">
+            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mr-1">Time:</span>
+            {[{ key: 'all', label: 'All' }, { key: 'day', label: 'Today' }, { key: 'week', label: '7d' }, { key: 'month', label: '30d' }].map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTimeFilter(t.key)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
+                  timeFilter === t.key ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg mb-6">
-          <p className="text-red-700 font-medium">{error}</p>
+        <div className="bg-red-50 border-l-4 border-red-500 p-3 rounded-lg mb-4">
+          <p className="text-red-700 text-sm font-medium">{error}</p>
         </div>
       )}
 
-      {/* Bookings List */}
+      {/* Bookings Table */}
       {displayBookings.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-lg border-2 border-gray-100 p-12 text-center">
-          <Home size={48} className="text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">No bookings found</h3>
-          <p className="text-gray-500">Try adjusting your search or filter criteria</p>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-10 text-center">
+          <Home size={36} className="text-gray-300 mx-auto mb-3" />
+          <h3 className="text-base font-semibold text-gray-600 mb-1">No bookings found</h3>
+          <p className="text-gray-400 text-sm">Try adjusting your search or filter criteria</p>
         </div>
       ) : (
-        <div className="grid gap-4 md:gap-6">
-          {displayBookings.map(b => {
-            const ui = getStatusStyles(b.status)
-            return (
-            <div key={b._id} className={`border-2 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden ${ui.card}`}>
-              {/* Header */}
-              <div className={`bg-gradient-to-r ${ui.header} p-4 md:p-6 border-b-2 border-gray-100`}>
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-white rounded-xl shadow-md">
-                      <Users size={24} className="text-teal-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Booking ID</p>
-                      <p className="font-mono text-sm font-semibold text-gray-900">{b._id}</p>
-                      {b.createdAt && (
-                        <p className="text-xs text-gray-500 mt-1">Created: {new Date(b.createdAt).toLocaleString()}</p>
-                      )}
-                    </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Guest</th>
+                  <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Check-in</th>
+                  <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Check-out</th>
+                  <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Rooms</th>
+                  <th className="text-right px-3 py-2.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="text-center px-3 py-2.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="text-center px-3 py-2.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {paginatedBookings.map(b => {
+                  const roomSummary = (b.items || []).map(it => `${it.title} x${it.quantity}`).join(', ')
+                  return (
+                    <tr
+                      key={b._id}
+                      onClick={() => setSelectedBooking(b)}
+                      className="hover:bg-teal-50/50 cursor-pointer transition-colors group"
+                    >
+                      <td className="px-3 py-2.5">
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm truncate max-w-[160px]">{b.user?.name || '—'}</p>
+                          <p className="text-[11px] text-gray-500 truncate max-w-[160px]">{b.user?.email || '—'}</p>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-gray-700 whitespace-nowrap">{formatShortDate(b.checkIn)}</td>
+                      <td className="px-3 py-2.5 text-xs text-gray-700 whitespace-nowrap">{formatShortDate(b.checkOut)}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="max-w-[220px]">
+                          <p className="text-xs text-gray-700 truncate" title={roomSummary}>{roomSummary || '—'}</p>
+                          {(b.items || []).some(it => it.allottedRoomNumbers?.length > 0) && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {(b.items || []).flatMap(it => (it.allottedRoomNumbers || []).map(rn => (
+                                <span key={`${it.roomTypeKey}-${rn}`} className="inline-block px-1.5 py-0.5 bg-teal-100 text-teal-700 rounded text-[10px] font-semibold">{rn}</span>
+                              )))}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-semibold text-sm text-gray-900 whitespace-nowrap">₹{b.total?.toLocaleString() || 0}</td>
+                      <td className="px-3 py-2.5 text-center">{getStatusBadge(b.status)}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
+                          <button onClick={() => setSelectedBooking(b)} className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-teal-600 transition-colors" title="View Details">
+                            <Eye size={15} />
+                          </button>
+                          {(b.status === 'pending' || b.status === 'paid') && (
+                            <button onClick={() => router.push(`/worker/bookings/edit-booking?id=${b._id}`)} className="p-1.5 rounded-md hover:bg-blue-100 text-gray-500 hover:text-blue-600 transition-colors" title="Edit Booking">
+                              <Edit size={15} />
+                            </button>
+                          )}
+                          {b.status === 'pending' && (
+                            <>
+                              <button onClick={() => markPaid(b._id)} className="p-1.5 rounded-md hover:bg-emerald-100 text-gray-500 hover:text-emerald-600 transition-colors" title="Mark Paid">
+                                <CheckCircle size={15} />
+                              </button>
+                              <button onClick={() => cancelBooking(b._id)} className="p-1.5 rounded-md hover:bg-red-100 text-gray-500 hover:text-red-600 transition-colors" title="Cancel">
+                                <XCircle size={15} />
+                              </button>
+                            </>
+                          )}
+                          {b.status === 'paid' && (
+                            <button onClick={() => checkout(b._id)} className="p-1.5 rounded-md hover:bg-emerald-100 text-gray-500 hover:text-emerald-600 transition-colors" title="Checkout">
+                              <CheckCircle size={15} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Card List (compact) */}
+          <div className="md:hidden divide-y divide-gray-100">
+            {paginatedBookings.map(b => (
+              <div
+                key={b._id}
+                onClick={() => setSelectedBooking(b)}
+                className="p-3 hover:bg-teal-50/50 cursor-pointer transition-colors active:bg-teal-100/50"
+              >
+                <div className="flex items-start justify-between gap-2 mb-1.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm text-gray-900 truncate">{b.user?.name || '—'}</p>
+                    <p className="text-[11px] text-gray-500 truncate">{b.user?.email || '—'}</p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2 shrink-0">
                     {getStatusBadge(b.status)}
-                    <div className="text-right">
-                      <p className="text-sm text-gray-600">Total Amount</p>
-                      <p className={`text-2xl font-bold ${ui.amountText}`}>₹{b.total?.toLocaleString() || 0}</p>
-                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-gray-500">
+                  <span>{formatShortDate(b.checkIn)} → {formatShortDate(b.checkOut)}</span>
+                  <span className="font-semibold text-sm text-gray-900">₹{b.total?.toLocaleString() || 0}</span>
+                </div>
+                {(b.items || []).some(it => it.allottedRoomNumbers?.length > 0) && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {(b.items || []).flatMap(it => (it.allottedRoomNumbers || []).map(rn => (
+                      <span key={`${it.roomTypeKey}-${rn}`} className="inline-block px-1.5 py-0.5 bg-teal-100 text-teal-700 rounded text-[10px] font-semibold">🚪 {rn}</span>
+                    )))}
+                  </div>
+                )}
+                <div className="flex items-center justify-between mt-1.5">
+                  <p className="text-[11px] text-gray-500 truncate max-w-[60%]">{(b.items || []).map(it => it.title).join(', ') || '—'}</p>
+                  <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                    {(b.status === 'pending' || b.status === 'paid') && (
+                      <button onClick={() => router.push(`/worker/bookings/edit-booking?id=${b._id}`)} className="p-1 rounded hover:bg-blue-100 text-blue-500" title="Edit"><Edit size={14} /></button>
+                    )}
+                    {b.status === 'pending' && (
+                      <>
+                        <button onClick={() => markPaid(b._id)} className="p-1 rounded hover:bg-emerald-100 text-emerald-500" title="Mark Paid"><CheckCircle size={14} /></button>
+                        <button onClick={() => cancelBooking(b._id)} className="p-1 rounded hover:bg-red-100 text-red-500" title="Cancel"><XCircle size={14} /></button>
+                      </>
+                    )}
+                    {b.status === 'paid' && (
+                      <button onClick={() => checkout(b._id)} className="p-1 rounded hover:bg-emerald-100 text-emerald-500" title="Checkout"><CheckCircle size={14} /></button>
+                    )}
                   </div>
                 </div>
               </div>
+            ))}
+          </div>
 
-              {/* Body */}
-              <div className="p-4 md:p-6">
-                {/* Guest Info */}
-                <div className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
-                  <p className="text-sm font-semibold text-gray-700 mb-2">Guest Information</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <p className="text-gray-900"><span className="font-semibold">Name:</span> {b.user?.name}</p>
-                    <p className="text-gray-700"><span className="font-semibold">Email:</span> {b.user?.email}</p>
-                  </div>
-                </div>
-
-                {/* Booking Details */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl border border-blue-200">
-                    <Calendar size={20} className="text-blue-600" />
-                    <div>
-                      <p className="text-xs text-gray-600">Check-in</p>
-                      <p className="font-semibold text-gray-900 text-sm">{formatDate(b.checkIn)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl border border-purple-200">
-                    <Calendar size={20} className="text-purple-600" />
-                    <div>
-                      <p className="text-xs text-gray-600">Check-out</p>
-                      <p className="font-semibold text-gray-900 text-sm">{formatDate(b.checkOut)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
-                    <Home size={20} className="text-amber-600" />
-                    <div>
-                      <p className="text-xs text-gray-600">Duration</p>
-                      <p className="font-semibold text-gray-900 text-sm">{b.fullDay ? 'Full day' : `${b.nights} night(s)`}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Room Details */}
-                <div className="mb-4">
-                  <p className="text-sm font-semibold text-gray-700 mb-3">Room Details</p>
-                  <div className="grid gap-3">
-                    {(b.items || []).map((it, idx) => {
-                      const adults = (it.guests || []).filter(g => g.type === 'adult').length
-                      const children = (it.guests || []).filter(g => g.type === 'child').length
-                      return (
-                        <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-gradient-to-r from-teal-50 to-emerald-50 rounded-xl border-2 border-teal-200">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-white rounded-lg">
-                              <Home size={20} className="text-teal-600" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900">{it.title}</p>
-                              <p className="text-sm text-gray-600">Quantity: {it.quantity}</p>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-4 text-sm">
-                            <div className="flex items-center gap-1 px-3 py-1.5 bg-white rounded-lg">
-                              <Users size={16} className="text-gray-600" />
-                              <span className="font-medium text-gray-700">{adults} Adults, {children} Children</span>
-                            </div>
-                            <div className="px-3 py-1.5 bg-teal-600 text-white rounded-lg font-semibold">
-                              ₹{it.subtotal?.toLocaleString() || 0}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex flex-wrap justify-end gap-3 pt-4 border-t-2 border-gray-100">
-                  {b.status === 'pending' && (
-                    <>
-                      <button 
-                        onClick={() => router.push(`/worker/bookings/edit-booking?id=${b._id}`)} 
-                        className="px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        <Edit size={20} />
-                        Edit Booking
-                      </button>
-                      <button 
-                        onClick={() => markPaid(b._id)} 
-                        className={`px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2 ${ui.actionBtn}`}
-                      >
-                        <CheckCircle size={20} />
-                        Mark as Paid
-                      </button>
-                      <button 
-                        onClick={() => cancelBooking(b._id)} 
-                        className="px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white"
-                      >
-                        <XCircle size={20} />
-                        Cancel Booking
-                      </button>
-                    </>
-                  )}
-                  {b.status === 'paid' && (
-                    <button 
-                      onClick={() => checkout(b._id)} 
-                      className={`px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2 ${ui.actionBtn}`}
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-3 py-2.5 border-t border-gray-200 bg-gray-50 text-xs text-gray-600">
+              <span>
+                Showing {((page - 1) * ROWS_PER_PAGE) + 1}–{Math.min(page * ROWS_PER_PAGE, displayBookings.length)} of {displayBookings.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded-md hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                  <ChevronLeft size={16} />
+                </button>
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  let pageNum
+                  if (totalPages <= 5) pageNum = i + 1
+                  else if (page <= 3) pageNum = i + 1
+                  else if (page >= totalPages - 2) pageNum = totalPages - 4 + i
+                  else pageNum = page - 2 + i
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setPage(pageNum)}
+                      className={`w-7 h-7 rounded-md text-xs font-medium transition-colors ${
+                        page === pageNum ? 'bg-teal-600 text-white' : 'hover:bg-gray-200 text-gray-600'
+                      }`}
                     >
-                      <CheckCircle size={20} />
-                      Complete Checkout
+                      {pageNum}
                     </button>
-                  )}
-                  {b.status === 'completed' && (
-                    <div className={`px-6 py-3 rounded-xl font-semibold flex items-center gap-2 border-2 ${ui.checkedLabel}`}>
-                      <CheckCircle size={20} />
-                      Checked Out
-                    </div>
-                  )}
-                  {b.status === 'cancelled' && (
-                    <div className="px-6 py-3 rounded-xl font-semibold flex items-center gap-2 border-2 border-red-300 bg-red-50 text-red-700">
-                      <XCircle size={20} />
-                      Cancelled
-                    </div>
-                  )}
-                </div>
+                  )
+                })}
+                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 rounded-md hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                  <ChevronRight size={16} />
+                </button>
               </div>
             </div>
-          )})}
+          )}
+        </div>
+      )}
+
+      {/* Booking Detail Popup/Modal */}
+      {selectedBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setSelectedBooking(null)}>
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+          {/* Modal */}
+          <div
+            onClick={e => e.stopPropagation()}
+            className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+          >
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between rounded-t-xl z-10">
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-gray-900 text-sm">Booking Details</h3>
+                {getStatusBadge(selectedBooking.status, 'md')}
+              </div>
+              <button onClick={() => setSelectedBooking(null)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {/* Booking ID */}
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500">Booking ID</span>
+                <span className="font-mono text-gray-700 bg-gray-100 px-2 py-0.5 rounded text-[11px]">{selectedBooking._id}</span>
+              </div>
+
+              {/* Guest Info */}
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Guest</p>
+                <p className="font-medium text-gray-900 text-sm">{selectedBooking.user?.name || '—'}</p>
+                <p className="text-xs text-gray-500">{selectedBooking.user?.email || '—'}</p>
+                {selectedBooking.user?.phone && <p className="text-xs text-gray-500 mt-0.5">{selectedBooking.user.phone}</p>}
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-100 text-center">
+                  <p className="text-[10px] text-gray-500 mb-0.5">Check-in</p>
+                  <p className="font-semibold text-gray-900 text-xs">{formatDate(selectedBooking.checkIn)}</p>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-2.5 border border-purple-100 text-center">
+                  <p className="text-[10px] text-gray-500 mb-0.5">Check-out</p>
+                  <p className="font-semibold text-gray-900 text-xs">{formatDate(selectedBooking.checkOut)}</p>
+                </div>
+                <div className="bg-amber-50 rounded-lg p-2.5 border border-amber-100 text-center">
+                  <p className="text-[10px] text-gray-500 mb-0.5">Duration</p>
+                  <p className="font-semibold text-gray-900 text-xs">{selectedBooking.fullDay ? 'Full day' : `${selectedBooking.nights} night(s)`}</p>
+                </div>
+              </div>
+
+              {/* Rooms */}
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Room Details</p>
+                <div className="space-y-2">
+                  {(selectedBooking.items || []).map((it, idx) => {
+                    const adults = (it.guests || []).filter(g => g.type === 'adult').length
+                    const children = (it.guests || []).filter(g => g.type === 'child').length
+                    return (
+                      <div key={idx} className="flex items-center justify-between p-2.5 bg-teal-50 rounded-lg border border-teal-100">
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">{it.title}</p>
+                          <p className="text-[11px] text-gray-500">Qty: {it.quantity} &middot; {adults}A {children > 0 ? `${children}C` : ''}</p>
+                          {it.allottedRoomNumbers?.length > 0 && (
+                            <p className="text-[11px] text-teal-600 mt-0.5">Rooms: {it.allottedRoomNumbers.join(', ')}</p>
+                          )}
+                        </div>
+                        <span className="font-bold text-sm text-teal-700">₹{it.subtotal?.toLocaleString() || 0}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Total */}
+              <div className="flex items-center justify-between bg-gray-900 text-white rounded-lg px-4 py-3">
+                <span className="font-medium text-sm">Total Amount</span>
+                <span className="text-lg font-bold">₹{selectedBooking.total?.toLocaleString() || 0}</span>
+              </div>
+
+              {/* Created At */}
+              {selectedBooking.createdAt && (
+                <p className="text-[11px] text-gray-400 text-center">
+                  Booked on {new Date(selectedBooking.createdAt).toLocaleString()}
+                </p>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+                {selectedBooking.status === 'pending' && (
+                  <>
+                    <button
+                      onClick={() => router.push(`/worker/bookings/edit-booking?id=${selectedBooking._id}`)}
+                      className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                    >
+                      <Edit size={15} /> Edit
+                    </button>
+                    <button
+                      onClick={() => markPaid(selectedBooking._id)}
+                      className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
+                    >
+                      <CheckCircle size={15} /> Mark Paid
+                    </button>
+                    <button
+                      onClick={() => cancelBooking(selectedBooking._id)}
+                      className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white transition-colors"
+                    >
+                      <XCircle size={15} /> Cancel
+                    </button>
+                  </>
+                )}
+                {selectedBooking.status === 'paid' && (
+                  <>
+                    <button
+                      onClick={() => router.push(`/worker/bookings/edit-booking?id=${selectedBooking._id}`)}
+                      className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                    >
+                      <Edit size={15} /> Edit
+                    </button>
+                    <button
+                      onClick={() => checkout(selectedBooking._id)}
+                      className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
+                    >
+                      <CheckCircle size={15} /> Complete Checkout
+                    </button>
+                  </>
+                )}
+                {selectedBooking.status === 'completed' && (
+                  <div className="w-full text-center px-3 py-2 rounded-lg text-sm font-semibold bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center gap-1.5">
+                    <CheckCircle size={15} /> Checked Out
+                  </div>
+                )}
+                {selectedBooking.status === 'cancelled' && (
+                  <div className="w-full text-center px-3 py-2 rounded-lg text-sm font-semibold bg-red-50 text-red-700 border border-red-200 flex items-center justify-center gap-1.5">
+                    <XCircle size={15} /> Cancelled
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </WorkerLayout>

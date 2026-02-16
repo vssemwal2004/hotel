@@ -16,7 +16,8 @@ import {
   Clock,
   IndianRupee,
   DoorOpen,
-  Edit
+  Edit,
+  CheckCircle
 } from 'lucide-react'
 
 export default function WorkerCheckInPage() {
@@ -25,6 +26,7 @@ export default function WorkerCheckInPage() {
   const [filteredBookings, setFilteredBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all') // all, paid, pending
   const [dateFilter, setDateFilter] = useState('all') // all, today, week, month, custom
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
@@ -33,9 +35,16 @@ export default function WorkerCheckInPage() {
     fetchBookings()
   }, [])
 
+  // Auto-refresh when page gains focus (e.g. after navigating back from allot-rooms)
+  useEffect(() => {
+    const onFocus = () => fetchBookings()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [])
+
   useEffect(() => {
     filterBookings()
-  }, [searchQuery, dateFilter, customStartDate, customEndDate, bookings])
+  }, [searchQuery, statusFilter, dateFilter, customStartDate, customEndDate, bookings])
 
   const fetchBookings = async () => {
     setLoading(true)
@@ -55,8 +64,9 @@ export default function WorkerCheckInPage() {
     now.setHours(0, 0, 0, 0)
 
     // First filter: Only show currently ongoing bookings (checked in but not checked out yet)
+    // Exclude cancelled bookings
     filtered = filtered.filter(b => {
-      if (!b.checkIn || !b.checkOut) return false
+      if (!b.checkIn || !b.checkOut || b.status === 'cancelled') return false
       
       const checkInDate = new Date(b.checkIn)
       const checkOutDate = new Date(b.checkOut)
@@ -71,6 +81,11 @@ export default function WorkerCheckInPage() {
       // Check-in date should be today or in the past, check-out should be today or in the future
       return checkInDate <= now && checkOutDate >= now
     })
+
+    // Filter by payment status
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(b => b.status === statusFilter)
+    }
 
     // Optional: Filter by check-in date range (only if not showing 'all')
     if (dateFilter !== 'all') {
@@ -193,7 +208,7 @@ export default function WorkerCheckInPage() {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-md p-3 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Search */}
           <div className="relative">
             <Search size={16} className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -204,6 +219,21 @@ export default function WorkerCheckInPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+          </div>
+
+          {/* Status Filter */}
+          <div className="relative">
+            <Filter size={16} className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+            >
+              <option value="all">All Status</option>
+              <option value="paid">Paid Only</option>
+              <option value="pending">Pending Only</option>
+            </select>
+            <ChevronDown size={16} className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
 
           {/* Date Filter */}
@@ -311,10 +341,13 @@ export default function WorkerCheckInPage() {
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
-                          <Bed size={12} />
-                          {booking.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0}
-                        </span>
+                        <div>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                            <Bed size={12} />
+                            {booking.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0}
+                          </span>
+                          <p className="text-[10px] text-gray-500 mt-1 truncate max-w-[140px]">{(booking.items || []).map(it => it.title).join(', ')}</p>
+                        </div>
                       </td>
                       <td className="px-3 py-2.5">
                         {booking.items?.some(item => item.allottedRoomNumbers && item.allottedRoomNumbers.length > 0) ? (
@@ -345,20 +378,43 @@ export default function WorkerCheckInPage() {
                         {getStatusBadge(booking.status)}
                       </td>
                       <td className="px-3 py-2.5">
-                        <button
-                          onClick={() => router.push(`/worker/bookings/allot-rooms?id=${booking._id}`)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors mr-2"
-                        >
-                          <DoorOpen size={14} />
-                          Allot
-                        </button>
-                        <button
-                          onClick={() => router.push(`/worker/bookings/edit-booking?id=${booking._id}`)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold transition-colors"
-                        >
-                          <Edit size={14} />
-                          Edit
-                        </button>
+                        {booking.status === 'paid' && (() => {
+                          const allAllotted = booking.items?.every(item => item.allottedRoomNumbers?.length >= (item.quantity || 1))
+                          return allAllotted ? (
+                            <div className="flex items-center gap-1">
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-semibold">
+                                <CheckCircle size={13} /> Allotted
+                              </span>
+                              <button
+                                onClick={() => router.push(`/worker/bookings/edit-booking?id=${booking._id}`)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                              >
+                                <Edit size={14} />
+                                Edit
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => router.push(`/worker/bookings/allot-rooms?id=${booking._id}`)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors mr-2"
+                              >
+                                <DoorOpen size={14} />
+                                Allot
+                              </button>
+                              <button
+                                onClick={() => router.push(`/worker/bookings/edit-booking?id=${booking._id}`)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                              >
+                                <Edit size={14} />
+                                Edit
+                              </button>
+                            </>
+                          )
+                        })()}
+                        {booking.status !== 'paid' && (
+                          <span className="text-xs text-amber-600 italic">Pay first to allot</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -416,20 +472,46 @@ export default function WorkerCheckInPage() {
                     </div>
                   )}
                   
-                  <button
-                    onClick={() => router.push(`/worker/bookings/allot-rooms?id=${booking._id}`)}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors mb-2"
-                  >
-                    <DoorOpen size={16} />
-                    Allot Rooms
-                  </button>
-                  <button
-                    onClick={() => router.push(`/worker/bookings/edit-booking?id=${booking._id}`)}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold transition-colors"
-                  >
-                    <Edit size={16} />
-                    Edit Booking
-                  </button>
+                  {booking.status === 'paid' ? (() => {
+                    const allAllotted = booking.items?.every(item => item.allottedRoomNumbers?.length >= (item.quantity || 1))
+                    return allAllotted ? (
+                      <>
+                        <div className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-100 border-2 border-green-300 text-green-700 rounded-lg text-sm font-semibold mb-2">
+                          <CheckCircle size={16} />
+                          All rooms allotted
+                        </div>
+                        <button
+                          onClick={() => router.push(`/worker/bookings/edit-booking?id=${booking._id}`)}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                        >
+                          <Edit size={16} />
+                          Edit Booking
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => router.push(`/worker/bookings/allot-rooms?id=${booking._id}`)}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors mb-2"
+                        >
+                          <DoorOpen size={16} />
+                          Allot Rooms
+                        </button>
+                        <button
+                          onClick={() => router.push(`/worker/bookings/edit-booking?id=${booking._id}`)}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                        >
+                          <Edit size={16} />
+                          Edit Booking
+                        </button>
+                      </>
+                    )
+                  })() : (
+                    <div className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-amber-100 border-2 border-amber-400 text-amber-700 rounded-lg text-sm font-semibold">
+                      <Clock size={16} />
+                      Payment pending - Pay first to allot rooms
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

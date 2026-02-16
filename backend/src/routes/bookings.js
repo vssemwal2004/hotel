@@ -23,7 +23,8 @@ const itemSchema = z.object({
   packageType: z.enum(['roomOnly', 'roomBreakfast', 'roomBreakfastDinner']).default('roomOnly'),
   extraBeds: z.number().int().min(0).optional().default(0),
   extraPersons: z.number().int().min(0).optional().default(0),
-  guests: z.array(guestSchema).optional().default([])
+  guests: z.array(guestSchema).optional().default([]),
+  allottedRoomNumbers: z.array(z.string()).optional().default([])
 })
 
 const createSchema = z.object({
@@ -88,35 +89,35 @@ router.post('/', authRequired, async (req, res, next) => {
     // Validate availability and capacity
     const types = await RoomType.find({ key: { $in: data.items.map(i=>i.roomTypeKey) } })
     const typeMap = Object.fromEntries(types.map(t => [t.key, t]))
+
+    // Validate availability per item
     for (const it of data.items) {
       const t = typeMap[it.roomTypeKey]
       if (!t) return res.status(400).json({ message: `Invalid room type ${it.roomTypeKey}` })
       if (t.count < it.quantity) return res.status(409).json({ message: `${t.title} rooms full` })
-      // Capacity check based on guests array
+    }
+
+    // Aggregate capacity check across ALL items combined
+    let totalAdults = 0, totalChildren = 0, totalAdultCap = 0, totalChildCap = 0
+    for (const it of data.items) {
+      const t = typeMap[it.roomTypeKey]
       const guests = it.guests || []
-      const adultCount = guests.filter(g => g.type === 'adult').length
-      const childCount = guests.filter(g => g.type === 'child').length
-      const maxA = (t.maxAdults ?? 0) * it.quantity
-      const maxC = (t.maxChildren ?? 0) * it.quantity
-      if ((adultCount > maxA) || (childCount > maxC)) {
-        const needRoomsByAdults = (t.maxAdults || 1) > 0 ? Math.ceil(adultCount / (t.maxAdults || 1)) : adultCount
-        const needRoomsByChildren = (t.maxChildren || 1) > 0 ? Math.ceil(childCount / (t.maxChildren || 1)) : childCount
-        const requiredRooms = Math.max(needRoomsByAdults, needRoomsByChildren)
-        const msg = `Selected ${t.title} rooms cannot accommodate all guests. Please add more rooms.`
-        return res.status(400).json({ 
-          message: msg,
-          details: {
-            roomTypeKey: t.key,
-            title: t.title,
-            adults: adultCount,
-            children: childCount,
-            maxAdultsPerRoom: t.maxAdults || 0,
-            maxChildrenPerRoom: t.maxChildren || 0,
-            selectedRooms: it.quantity,
-            requiredRooms
-          }
-        })
-      }
+      totalAdults += guests.filter(g => g.type === 'adult').length
+      totalChildren += guests.filter(g => g.type === 'child').length
+      totalAdultCap += (t.maxAdults ?? 2) * it.quantity
+      totalChildCap += (t.maxChildren ?? 1) * it.quantity
+    }
+    if (totalAdults > totalAdultCap) {
+      return res.status(400).json({ 
+        message: `Cannot accommodate ${totalAdults} adults. Total adult capacity across all selected rooms is ${totalAdultCap}. Please add more rooms.`,
+        details: { totalAdults, totalAdultCap, totalChildren, totalChildCap }
+      })
+    }
+    if (totalChildren > totalChildCap) {
+      return res.status(400).json({ 
+        message: `Cannot accommodate ${totalChildren} children. Total children capacity across all selected rooms is ${totalChildCap}. Please add more rooms.`,
+        details: { totalAdults, totalAdultCap, totalChildren, totalChildCap }
+      })
     }
 
     // Build items with pricing
@@ -277,6 +278,7 @@ router.post('/:id/allot-rooms', authRequired, rolesRequired('admin','worker'), a
       item.allottedRoomNumbers = allotment.roomNumbers
     }
 
+    booking.markModified('items')
     await booking.save()
     res.json({ booking })
   } catch (e) { next(e) }
@@ -288,7 +290,7 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
     const booking = await Booking.findById(req.params.id)
     if (!booking) return res.status(404).json({ message: 'Booking not found' })
     
-    const { checkOut, items, additionalGuests } = req.body
+    const { checkOut, items, additionalGuests, allotments } = req.body
     let recalculate = false
 
     // Update checkout date
@@ -379,6 +381,38 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
       }
     }
 
+    // Handle room allotments from edit-booking page
+    if (allotments && Array.isArray(allotments)) {
+      for (const allotment of allotments) {
+        const item = booking.items.find(it => it.roomTypeKey === allotment.roomTypeKey)
+        if (!item) continue
+        
+        const roomNumbers = allotment.roomNumbers || []
+        if (roomNumbers.length > 0 && roomNumbers.length !== item.quantity) {
+          return res.status(400).json({ 
+            message: `Please select exactly ${item.quantity} room(s) for ${item.title}` 
+          })
+        }
+        
+        // Validate room availability
+        if (roomNumbers.length > 0) {
+          const availableRooms = await getAvailableRoomNumbers(
+            allotment.roomTypeKey,
+            booking.checkIn,
+            booking.checkOut,
+            booking._id
+          )
+          for (const rn of roomNumbers) {
+            if (!availableRooms.includes(rn)) {
+              return res.status(409).json({ message: `Room ${rn} is not available for the booking period` })
+            }
+          }
+        }
+        
+        item.allottedRoomNumbers = roomNumbers
+      }
+    }
+
     // Recalculate totals if needed
     if (recalculate) {
       let newSubtotal = 0
@@ -400,6 +434,7 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
       booking.total = newSubtotal + (gstEnabled ? gstResult.gstAmount : 0)
     }
 
+    booking.markModified('items')
     await booking.save()
     res.json({ booking })
   } catch (e) { next(e) }
@@ -492,18 +527,30 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
 
     const types = await RoomType.find({ key: { $in: data.items.map(i=>i.roomTypeKey) } })
     const typeMap = Object.fromEntries(types.map(t => [t.key, t]))
+
+    // Validate availability per item
     for (const it of data.items) {
       const t = typeMap[it.roomTypeKey]
       if (!t) return res.status(400).json({ message: `Invalid room type ${it.roomTypeKey}` })
       if (t.count < it.quantity) return res.status(409).json({ message: `${t.title} rooms full` })
+    }
+
+    // Aggregate capacity check across ALL items combined
+    // Each item's guests represent that item's share of the booking party
+    let totalAdults = 0, totalChildren = 0, totalAdultCap = 0, totalChildCap = 0
+    for (const it of data.items) {
+      const t = typeMap[it.roomTypeKey]
       const guests = it.guests || []
-      const adultCount = guests.filter(g => g.type === 'adult').length
-      const childCount = guests.filter(g => g.type === 'child').length
-      const maxA = (t.maxAdults ?? 0) * it.quantity
-      const maxC = (t.maxChildren ?? 0) * it.quantity
-      if ((adultCount > maxA) || (childCount > maxC)) {
-        return res.status(400).json({ message: `Selected ${t.title} rooms cannot accommodate all guests. Please add more rooms.` })
-      }
+      totalAdults += guests.filter(g => g.type === 'adult').length
+      totalChildren += guests.filter(g => g.type === 'child').length
+      totalAdultCap += (t.maxAdults ?? 2) * it.quantity
+      totalChildCap += (t.maxChildren ?? 1) * it.quantity
+    }
+    if (totalAdults > totalAdultCap) {
+      return res.status(400).json({ message: `Cannot accommodate ${totalAdults} adults. Total adult capacity across all selected rooms is ${totalAdultCap}. Please add more rooms.` })
+    }
+    if (totalChildren > totalChildCap) {
+      return res.status(400).json({ message: `Cannot accommodate ${totalChildren} children. Total children capacity across all selected rooms is ${totalChildCap}. Please add more rooms.` })
     }
 
     const items = data.items.map(it => {
@@ -517,7 +564,8 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
         basePrice: base,
         quantity: it.quantity,
         guests: it.guests || [],
-        subtotal
+        subtotal,
+        allottedRoomNumbers: it.allottedRoomNumbers || []
       }
     })
     const manualSubtotal = items.reduce((s,a)=>s+a.subtotal,0)

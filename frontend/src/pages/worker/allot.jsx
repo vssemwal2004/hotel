@@ -17,14 +17,12 @@ export default function WorkerAllot(){
   const [nights, setNights] = useState(1)
   const [checkOut, setCheckOut] = useState('')
   const [roomTypes, setRoomTypes] = useState([])
-  const [roomTypeKey, setRoomTypeKey] = useState('')
-  const [quantity, setQuantity] = useState(1)
   const [markPaid, setMarkPaid] = useState(true)
   
-  // Room Number Selection
-  const [availableRoomNumbers, setAvailableRoomNumbers] = useState([])
-  const [selectedRoomNumbers, setSelectedRoomNumbers] = useState([])
-  const [fetchingRooms, setFetchingRooms] = useState(false)
+  // Multiple room type entries - each entry has its own type, quantity, available/selected rooms
+  const [roomEntries, setRoomEntries] = useState([
+    { id: 1, roomTypeKey: '', quantity: 1, availableRoomNumbers: [], selectedRoomNumbers: [], fetchingRooms: false }
+  ])
   
   // Main Guest (Guardian) Information
   const [mainGuest, setMainGuest] = useState({
@@ -62,7 +60,9 @@ export default function WorkerAllot(){
         const { data } = await api.get('/room-types')
         const types = data?.types || []
         setRoomTypes(types)
-        if (!roomTypeKey && types[0]?.key) setRoomTypeKey(types[0].key)
+        if (types[0]?.key) {
+          setRoomEntries(prev => prev.map((entry, i) => i === 0 && !entry.roomTypeKey ? { ...entry, roomTypeKey: types[0].key } : entry))
+        }
       } catch (e) {
         console.error('Failed to fetch room types:', e)
       }
@@ -81,53 +81,92 @@ export default function WorkerAllot(){
     }
   }, [fullDay, checkIn, nights])
 
-  // Fetch available room numbers when room type or dates change
-  useEffect(() => {
-    const fetchAvailableRoomNumbers = async () => {
-      if (!roomTypeKey || !checkIn || !checkOut) {
-        setAvailableRoomNumbers([])
-        setSelectedRoomNumbers([])
-        return
-      }
-
-      setFetchingRooms(true)
-      try {
-        const { data } = await api.get(`/bookings/available-rooms/${roomTypeKey}`, {
-          params: {
-            checkIn,
-            checkOut
-          }
-        })
-        
-        const available = data.availableRoomNumbers || []
-        setAvailableRoomNumbers(available)
-        
-        // Reset selected rooms if they're no longer available
-        setSelectedRoomNumbers(prev => 
-          prev.filter(rn => available.includes(rn)).slice(0, Number(quantity))
-        )
-      } catch (error) {
-        console.error('Error fetching available rooms:', error)
-        setAvailableRoomNumbers([])
-        setSelectedRoomNumbers([])
-      } finally {
-        setFetchingRooms(false)
-      }
+  // Fetch available room numbers for a specific entry
+  const fetchAvailableForEntry = async (entryId) => {
+    const entry = roomEntries.find(e => e.id === entryId)
+    if (!entry?.roomTypeKey || !checkIn || !checkOut) {
+      updateRoomEntry(entryId, { availableRoomNumbers: [], selectedRoomNumbers: [] })
+      return
     }
 
-    fetchAvailableRoomNumbers()
-  }, [roomTypeKey, checkIn, checkOut, quantity])
-
-  // Handle room number selection
-  const handleRoomNumberChange = (index, value) => {
-    const newSelected = [...selectedRoomNumbers]
-    newSelected[index] = value
-    setSelectedRoomNumbers(newSelected.filter(Boolean))
+    updateRoomEntry(entryId, { fetchingRooms: true })
+    try {
+      const { data } = await api.get(`/bookings/available-rooms/${entry.roomTypeKey}`, {
+        params: { checkIn, checkOut }
+      })
+      const available = data.availableRoomNumbers || []
+      updateRoomEntry(entryId, {
+        availableRoomNumbers: available,
+        selectedRoomNumbers: (entry.selectedRoomNumbers || []).filter(rn => available.includes(rn)).slice(0, Number(entry.quantity)),
+        fetchingRooms: false
+      })
+    } catch (error) {
+      console.error('Error fetching available rooms:', error)
+      updateRoomEntry(entryId, { availableRoomNumbers: [], selectedRoomNumbers: [], fetchingRooms: false })
+    }
   }
 
-  // Remove a selected room number
-  const removeRoomNumber = (roomNumber) => {
-    setSelectedRoomNumbers(prev => prev.filter(rn => rn !== roomNumber))
+  // Refetch rooms for all entries when dates change
+  useEffect(() => {
+    if (checkIn && checkOut) {
+      roomEntries.forEach(entry => {
+        if (entry.roomTypeKey) fetchAvailableForEntry(entry.id)
+      })
+    }
+  }, [checkIn, checkOut])
+
+  // Room entry management
+  const updateRoomEntry = (id, updates) => {
+    setRoomEntries(prev => prev.map(entry => entry.id === id ? { ...entry, ...updates } : entry))
+  }
+
+  const addRoomEntry = () => {
+    const newId = Math.max(...roomEntries.map(e => e.id), 0) + 1
+    setRoomEntries(prev => [...prev, { id: newId, roomTypeKey: roomTypes[0]?.key || '', quantity: 1, availableRoomNumbers: [], selectedRoomNumbers: [], fetchingRooms: false }])
+  }
+
+  const removeRoomEntry = (id) => {
+    if (roomEntries.length <= 1) return
+    setRoomEntries(prev => prev.filter(e => e.id !== id))
+  }
+
+  const handleEntryRoomTypeChange = (id, key) => {
+    updateRoomEntry(id, { roomTypeKey: key, selectedRoomNumbers: [], availableRoomNumbers: [] })
+    // Fetch available rooms after state update
+    setTimeout(() => fetchAvailableForEntry(id), 50)
+  }
+
+  const handleEntryQuantityChange = (id, qty) => {
+    const entry = roomEntries.find(e => e.id === id)
+    updateRoomEntry(id, {
+      quantity: qty,
+      selectedRoomNumbers: (entry?.selectedRoomNumbers || []).slice(0, Number(qty))
+    })
+  }
+
+  // Handle room number selection for a specific entry
+  const handleRoomNumberChange = (entryId, index, value) => {
+    setRoomEntries(prev => prev.map(entry => {
+      if (entry.id !== entryId) return entry
+      const newSelected = [...entry.selectedRoomNumbers]
+      newSelected[index] = value
+      return { ...entry, selectedRoomNumbers: newSelected.filter(Boolean) }
+    }))
+  }
+
+  // Remove a selected room number from a specific entry
+  const removeRoomNumber = (entryId, roomNumber) => {
+    setRoomEntries(prev => prev.map(entry => {
+      if (entry.id !== entryId) return entry
+      return { ...entry, selectedRoomNumbers: entry.selectedRoomNumbers.filter(rn => rn !== roomNumber) }
+    }))
+  }
+
+  // Get all selected room numbers across all entries for a given room type (to prevent double-selection)
+  const getOtherSelectedRooms = (entryId, roomTypeKey) => {
+    return roomEntries
+      .filter(e => e.id !== entryId && e.roomTypeKey === roomTypeKey)
+      .flatMap(e => e.selectedRoomNumbers)
   }
 
   // Update main guest field
@@ -166,18 +205,13 @@ export default function WorkerAllot(){
       return
     }
 
-    // Calculate payment details
-    const selectedRT = roomTypes.find(rt => rt.key === roomTypeKey)
-    if (!selectedRT) {
-      setError('Please select a room type')
+    // Validate room entries
+    if (roomEntries.length === 0 || roomEntries.every(e => !e.roomTypeKey)) {
+      setError('Please select at least one room type')
       return
     }
 
-    const pricePerNight = selectedRT.prices?.roomOnly || selectedRT.basePrice || 0
-    const roomSubtotal = pricePerNight * Number(quantity)
-    const gstResult = calculateGST(roomSubtotal, selectedRT, pricePerNight)
-
-    // Build guests array - main guest + additional members
+    // Build full guest list
     const guestList = [
       {
         name: mainGuest.name.trim(),
@@ -189,8 +223,6 @@ export default function WorkerAllot(){
         idNumber: mainGuest.idNumber.trim()
       }
     ]
-
-    // Add additional members as simple entries
     for (let i = 0; i < additionalMembers.males; i++) {
       guestList.push({ name: `Male Guest ${i + 1}`, age: 21, type: 'adult' })
     }
@@ -201,22 +233,107 @@ export default function WorkerAllot(){
       guestList.push({ name: `Child ${i + 1}`, age: 10, type: 'child' })
     }
 
-    // Prepare booking data for confirmation
+    const totalAdults = guestList.filter(g => g.type === 'adult').length
+    const totalChildren = guestList.filter(g => g.type === 'child').length
+
+    // Capacity check: calculate total capacity across all selected room entries
+    let totalAdultCapacity = 0
+    let totalChildCapacity = 0
+    const validEntries = []
+    for (const entry of roomEntries) {
+      if (!entry.roomTypeKey) continue
+      const rt = roomTypes.find(r => r.key === entry.roomTypeKey)
+      if (!rt) continue
+      const qty = Number(entry.quantity) || 1
+      totalAdultCapacity += (rt.maxAdults ?? 2) * qty
+      totalChildCapacity += (rt.maxChildren ?? 1) * qty
+      validEntries.push({ entry, rt, qty })
+    }
+
+    if (validEntries.length === 0) {
+      setError('Please select at least one room type')
+      return
+    }
+
+    // Validate total capacity across ALL room types combined
+    if (totalAdults > totalAdultCapacity) {
+      const totalRooms = validEntries.reduce((s, e) => s + e.qty, 0)
+      setError(`Cannot accommodate ${totalAdults} adults in ${totalRooms} room(s). Total adult capacity is ${totalAdultCapacity}. Please add more rooms or reduce adult guests.`)
+      return
+    }
+    if (totalChildren > totalChildCapacity) {
+      const totalRooms = validEntries.reduce((s, e) => s + e.qty, 0)
+      setError(`Cannot accommodate ${totalChildren} children in ${totalRooms} room(s). Total children capacity is ${totalChildCapacity}. Please add more rooms or reduce children.`)
+      return
+    }
+
+    // Distribute guests across items proportionally so each item's guests fit its capacity
+    const adultGuests = guestList.filter(g => g.type === 'adult')
+    const childGuests = guestList.filter(g => g.type === 'child')
+    let adultIdx = 0
+    let childIdx = 0
+
+    // Calculate totals across all entries
+    let totalSubtotal = 0
+    let totalGST = 0
+    let totalAmount = 0
+    const items = []
+    const entryDetails = []
+
+    for (const { entry, rt, qty } of validEntries) {
+      const pricePerNight = rt.prices?.roomOnly || rt.basePrice || 0
+      const entrySubtotal = pricePerNight * qty
+      const gstResult = calculateGST(entrySubtotal, rt, pricePerNight)
+
+      totalSubtotal += entrySubtotal
+      totalGST += gstResult.gstAmount || 0
+      totalAmount += gstResult.totalAmount || entrySubtotal
+
+      // Assign guests to this item based on its capacity
+      const itemAdultCap = (rt.maxAdults ?? 2) * qty
+      const itemChildCap = (rt.maxChildren ?? 1) * qty
+      const itemGuests = []
+      // Take adults up to this item's capacity
+      const adultsForItem = adultGuests.slice(adultIdx, adultIdx + itemAdultCap)
+      adultIdx += adultsForItem.length
+      itemGuests.push(...adultsForItem)
+      // Take children up to this item's capacity
+      const childrenForItem = childGuests.slice(childIdx, childIdx + itemChildCap)
+      childIdx += childrenForItem.length
+      itemGuests.push(...childrenForItem)
+
+      items.push({
+        roomTypeKey: entry.roomTypeKey,
+        quantity: qty,
+        guests: itemGuests,
+        allottedRoomNumbers: entry.selectedRoomNumbers.length > 0 ? entry.selectedRoomNumbers : undefined
+      })
+
+      entryDetails.push({
+        roomType: rt,
+        quantity: qty,
+        subtotal: entrySubtotal,
+        gstAmount: gstResult.gstAmount || 0,
+        gstPercentage: gstResult.gstPercentage || 0,
+        total: gstResult.totalAmount || entrySubtotal,
+        selectedRoomNumbers: entry.selectedRoomNumbers,
+        adultCapacity: itemAdultCap,
+        childCapacity: itemChildCap,
+        adultsAssigned: adultsForItem.length,
+        childrenAssigned: childrenForItem.length
+      })
+    }
+
     const bookingPayload = {
-      user: { 
-        name: mainGuest.name.trim(), 
+      user: {
+        name: mainGuest.name.trim(),
         email: mainGuest.email.trim() || `guest${Date.now()}@hotel.com`,
         phone: mainGuest.phone.trim()
       },
       checkIn,
       checkOut,
       fullDay,
-      items: [ { 
-        roomTypeKey, 
-        quantity: Number(quantity), 
-        guests: guestList,
-        allottedRoomNumbers: selectedRoomNumbers.length > 0 ? selectedRoomNumbers : undefined
-      } ],
+      items,
       paid: markPaid,
       guestIdInfo: {
         type: mainGuest.idType,
@@ -229,15 +346,14 @@ export default function WorkerAllot(){
       }
     }
 
-    // Store booking data and payment info for modal
     setBookingData({
       ...bookingPayload,
-      roomType: selectedRT,
+      entryDetails,
       paymentDetails: {
-        subtotal: roomSubtotal,
-        gstAmount: gstResult.gstAmount || 0,
-        gstPercentage: gstResult.gstPercentage || 0,
-        totalAmount: gstResult.totalAmount || roomSubtotal
+        subtotal: totalSubtotal,
+        gstAmount: totalGST,
+        gstPercentage: entryDetails[0]?.gstPercentage || 0,
+        totalAmount
       },
       totalGuests: getTotalGuests()
     })
@@ -276,7 +392,7 @@ export default function WorkerAllot(){
         setCheckOut('')
         setNights(1)
         setFullDay(false)
-        setQuantity(1)
+        setRoomEntries([{ id: 1, roomTypeKey: roomTypes[0]?.key || '', quantity: 1, availableRoomNumbers: [], selectedRoomNumbers: [], fetchingRooms: false }])
         setResult(null)
         setBookingData(null)
       }, 3000)
@@ -609,147 +725,229 @@ export default function WorkerAllot(){
             )}
           </div>
 
-          {/* Room Details */}
+          {/* Room Details - Multiple Room Types */}
           <div>
-            <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <Home size={24} className="text-teal-600" />
-              Room Details
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Room Type *</label>
-                <select
-                  required
-                  className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm md:text-base focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all bg-white"
-                  value={roomTypeKey}
-                  onChange={e => setRoomTypeKey(e.target.value)}
-                >
-                  {roomTypes.length === 0 ? (
-                    <option>Loading room types...</option>
-                  ) : (
-                    roomTypes.map(rt => (
-                      <option key={rt.key} value={rt.key}>
-                        {rt.title} - ₹{rt.basePrice || rt.prices?.roomOnly || 0} (Available: {rt.count})
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Number of Rooms *</label>
-                <input
-                  required
-                  type="number"
-                  min={1}
-                  className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm md:text-base focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                  value={quantity}
-                  onChange={e => setQuantity(e.target.value)}
-                />
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Home size={24} className="text-teal-600" />
+                Room Details
+              </h2>
+              <button
+                type="button"
+                onClick={addRoomEntry}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs md:text-sm font-semibold transition-colors shadow-sm"
+              >
+                <span className="text-lg leading-none">+</span> Add Room Type
+              </button>
             </div>
 
-            {/* Room Number Selection - Only show if room type is selected and dates are set */}
-            {roomTypeKey && checkIn && checkOut && (
-              <div className="mt-4">
-                {fetchingRooms ? (
-                  <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                      <span className="text-sm text-blue-700 font-semibold">Loading available rooms...</span>
+            <div className="space-y-4">
+              {roomEntries.map((entry, entryIdx) => {
+                const otherSelected = getOtherSelectedRooms(entry.id, entry.roomTypeKey)
+                const filteredAvailable = entry.availableRoomNumbers.filter(rn => !otherSelected.includes(rn))
+                return (
+                  <div key={entry.id} className="bg-gray-50 rounded-xl border-2 border-gray-200 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-bold text-gray-700">Room Entry #{entryIdx + 1}</span>
+                      {roomEntries.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeRoomEntry(entry.id)}
+                          className="flex items-center gap-1 px-2 py-1 text-red-600 hover:bg-red-50 rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          <X size={14} /> Remove
+                        </button>
+                      )}
                     </div>
-                  </div>
-                ) : availableRoomNumbers.length > 0 ? (
-                  <div className="bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-300 rounded-lg p-4">
-                    <label className="block text-xs md:text-sm font-semibold text-gray-900 mb-3">
-                      Select Room Number(s) (Optional)
-                      <span className="text-gray-600 font-normal ml-2">- {availableRoomNumbers.length} rooms available</span>
-                    </label>
-                    <div className="space-y-3">
-                      {Array.from({ length: Number(quantity) || 1 }).map((_, index) => (
-                        <div key={index} className="relative">
-                          <select
-                            className="w-full border-2 border-purple-300 bg-white rounded-lg px-3 py-2.5 pr-10 text-sm md:text-base focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all appearance-none font-semibold"
-                            value={selectedRoomNumbers[index] || ''}
-                            onChange={(e) => handleRoomNumberChange(index, e.target.value)}
-                          >
-                            <option value="">-- Select Room {index + 1} --</option>
-                            {availableRoomNumbers
-                              .filter(rn => !selectedRoomNumbers.includes(rn) || rn === selectedRoomNumbers[index])
-                              .map(roomNumber => (
-                                <option key={roomNumber} value={roomNumber}>
-                                  Room {roomNumber}
-                                </option>
-                              ))}
-                          </select>
-                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    {/* Selected Rooms Display */}
-                    {selectedRoomNumbers.length > 0 && (
-                      <div className="mt-3 bg-green-50 border-2 border-green-300 rounded-lg p-3">
-                        <p className="text-xs font-semibold text-green-800 mb-2">Selected Rooms:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedRoomNumbers.map(rn => (
-                            <span key={rn} className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-bold">
-                              Room {rn}
-                              <button
-                                type="button"
-                                onClick={() => removeRoomNumber(rn)}
-                                className="hover:bg-green-700 rounded-full p-0.5 transition-colors"
-                              >
-                                <X size={14} />
-                              </button>
-                            </span>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Room Type *</label>
+                        <select
+                          required
+                          className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all bg-white"
+                          value={entry.roomTypeKey}
+                          onChange={e => handleEntryRoomTypeChange(entry.id, e.target.value)}
+                        >
+                          <option value="">-- Select Room Type --</option>
+                          {roomTypes.map(rt => (
+                            <option key={rt.key} value={rt.key}>
+                              {rt.title} - ₹{rt.basePrice || rt.prices?.roomOnly || 0} (Available: {rt.count})
+                            </option>
                           ))}
-                        </div>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Number of Rooms *</label>
+                        <input
+                          required
+                          type="number"
+                          min={1}
+                          className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                          value={entry.quantity}
+                          onChange={e => handleEntryQuantityChange(entry.id, e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Room Number Selection for this entry */}
+                    {entry.roomTypeKey && checkIn && checkOut && (
+                      <div className="mt-3">
+                        {entry.fetchingRooms ? (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                              <span className="text-xs text-blue-700 font-semibold">Loading available rooms...</span>
+                            </div>
+                          </div>
+                        ) : filteredAvailable.length > 0 ? (
+                          <div className="bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-3">
+                            <label className="block text-xs font-semibold text-gray-900 mb-2">
+                              Select Room Number(s) (Optional)
+                              <span className="text-gray-500 font-normal ml-1">- {filteredAvailable.length} available</span>
+                            </label>
+                            <div className="space-y-2">
+                              {Array.from({ length: Number(entry.quantity) || 1 }).map((_, index) => (
+                                <div key={index} className="relative">
+                                  <select
+                                    className="w-full border-2 border-purple-300 bg-white rounded-lg px-3 py-2 pr-10 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all appearance-none font-semibold"
+                                    value={entry.selectedRoomNumbers[index] || ''}
+                                    onChange={(e) => handleRoomNumberChange(entry.id, index, e.target.value)}
+                                  >
+                                    <option value="">-- Select Room {index + 1} --</option>
+                                    {filteredAvailable
+                                      .filter(rn => !entry.selectedRoomNumbers.includes(rn) || rn === entry.selectedRoomNumbers[index])
+                                      .map(roomNumber => (
+                                        <option key={roomNumber} value={roomNumber}>
+                                          Room {roomNumber}
+                                        </option>
+                                      ))}
+                                  </select>
+                                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            {entry.selectedRoomNumbers.length > 0 && (
+                              <div className="mt-2 bg-green-50 border border-green-200 rounded-lg p-2">
+                                <p className="text-[10px] font-semibold text-green-800 mb-1">Selected:</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {entry.selectedRoomNumbers.map(rn => (
+                                    <span key={rn} className="inline-flex items-center gap-1 px-2 py-1 bg-green-600 text-white rounded text-xs font-bold">
+                                      Room {rn}
+                                      <button type="button" onClick={() => removeRoomNumber(entry.id, rn)} className="hover:bg-green-700 rounded-full p-0.5">
+                                        <X size={12} />
+                                      </button>
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : entry.availableRoomNumbers.length === 0 && !entry.fetchingRooms ? (
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-2">
+                            <div className="flex items-start gap-1.5">
+                              <AlertCircle size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                              <p className="text-xs text-amber-800">No room numbers configured or all booked for these dates.</p>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-3">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-semibold text-amber-900">No room numbers available</p>
-                        <p className="text-xs text-amber-700 mt-1">Admin hasn't added room numbers for this room type or all rooms are booked.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+                )
+              })}
+            </div>
           </div>
 
+          {/* Capacity Summary */}
+          {roomEntries.some(e => e.roomTypeKey) && roomTypes.length > 0 && (() => {
+            const totalAdults = 1 + additionalMembers.males + additionalMembers.females
+            const totalChildren = additionalMembers.children
+            const totalGuests = totalAdults + totalChildren
+            let adultCap = 0, childCap = 0, totalRooms = 0
+            for (const entry of roomEntries) {
+              if (!entry.roomTypeKey) continue
+              const rt = roomTypes.find(r => r.key === entry.roomTypeKey)
+              if (!rt) continue
+              const qty = Number(entry.quantity) || 1
+              totalRooms += qty
+              adultCap += (rt.maxAdults ?? 2) * qty
+              childCap += (rt.maxChildren ?? 1) * qty
+            }
+            const adultOk = totalAdults <= adultCap
+            const childOk = totalChildren <= childCap
+            const allOk = adultOk && childOk
+            return (
+              <div className={`p-3 rounded-xl border-2 ${allOk ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                <h3 className={`text-sm font-bold mb-2 flex items-center gap-2 ${allOk ? 'text-green-800' : 'text-red-800'}`}>
+                  {allOk ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                  Capacity Check — {totalRooms} Room{totalRooms !== 1 ? 's' : ''} Selected
+                </h3>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className={`rounded-lg p-2 ${adultOk ? 'bg-green-100' : 'bg-red-100'}`}>
+                    <span className="font-semibold">Adults:</span> {totalAdults} / {adultCap} capacity
+                    {!adultOk && <span className="text-red-700 font-bold ml-1">⚠ Over!</span>}
+                  </div>
+                  <div className={`rounded-lg p-2 ${childOk ? 'bg-green-100' : 'bg-red-100'}`}>
+                    <span className="font-semibold">Children:</span> {totalChildren} / {childCap} capacity
+                    {!childOk && <span className="text-red-700 font-bold ml-1">⚠ Over!</span>}
+                  </div>
+                </div>
+                {!allOk && (
+                  <p className="text-xs text-red-700 font-semibold mt-2">
+                    ⚠ Add more rooms or reduce guests to fit capacity.
+                  </p>
+                )}
+              </div>
+            )
+          })()}
+
           {/* Price & GST Breakdown */}
-          {roomTypeKey && roomTypes.length > 0 && (() => {
-            const selectedRT = roomTypes.find(rt => rt.key === roomTypeKey)
-            if (!selectedRT) return null
-            const pricePerNight = selectedRT.prices?.roomOnly || selectedRT.basePrice || 0
-            const roomSubtotal = pricePerNight * (Number(quantity) || 1)
-            const gstResult = calculateGST(roomSubtotal, selectedRT, pricePerNight)
+          {roomEntries.some(e => e.roomTypeKey) && roomTypes.length > 0 && (() => {
+            let totalSub = 0
+            let totalGst = 0
+            let totalAmt = 0
+            const lines = []
+            for (const entry of roomEntries) {
+              if (!entry.roomTypeKey) continue
+              const rt = roomTypes.find(r => r.key === entry.roomTypeKey)
+              if (!rt) continue
+              const ppn = rt.prices?.roomOnly || rt.basePrice || 0
+              const sub = ppn * (Number(entry.quantity) || 1)
+              const gst = calculateGST(sub, rt, ppn)
+              totalSub += sub
+              totalGst += gst.gstAmount || 0
+              totalAmt += gst.totalAmount || sub
+              lines.push({ title: rt.title, qty: Number(entry.quantity) || 1, ppn, sub, gstAmt: gst.gstAmount, gstPct: gst.gstPercentage, total: gst.totalAmount || sub })
+            }
+            if (lines.length === 0) return null
             return (
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border-2 border-blue-200">
                 <h3 className="text-sm md:text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
                   💰 Price Breakdown
                 </h3>
                 <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Room Charge ({Number(quantity) || 1} room × ₹{pricePerNight.toLocaleString()})</span>
-                    <span className="font-medium text-gray-900">₹{roomSubtotal.toLocaleString()}</span>
+                  {lines.map((l, i) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span className="text-gray-600">{l.title} ({l.qty} × ₹{l.ppn.toLocaleString()})</span>
+                      <span className="font-medium text-gray-900">₹{l.sub.toLocaleString()}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between text-sm border-t border-blue-200 pt-1">
+                    <span className="text-gray-600">Subtotal</span>
+                    <span className="font-medium text-gray-900">₹{totalSub.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">{formatGSTLabel(gstResult.gstPercentage)}</span>
-                    <span className="font-medium text-gray-900">₹{gstResult.gstAmount.toLocaleString()}</span>
+                    <span className="text-gray-600">GST</span>
+                    <span className="font-medium text-gray-900">₹{totalGst.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between text-base font-bold border-t border-blue-300 pt-2 mt-2">
+                  <div className="flex justify-between text-base font-bold border-t border-blue-300 pt-2 mt-1">
                     <span className="text-gray-900">Total Amount</span>
-                    <span className="text-green-600">₹{gstResult.totalAmount.toLocaleString()}</span>
+                    <span className="text-green-600">₹{totalAmt.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -897,7 +1095,7 @@ export default function WorkerAllot(){
                   <CalendarCheck size={20} className="text-amber-600" />
                   Booking Information
                 </h4>
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-2 gap-3 text-sm mb-3">
                   <div className="bg-white rounded-lg p-3 border border-amber-200">
                     <p className="text-gray-600 text-xs mb-1">Check-in</p>
                     <p className="font-semibold text-gray-900">{new Date(checkIn).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>
@@ -906,14 +1104,24 @@ export default function WorkerAllot(){
                     <p className="text-gray-600 text-xs mb-1">Check-out</p>
                     <p className="font-semibold text-gray-900">{new Date(checkOut).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-amber-200">
-                    <p className="text-gray-600 text-xs mb-1">Room Type</p>
-                    <p className="font-semibold text-gray-900">{bookingData.roomType?.title || 'N/A'}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-3 border border-amber-200">
-                    <p className="text-gray-600 text-xs mb-1">Number of Rooms</p>
-                    <p className="font-semibold text-gray-900">{quantity}</p>
-                  </div>
+                </div>
+                <p className="text-xs font-semibold text-gray-700 mb-2">Room Details ({bookingData.entryDetails?.length || 0} type{(bookingData.entryDetails?.length || 0) > 1 ? 's' : ''}):</p>
+                <div className="space-y-2">
+                  {(bookingData.entryDetails || []).map((ed, i) => (
+                    <div key={i} className="bg-white rounded-lg p-3 border border-amber-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-gray-900 text-sm">{ed.roomType?.title}</p>
+                          <p className="text-xs text-gray-600">Qty: {ed.quantity}{ed.selectedRoomNumbers?.length > 0 ? ` | Rooms: ${ed.selectedRoomNumbers.join(', ')}` : ''}</p>
+                        </div>
+                        <span className="font-bold text-gray-900 text-sm">₹{ed.subtotal?.toLocaleString()}</span>
+                      </div>
+                      <p className="text-[10px] text-gray-500 mt-1">
+                        Guests: {ed.adultsAssigned || 0} adult{(ed.adultsAssigned || 0) !== 1 ? 's' : ''}, {ed.childrenAssigned || 0} child{(ed.childrenAssigned || 0) !== 1 ? 'ren' : ''} 
+                        <span className="text-gray-400 ml-1">(cap: {ed.adultCapacity || 0}A / {ed.childCapacity || 0}C)</span>
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </div>
 
