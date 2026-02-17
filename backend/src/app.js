@@ -28,8 +28,19 @@ try {
 
 export const app = express()
 
-// Security headers
-app.use(helmet())
+// Determine if running in production
+const isProd = process.env.NODE_ENV === 'production'
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000'
+
+console.log('Environment:', isProd ? 'PRODUCTION' : 'DEVELOPMENT')
+console.log('CLIENT_ORIGIN:', CLIENT_ORIGIN)
+
+// Security headers - Configure helmet for Google OAuth compatibility
+app.use(helmet({
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: false // Disable CSP to allow Google OAuth scripts
+}))
 
 // Logging
 app.use(morgan('dev'))
@@ -38,16 +49,49 @@ app.use(morgan('dev'))
 app.use(express.json())
 app.use(cookieParser())
 
-// CORS with credentials
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000'
+// CORS configuration - Support both local and production
 app.use(
   cors({
-    origin: CLIENT_ORIGIN,
+    origin: (origin, callback) => {
+      // In production, only allow the production domain
+      if (isProd) {
+        const allowedOrigins = [CLIENT_ORIGIN, 'https://hotelkrishnaandrestaurant.com']
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true)
+        } else {
+          console.warn('CORS blocked origin:', origin)
+          callback(new Error('Not allowed by CORS'))
+        }
+      } else {
+        // In development, allow localhost variations
+        const allowedOrigins = [
+          'http://localhost:3000',
+          'http://localhost:5000',
+          'http://127.0.0.1:3000',
+          'http://127.0.0.1:5000'
+        ]
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true)
+        } else {
+          callback(null, true) // Allow all in dev for flexibility
+        }
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Set-Cookie']
   })
 )
+
+// Additional headers for Google OAuth and cookie handling
+app.use((req, res, next) => {
+  // Allow cookies to be set from the frontend
+  res.header('Access-Control-Allow-Credentials', 'true')
+  // Support Google OAuth popup
+  res.header('Cross-Origin-Opener-Policy', 'same-origin-allow-popups')
+  next()
+})
 
 // Routes
 app.get('/health', (req, res) => res.json({ ok: true }))

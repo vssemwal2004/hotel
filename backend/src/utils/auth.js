@@ -12,18 +12,34 @@ export function verifyToken(token) {
 }
 
 export function cookieOptions() {
+  const isProd = process.env.NODE_ENV === 'production'
   const domain = process.env.COOKIE_DOMAIN
-  const useDomain = domain && domain !== 'localhost' ? domain : undefined
-  // SameSite: allow cross-site in production (if frontend and API are on different subdomains)
-  // Prefer lax locally unless you specifically need cross-port cookies
-  const sameSite = process.env.COOKIE_SAMESITE || (isProd ? 'none' : 'lax')
+  
+  // In production, use the root domain (no subdomain prefix)
+  // This allows cookies to work across the entire domain
+  const useDomain = isProd && domain && domain !== 'localhost' ? domain : undefined
+  
+  // SameSite configuration:
+  // - Production: Use 'lax' for same-site requests (frontend and backend on same domain via Nginx)
+  // - Development: Use 'lax' for cross-port localhost access
+  const sameSite = process.env.COOKIE_SAMESITE || 'lax'
+  
+  // Secure flag: true in production (HTTPS required), false in development
+  const secure = isProd
+  
+  console.log('Cookie options:', { 
+    domain: useDomain || 'none', 
+    secure, 
+    sameSite, 
+    isProd 
+  })
+  
   return {
     httpOnly: true,
-    // Secure must be true for SameSite=None cookies on HTTPS (production)
-    secure: isProd,
+    secure,
     sameSite,
     domain: useDomain,
     path: '/',
-    maxAge: 7 * 24 * 60 * 60 * 1000
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   }
 }
