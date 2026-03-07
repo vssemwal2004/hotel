@@ -14,7 +14,9 @@ import {
   History,
   DoorOpen,
   LogIn,
-  LogOut as LogOutIcon
+  LogOut as LogOutIcon,
+  Users,
+  List
 } from 'lucide-react'
 
 // WorkerLayout provides a professional responsive worker layout with sidebar
@@ -23,11 +25,15 @@ export default function WorkerLayout({ children }){
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [bookingsExpanded, setBookingsExpanded] = useState(false)
+  const [allotExpanded, setAllotExpanded] = useState(false)
 
-  // Auto-expand bookings menu if on a bookings sub-page
+  // Auto-expand menus based on current path
   useEffect(() => {
-    if (router.pathname.startsWith('/worker/bookings')) {
+    if (router.pathname.startsWith('/worker/bookings') && router.pathname !== '/worker/bookings/bulk-booking') {
       setBookingsExpanded(true)
+    }
+    if (router.pathname === '/worker/allot' || router.pathname === '/worker/bookings/bulk-booking') {
+      setAllotExpanded(true)
     }
   }, [router.pathname])
 
@@ -51,17 +57,29 @@ export default function WorkerLayout({ children }){
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/worker', color: 'text-teal-500' },
-    { icon: CalendarCheck, label: 'Room Allotment', href: '/worker/allot', color: 'text-emerald-500' },
+    {
+      icon: CalendarCheck,
+      label: 'Room Allotment',
+      color: 'text-emerald-500',
+      expandable: true,
+      id: 'allotment',
+      subItems: [
+        { icon: CalendarCheck, label: 'Single Booking', href: '/worker/allot', color: 'text-emerald-400' },
+        { icon: Users, label: 'Bulk Booking', href: '/worker/bookings/bulk-booking', color: 'text-pink-400' },
+      ]
+    },
     { icon: DoorOpen, label: 'Available Rooms', href: '/worker/rooms', color: 'text-amber-500' },
     { 
       icon: History, 
       label: 'Customer Bookings', 
       color: 'text-purple-500',
       expandable: true,
+      id: 'bookings',
       subItems: [
         { icon: LogIn, label: 'Check-In', href: '/worker/bookings/check-in', color: 'text-blue-400' },
         { icon: LogOutIcon, label: 'Check-Out', href: '/worker/bookings/check-out', color: 'text-orange-400' },
         { icon: History, label: 'History', href: '/worker/bookings/history', color: 'text-purple-400' },
+        { icon: List, label: 'View Bookings', href: '/worker/bookings/view', color: 'text-cyan-400' },
       ]
     },
   ]
@@ -72,7 +90,7 @@ export default function WorkerLayout({ children }){
   }
 
   const isBookingsActive = () => {
-    return router.pathname.startsWith('/worker/bookings')
+    return router.pathname.startsWith('/worker/bookings') && router.pathname !== '/worker/bookings/bulk-booking'
   }
 
   const handleLogout = async () => {
@@ -169,14 +187,18 @@ export default function WorkerLayout({ children }){
                 const Icon = item.icon
 
                 if (item.expandable) {
-                  // Expandable menu (Customer Bookings)
-                  const isExpanded = bookingsExpanded
-                  const isAnySubActive = isBookingsActive()
-                  
+                  const isExpanded = item.id === 'allotment' ? allotExpanded : bookingsExpanded
+                  const toggleFn = item.id === 'allotment'
+                    ? () => setAllotExpanded(v => !v)
+                    : () => setBookingsExpanded(v => !v)
+                  const isAnySubActive = item.id === 'allotment'
+                    ? (router.pathname === '/worker/allot' || router.pathname === '/worker/bookings/bulk-booking')
+                    : isBookingsActive()
+
                   return (
                     <div key={item.label}>
                       <button
-                        onClick={() => setBookingsExpanded(!bookingsExpanded)}
+                        onClick={toggleFn}
                         className={`
                           w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
                           ${isAnySubActive 

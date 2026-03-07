@@ -440,6 +440,191 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
   } catch (e) { next(e) }
 })
 
+// ─── Bulk Booking (Worker/Admin) ─────────────────────────────────
+// Creates multiple bookings at once for walk-in / group bookings
+// Each entry in the array is one guest with their own rooms
+router.post('/bulk', authRequired, rolesRequired('admin','worker'), async (req, res, next) => {
+  try {
+    const { bookings: bulkEntries } = req.body
+    if (!Array.isArray(bulkEntries) || bulkEntries.length === 0) {
+      return res.status(400).json({ message: 'At least one booking entry is required' })
+    }
+
+    const results = []
+    const errors = []
+
+    for (let idx = 0; idx < bulkEntries.length; idx++) {
+      const entry = bulkEntries[idx]
+      try {
+        // Validate guest/user info
+        const guestName = String(entry.guestName || '').trim()
+        let guestEmail = String(entry.guestEmail || '').trim().toLowerCase()
+        const guestPhone = String(entry.guestPhone || '').trim()
+        const guestIdProof = String(entry.idProof || '').trim()
+
+        if (!guestName) {
+          errors.push({ index: idx, message: `Entry ${idx + 1}: Guest name is required` })
+          continue
+        }
+
+        // Generate email if not provided
+        if (!guestEmail || !guestEmail.includes('@')) {
+          guestEmail = `guest${Date.now()}_${idx}@hotel.local`
+        }
+
+        // Find or create user
+        let user = await User.findOne({ email: guestEmail })
+        if (!user) {
+          user = await User.create({
+            name: guestName,
+            email: guestEmail,
+            phone: guestPhone || undefined,
+            password: Math.random().toString(36).slice(2, 10)
+          })
+        }
+
+        // Parse dates
+        if (!entry.checkIn) {
+          errors.push({ index: idx, message: `Entry ${idx + 1}: Check-in date is required` })
+          continue
+        }
+        const checkIn = new Date(entry.checkIn)
+        let checkOut = null
+        let nights = 1
+        const fullDay = !!entry.fullDay
+
+        if (entry.checkOut) {
+          checkOut = new Date(entry.checkOut)
+          if (!(checkOut > checkIn)) {
+            errors.push({ index: idx, message: `Entry ${idx + 1}: Check-out must be after check-in` })
+            continue
+          }
+          nights = nightsBetween(checkIn, checkOut)
+        } else if (!fullDay) {
+          errors.push({ index: idx, message: `Entry ${idx + 1}: Check-out is required` })
+          continue
+        }
+
+        // Validate items (rooms)
+        if (!entry.items || !Array.isArray(entry.items) || entry.items.length === 0) {
+          errors.push({ index: idx, message: `Entry ${idx + 1}: At least one room selection is required` })
+          continue
+        }
+
+        const roomTypeKeys = entry.items.map(i => i.roomTypeKey)
+        const types = await RoomType.find({ key: { $in: roomTypeKeys } })
+        const typeMap = Object.fromEntries(types.map(t => [t.key, t]))
+
+        let itemError = false
+        for (const it of entry.items) {
+          const t = typeMap[it.roomTypeKey]
+          if (!t) {
+            errors.push({ index: idx, message: `Entry ${idx + 1}: Invalid room type ${it.roomTypeKey}` })
+            itemError = true
+            break
+          }
+          if (t.count < (it.quantity || 1)) {
+            errors.push({ index: idx, message: `Entry ${idx + 1}: ${t.title} rooms full` })
+            itemError = true
+            break
+          }
+        }
+        if (itemError) continue
+
+        // Build items with pricing
+        const pkgType = entry.packageType || 'roomOnly'
+        const items = entry.items.map(it => {
+          const t = typeMap[it.roomTypeKey]
+          const base = (t.prices && t.prices[pkgType]) ? t.prices[pkgType] : (t.basePrice || 0)
+          const subtotal = base * (it.quantity || 1) * nights
+          return {
+            roomTypeKey: t.key,
+            title: t.title,
+            basePrice: base,
+            quantity: it.quantity || 1,
+            guests: [{
+              name: guestName,
+              email: guestEmail !== `guest${Date.now()}_${idx}@hotel.local` ? guestEmail : undefined,
+              phone: guestPhone || undefined,
+              age: entry.guestAge || 30,
+              type: 'adult'
+            }],
+            subtotal,
+            allottedRoomNumbers: it.allottedRoomNumbers || []
+          }
+        })
+
+        const subtotalAmount = items.reduce((s, a) => s + a.subtotal, 0)
+
+        // GST calculation
+        const firstType = typeMap[entry.items[0].roomTypeKey]
+        const pricePerNight = (firstType.prices?.roomOnly ?? firstType.basePrice) || 0
+        const gstEnabled = firstType.gstEnabled !== false
+        const customGST = (gstEnabled && firstType.gstPercentage !== null && firstType.gstPercentage !== undefined)
+          ? firstType.gstPercentage : null
+        const gstResult = calculateGST(subtotalAmount, customGST, pricePerNight)
+
+        const finalGSTPercentage = gstEnabled ? gstResult.gstPercentage : 0
+        const finalGSTAmount = gstEnabled ? gstResult.gstAmount : 0
+        const total = subtotalAmount + finalGSTAmount
+
+        let booking = await Booking.create({
+          user: user._id,
+          checkIn,
+          checkOut: checkOut || undefined,
+          fullDay,
+          nights,
+          items,
+          subtotal: subtotalAmount,
+          gstPercentage: finalGSTPercentage,
+          gstAmount: finalGSTAmount,
+          total,
+          status: 'pending'
+        })
+
+        // Mark paid if requested
+        const markPaid = !!entry.paid
+        if (markPaid) {
+          let canPay = true
+          for (const it of booking.items) {
+            const t = await RoomType.findOne({ key: it.roomTypeKey })
+            if (!t || t.count < it.quantity) { canPay = false; break }
+          }
+          if (canPay) {
+            for (const it of booking.items) {
+              await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: -it.quantity } })
+            }
+            booking.status = 'paid'
+            booking.payment = { provider: 'offline', status: 'paid' }
+            await booking.save()
+
+            // Send confirmation emails (fire-and-forget)
+            sendBookingConfirmationToUser(booking, user).catch(err =>
+              console.error(`Bulk booking ${idx + 1}: Failed to send user email:`, err)
+            )
+            sendBookingNotificationToAdmin(booking, user).catch(err =>
+              console.error(`Bulk booking ${idx + 1}: Failed to send admin email:`, err)
+            )
+          }
+        }
+
+        booking = await Booking.findById(booking._id).populate('user', 'name email phone')
+        results.push({ index: idx, success: true, booking })
+      } catch (entryErr) {
+        errors.push({ index: idx, message: `Entry ${idx + 1}: ${entryErr.message}` })
+      }
+    }
+
+    res.status(201).json({
+      totalRequested: bulkEntries.length,
+      successCount: results.length,
+      errorCount: errors.length,
+      results,
+      errors
+    })
+  } catch (e) { next(e) }
+})
+
 export default router
 
 // Worker/Admin search bookings by user email/name or booking id
