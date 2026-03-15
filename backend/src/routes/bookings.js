@@ -165,6 +165,14 @@ router.post('/', authRequired, async (req, res, next) => {
       status: 'pending'
     })
 
+    // Send booking emails (fire-and-forget)
+    sendBookingConfirmationToUser(booking, req.user).catch(err =>
+      console.error('Failed to send user booking email:', err)
+    )
+    sendBookingNotificationToAdmin(booking, req.user).catch(err =>
+      console.error('Failed to send admin booking email:', err)
+    )
+
     res.status(201).json({ booking })
   } catch (e) { next(e) }
 })
@@ -516,6 +524,7 @@ router.post('/bulk', authRequired, rolesRequired('admin','worker'), async (req, 
         const typeMap = Object.fromEntries(types.map(t => [t.key, t]))
 
         let itemError = false
+        const effCheckOut = checkOut || new Date(checkIn.getTime() + 24 * 60 * 60 * 1000)
         for (const it of entry.items) {
           const t = typeMap[it.roomTypeKey]
           if (!t) {
@@ -523,7 +532,15 @@ router.post('/bulk', authRequired, rolesRequired('admin','worker'), async (req, 
             itemError = true
             break
           }
-          if (t.count < (it.quantity || 1)) {
+          // Use date-based availability when room numbers are configured
+          if (t.roomNumbers && t.roomNumbers.length > 0) {
+            const availableRooms = await getAvailableRoomNumbers(it.roomTypeKey, checkIn, effCheckOut)
+            if (availableRooms.length < (it.quantity || 1)) {
+              errors.push({ index: idx, message: `Entry ${idx + 1}: ${t.title} rooms full` })
+              itemError = true
+              break
+            }
+          } else if (t.count < (it.quantity || 1)) {
             errors.push({ index: idx, message: `Entry ${idx + 1}: ${t.title} rooms full` })
             itemError = true
             break
@@ -588,7 +605,12 @@ router.post('/bulk', authRequired, rolesRequired('admin','worker'), async (req, 
           let canPay = true
           for (const it of booking.items) {
             const t = await RoomType.findOne({ key: it.roomTypeKey })
-            if (!t || t.count < it.quantity) { canPay = false; break }
+            if (!t) { canPay = false; break }
+            // Use date-based availability when room numbers are configured
+            if (t.roomNumbers && t.roomNumbers.length > 0) {
+              const availRooms = await getAvailableRoomNumbers(it.roomTypeKey, checkIn, effCheckOut, booking._id)
+              if (availRooms.length < it.quantity) { canPay = false; break }
+            } else if (t.count < it.quantity) { canPay = false; break }
           }
           if (canPay) {
             for (const it of booking.items) {
@@ -597,18 +619,18 @@ router.post('/bulk', authRequired, rolesRequired('admin','worker'), async (req, 
             booking.status = 'paid'
             booking.payment = { provider: 'offline', status: 'paid' }
             await booking.save()
-
-            // Send confirmation emails (fire-and-forget)
-            sendBookingConfirmationToUser(booking, user).catch(err =>
-              console.error(`Bulk booking ${idx + 1}: Failed to send user email:`, err)
-            )
-            sendBookingNotificationToAdmin(booking, user).catch(err =>
-              console.error(`Bulk booking ${idx + 1}: Failed to send admin email:`, err)
-            )
           }
         }
 
         booking = await Booking.findById(booking._id).populate('user', 'name email phone')
+
+        // Send confirmation emails for every bulk booking (fire-and-forget)
+        sendBookingConfirmationToUser(booking, user).catch(err =>
+          console.error(`Bulk booking ${idx + 1}: Failed to send user email:`, err)
+        )
+        sendBookingNotificationToAdmin(booking, user).catch(err =>
+          console.error(`Bulk booking ${idx + 1}: Failed to send admin email:`, err)
+        )
         results.push({ index: idx, success: true, booking })
       } catch (entryErr) {
         errors.push({ index: idx, message: `Entry ${idx + 1}: ${entryErr.message}` })
@@ -797,18 +819,19 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
         status: 'paid'
       }
       await booking.save()
-
-      // Send confirmation emails for paid manual bookings
-      sendBookingConfirmationToUser(booking, user).catch(err => 
-        console.error('Failed to send user confirmation email:', err)
-      )
-      sendBookingNotificationToAdmin(booking, user).catch(err => 
-        console.error('Failed to send admin notification email:', err)
-      )
     }
 
     // Hydrate basic user fields for response
-    booking = await Booking.findById(booking._id).populate('user','name email')
+    booking = await Booking.findById(booking._id).populate('user', 'name email phone')
+
+    // Send confirmation emails for all manual bookings (fire-and-forget)
+    sendBookingConfirmationToUser(booking, user).catch(err => 
+      console.error('Failed to send user confirmation email:', err)
+    )
+    sendBookingNotificationToAdmin(booking, user).catch(err => 
+      console.error('Failed to send admin notification email:', err)
+    )
+
     res.status(201).json({ booking })
   } catch (e) { next(e) }
 })
