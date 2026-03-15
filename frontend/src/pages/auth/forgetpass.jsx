@@ -3,11 +3,13 @@ import MainLayout from '../../layouts/MainLayout'
 import { useForm } from 'react-hook-form'
 import Link from 'next/link'
 import api from '../../utils/api'
+import { useToast } from '../../components/ToastProvider'
 
 export default function ForgetPass() {
   const { register, handleSubmit, formState: { errors } } = useForm()
   const [isLoading, setIsLoading] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+  const toast = useToast()
 
   useEffect(() => setIsMounted(true), [])
 
@@ -15,9 +17,9 @@ export default function ForgetPass() {
     try {
       setIsLoading(true)
       const res = await api.post('/auth/forgot-password', { email: data.email })
-      alert('If the email exists, a reset link has been sent.' + (res.data?.token ? `\nDev token: ${res.data.token}` : ''))
+      toast.show({ type: 'success', message: 'If the email exists, a reset link has been sent.' })
     } catch (e) {
-      alert(e?.response?.data?.message || 'Failed to request reset')
+      toast.show({ type: 'error', message: e?.response?.data?.message || 'Failed to request reset' })
     } finally {
       setIsLoading(false)
     }

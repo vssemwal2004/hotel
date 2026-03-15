@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import AdminLayout from '../../layouts/AdminLayout'
 import api from '../../utils/api'
+import * as XLSX from 'xlsx'
 import { 
   Search, 
   Filter, 
@@ -14,7 +15,8 @@ import {
   IndianRupee,
   Bed,
   ChevronDown,
-  RefreshCw
+  RefreshCw,
+  Download
 } from 'lucide-react'
 import { 
   CalendarCheck,
@@ -147,6 +149,30 @@ export default function AdminBookings(){
         {safeStatus.slice(0,1).toUpperCase() + safeStatus.slice(1)}
       </span>
     )
+  }
+
+  const exportToExcel = () => {
+    const rows = filteredBookings.map(b => ({
+      'Guest Name':     b.user?.name || '',
+      'Email':          b.user?.email || '',
+      'Phone':          b.user?.phone || '',
+      'Room Type':      (b.items || []).map(i => `${i.title} x${i.quantity}`).join(' | '),
+      'Check-In':       new Date(b.checkIn).toLocaleDateString(),
+      'Check-Out':      b.fullDay ? 'Same Day' : new Date(b.checkOut).toLocaleDateString(),
+      'Status':         b.status || '',
+      'Amount':         b.totalAmount || b.total || 0,
+      'Payment Method': b.payment?.paymentId ? 'Online' : 'N/A',
+      'Booking Date':   new Date(b.createdAt).toLocaleDateString(),
+    }))
+    const ws = XLSX.utils.json_to_sheet(rows)
+    ws['!cols'] = [
+      {wch:20},{wch:28},{wch:14},{wch:30},{wch:14},
+      {wch:14},{wch:12},{wch:12},{wch:16},{wch:14}
+    ]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Bookings')
+    const statusLabel = statusFilter !== 'all' ? `_${statusFilter}` : ''
+    XLSX.writeFile(wb, `HotelKrishna_Bookings${statusLabel}.xlsx`)
   }
 
   const BookingDetailsModal = ({ booking, onClose }) => {
@@ -507,14 +533,22 @@ export default function AdminBookings(){
 
       {/* Bookings List */}
       <div className="bg-white rounded-lg shadow-md border border-gray-100 overflow-hidden">
-        <div className="bg-gradient-to-r from-slate-700 to-slate-800 text-white p-3">
-          <h2 className="text-base md:text-lg font-bold flex items-center gap-2">
-            <CalendarCheck size={20} />
-            All Bookings ({filteredBookings.length})
-          </h2>
-          <p className="text-slate-300 text-xs mt-0.5">
-            {statusFilter !== 'all' ? `Showing ${statusFilter} bookings` : 'All booking records'}
-          </p>
+        <div className="bg-gradient-to-r from-slate-700 to-slate-800 text-white p-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-base md:text-lg font-bold flex items-center gap-2">
+              <CalendarCheck size={20} />
+              All Bookings ({filteredBookings.length})
+            </h2>
+            <p className="text-slate-300 text-xs mt-0.5">
+              {statusFilter !== 'all' ? `Showing ${statusFilter} bookings` : 'All booking records'}
+            </p>
+          </div>
+          <button
+            onClick={exportToExcel}
+            className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+          >
+            <Download size={14} /> Export Excel
+          </button>
         </div>
 
         {filteredBookings.length === 0 ? (

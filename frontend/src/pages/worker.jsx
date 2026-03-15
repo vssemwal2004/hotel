@@ -3,6 +3,7 @@ import WorkerLayout from '../layouts/WorkerLayout'
 import useAuth from '../hooks/useAuth'
 import { useRouter } from 'next/router'
 import api from '../utils/api'
+import { useToast } from '../components/ToastProvider'
 import { 
   Search, 
   CheckCircle, 
@@ -26,6 +27,7 @@ const ROWS_PER_PAGE = 15
 export default function WorkerPage(){
   const { user, loading } = useAuth()
   const router = useRouter()
+  const toast = useToast()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [all, setAll] = useState([])
@@ -93,7 +95,7 @@ export default function WorkerPage(){
       await fetchAllBookings()
       if (selectedBooking?._id === id) setSelectedBooking(prev => ({ ...prev, status: 'paid' }))
     } catch (e) {
-      alert(e?.response?.data?.message || 'Failed to mark as paid')
+      toast.show({ type: 'error', message: e?.response?.data?.message || 'Failed to mark as paid' })
     }
   }
 
@@ -105,9 +107,9 @@ export default function WorkerPage(){
       await api.post(`/bookings/${id}/cancel`)
       await fetchAllBookings()
       if (selectedBooking?._id === id) setSelectedBooking(prev => ({ ...prev, status: 'cancelled' }))
-      alert('Booking cancelled successfully. Emails have been sent to the customer and admin.')
+      toast.show({ type: 'success', message: 'Booking cancelled successfully. Emails have been sent to the customer and admin.', duration: 5000 })
     } catch (e) {
-      alert(e?.response?.data?.message || 'Failed to cancel booking')
+      toast.show({ type: 'error', message: e?.response?.data?.message || 'Failed to cancel booking' })
     }
   }
 
@@ -117,7 +119,7 @@ export default function WorkerPage(){
       await fetchAllBookings()
       if (selectedBooking?._id === id) setSelectedBooking(prev => ({ ...prev, status: 'completed' }))
     } catch (e) {
-      alert(e?.response?.data?.message || 'Failed to checkout')
+      toast.show({ type: 'error', message: e?.response?.data?.message || 'Failed to checkout' })
     }
   }
 

@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import Link from 'next/link'
 import { User, X, Menu, LogOut, ChevronDown, Mail, Home as HomeIcon, BookOpen } from 'lucide-react'
 import useAuth from '../hooks/useAuth'
+import { useToast } from './ToastProvider'
 
 export default function Header(){
   const router = useRouter()
@@ -11,6 +12,7 @@ export default function Header(){
   const [scrolled, setScrolled] = useState(false)
   const [isTransparent, setIsTransparent] = useState(true)
   const { user, logout, loading } = useAuth()
+  const toast = useToast()
   const [showBooking, setShowBooking] = useState(false)
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
@@ -132,8 +134,8 @@ export default function Header(){
 
   const startBooking = (e) => {
     e?.preventDefault()
-    if (!checkIn) return alert('Please select check-in')
-    if (!fullDay && !checkOut) return alert('Please select check-out')
+    if (!checkIn) { toast.show({ type: 'warning', message: 'Please select check-in' }); return }
+    if (!fullDay && !checkOut) { toast.show({ type: 'warning', message: 'Please select check-out' }); return }
     const params = new URLSearchParams()
     params.set('checkIn', checkIn)
     if (!fullDay) params.set('checkOut', checkOut)

@@ -4,6 +4,7 @@ import AdminLayout from '../../layouts/AdminLayout'
 import useAuth from '../../hooks/useAuth'
 import api from '../../utils/api'
 import { Upload, Trash2, Edit2, Save, X, Image as ImageIcon } from 'lucide-react'
+import { useToast } from '../../components/ToastProvider'
 
 export default function AdminGallery() {
   const router = useRouter()
@@ -12,6 +13,7 @@ export default function AdminGallery() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const toast = useToast()
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -31,7 +33,7 @@ export default function AdminGallery() {
       setImages(data)
     } catch (error) {
       console.error('Error fetching gallery:', error)
-      alert('Failed to fetch gallery images')
+      toast.show({ type: 'error', message: 'Failed to fetch gallery images' })
     } finally {
       setLoading(false)
     }
@@ -42,12 +44,12 @@ export default function AdminGallery() {
     e.preventDefault()
     
     if (!formData.file) {
-      alert('Please select an image file')
+      toast.show({ type: 'warning', message: 'Please select an image file' })
       return
     }
 
     if (!formData.order || formData.order < 1 || formData.order > 8) {
-      alert('Please enter a position between 1 and 8')
+      toast.show({ type: 'warning', message: 'Please enter a position between 1 and 8' })
       return
     }
 
@@ -63,12 +65,12 @@ export default function AdminGallery() {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
 
-      alert('Image uploaded successfully!')
+      toast.show({ type: 'success', message: 'Image uploaded successfully!' })
       setFormData({ title: '', description: '', order: '', file: null })
       fetchImages()
     } catch (error) {
       console.error('Error uploading image:', error)
-      alert(error.response?.data?.message || 'Failed to upload image')
+      toast.show({ type: 'error', message: error.response?.data?.message || 'Failed to upload image' })
     } finally {
       setUploading(false)
     }
@@ -89,13 +91,13 @@ export default function AdminGallery() {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
 
-      alert('Image updated successfully!')
+      toast.show({ type: 'success', message: 'Image updated successfully!' })
       setEditingId(null)
       setFormData({ title: '', description: '', order: '', file: null })
       fetchImages()
     } catch (error) {
       console.error('Error updating image:', error)
-      alert(error.response?.data?.message || 'Failed to update image')
+      toast.show({ type: 'error', message: error.response?.data?.message || 'Failed to update image' })
     } finally {
       setUploading(false)
     }
@@ -107,11 +109,11 @@ export default function AdminGallery() {
 
     try {
       await api.delete(`/gallery/${id}`)
-      alert('Image deleted successfully!')
+      toast.show({ type: 'success', message: 'Image deleted successfully!' })
       fetchImages()
     } catch (error) {
       console.error('Error deleting image:', error)
-      alert('Failed to delete image')
+      toast.show({ type: 'error', message: 'Failed to delete image' })
     }
   }
 

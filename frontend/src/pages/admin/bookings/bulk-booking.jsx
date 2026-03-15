@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
-import WorkerLayout from '../../../layouts/WorkerLayout'
+import AdminLayout from '../../../layouts/AdminLayout'
 import api from '../../../utils/api'
 import { useToast } from '../../../components/ToastProvider'
 import { calculateGST, formatGSTLabel } from '../../../utils/gst'
@@ -719,19 +719,19 @@ export default function BulkBookingPage() {
 
   if (loading) {
     return (
-      <WorkerLayout>
+      <AdminLayout>
         <div className="flex items-center justify-center py-24">
           <div className="text-center">
             <div className="w-14 h-14 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
             <p className="text-gray-500 font-medium">Loading room data…</p>
           </div>
         </div>
-      </WorkerLayout>
+      </AdminLayout>
     )
   }
 
   return (
-    <WorkerLayout>
+    <AdminLayout>
       {/* ── Page header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
@@ -908,6 +908,6 @@ export default function BulkBookingPage() {
         />
       )}
       {resultData && <ResultModal data={resultData} onClose={() => setResultData(null)} />}
-    </WorkerLayout>
+    </AdminLayout>
   )
 }

@@ -19,6 +19,7 @@ import {
   Coffee,
   Utensils
 } from 'lucide-react'
+import { useToast } from '../../components/ToastProvider'
 
 export default function AdminRooms(){
   const { register, handleSubmit, reset, setValue, watch } = useForm({
@@ -47,6 +48,7 @@ export default function AdminRooms(){
   const [coverFiles, setCoverFiles] = useState([])
   const [galleryFiles, setGalleryFiles] = useState([])
   const [loading, setLoading] = useState(false)
+  const toast = useToast()
   const [showForm, setShowForm] = useState(false)
   const [roomNumbers, setRoomNumbers] = useState([])
   const [newRoomNumber, setNewRoomNumber] = useState('')
@@ -117,7 +119,7 @@ export default function AdminRooms(){
       setShowForm(false)
       await loadTypes()
     } catch (e) {
-      alert(e?.response?.data?.message || 'Save failed')
+      toast.show({ type: 'error', message: e?.response?.data?.message || 'Save failed' })
     } finally {
       setLoading(false)
     }
@@ -773,6 +775,7 @@ export default function AdminRooms(){
 
 function ImageItem({ photo, type, roomId, onDeleted }){
   const [deleting, setDeleting] = useState(false)
+  const toast = useToast()
   const url = photo?.url || photo
   const publicId = photo?.publicId
   const remove = async () => {
@@ -783,7 +786,7 @@ function ImageItem({ photo, type, roomId, onDeleted }){
       await api.delete(`/room-types/${roomId}/photo`, { params: { publicId, type: type === 'cover' ? 'cover' : 'gallery' } })
       onDeleted && onDeleted()
     } catch (e) {
-      alert(e?.response?.data?.message || 'Delete failed')
+      toast.show({ type: 'error', message: e?.response?.data?.message || 'Delete failed' })
     } finally {
       setDeleting(false)
     }

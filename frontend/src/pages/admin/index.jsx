@@ -482,7 +482,7 @@ export default function AdminIndex(){
               </div>
             </button>
             <button
-              onClick={() => router.push('/admin/available-rooms')}
+              onClick={() => router.push('/admin/bookings/available-rooms')}
               className="w-full flex items-center gap-3 p-2.5 bg-green-50 hover:bg-green-100 rounded-lg transition-colors group"
             >
               <div className="p-2 bg-white rounded-lg shadow-sm group-hover:shadow">

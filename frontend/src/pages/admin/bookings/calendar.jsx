@@ -1,344 +1,13 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react'
+// This page has been merged into /admin/bookings/history
+import { useEffect } from 'react'
 import { useRouter } from 'next/router'
-import WorkerLayout from '../../../layouts/WorkerLayout'
-import api from '../../../utils/api'
-import { useToast } from '../../../components/ToastProvider'
-import {
-  Calendar,
-  ChevronLeft,
-  ChevronRight,
-  X,
-  User,
-  Mail,
-  Phone,
-  Bed,
-  CreditCard,
-  Clock,
-  Home,
-  Users,
-  Filter,
-  RefreshCw,
-  ChevronDown,
-  ChevronUp,
-  AlertCircle,
-  CheckCircle2,
-  XCircle,
-  CalendarDays,
-  Eye,
-  Hash,
-  IndianRupee,
-  DoorOpen,
-  Building2,
-  ArrowRight,
-  Info
-} from 'lucide-react'
 
-// ─── Helper Functions ───────────────────────────────────────────────
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-function getDaysInMonth(year, month) {
-  return new Date(year, month + 1, 0).getDate()
+export default function CalendarRedirect() {
+  const router = useRouter()
+  useEffect(() => { router.replace('/admin/bookings/history') }, [router])
+  return null
 }
-
-function getFirstDayOfMonth(year, month) {
-  return new Date(year, month, 1).getDay()
-}
-
-function isSameDay(d1, d2) {
-  return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate()
-}
-
-function formatDate(d) {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-}
-
-function formatDateTime(d) {
-  if (!d) return '—'
-  return new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
-// Check if a booking overlaps with a given date
-function doesBookingOverlapDate(booking, date) {
-  const checkIn = new Date(booking.checkIn)
-  checkIn.setHours(0, 0, 0, 0)
-  const checkOut = new Date(booking.checkOut)
-  checkOut.setHours(0, 0, 0, 0)
-  const target = new Date(date)
-  target.setHours(0, 0, 0, 0)
-  return target >= checkIn && target < checkOut
-}
-
-// ─── Status Badge Component ─────────────────────────────────────────
-function StatusBadge({ status }) {
-  const styles = {
-    paid: 'bg-green-100 text-green-700 border-green-300',
-    pending: 'bg-amber-100 text-amber-700 border-amber-300',
-    failed: 'bg-red-100 text-red-700 border-red-300',
-    completed: 'bg-blue-100 text-blue-700 border-blue-300',
-    cancelled: 'bg-gray-200 text-gray-600 border-gray-300'
-  }
-  const icons = {
-    paid: <CheckCircle2 size={12} />,
-    pending: <Clock size={12} />,
-    failed: <XCircle size={12} />,
-    completed: <CheckCircle2 size={12} />,
-    cancelled: <XCircle size={12} />
-  }
-  const s = typeof status === 'string' && status.length ? status : 'pending'
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${styles[s] || styles.pending}`}>
-      {icons[s] || icons.pending}
-      {s.charAt(0).toUpperCase() + s.slice(1)}
-    </span>
-  )
-}
-
-// ─── Calendar Day Cell Component ────────────────────────────────────
-function CalendarDayCell({ day, today, totalRooms, bookedCount, onClick, isCurrentMonth }) {
-  if (!day) {
-    return <div className="h-14 md:h-16 bg-gray-50 rounded" />
-  }
-
-  const isToday = isSameDay(day, today)
-  const ratio = totalRooms > 0 ? bookedCount / totalRooms : 0
-  const isFull = ratio >= 1
-  const isPartial = ratio > 0 && ratio < 1
-
-  let bgColor = 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200'
-  let textColor = 'text-emerald-700'
-  let dotColor = 'bg-emerald-400'
-
-  if (isFull) {
-    bgColor = 'bg-red-50 hover:bg-red-100 border-red-200'
-    textColor = 'text-red-700'
-    dotColor = 'bg-red-400'
-  } else if (isPartial) {
-    bgColor = 'bg-amber-50 hover:bg-amber-100 border-amber-200'
-    textColor = 'text-amber-700'
-    dotColor = 'bg-amber-400'
-  }
-
-  if (!isCurrentMonth) {
-    bgColor = 'bg-gray-50 border-gray-100'
-    textColor = 'text-gray-400'
-  }
-
-  return (
-    <button
-      onClick={() => onClick(day)}
-      className={`relative h-14 md:h-16 rounded-lg border transition-all duration-200 ${bgColor} ${isToday ? 'ring-2 ring-indigo-500 ring-offset-1' : ''} cursor-pointer group`}
-    >
-      <div className="flex flex-col items-center justify-center h-full px-1">
-        <span className={`text-sm md:text-base font-bold ${isCurrentMonth ? textColor : 'text-gray-400'}`}>
-          {day.getDate()}
-        </span>
-        {isCurrentMonth && totalRooms > 0 && (
-          <div className="flex items-center gap-0.5 mt-0.5">
-            <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-            <span className={`text-[9px] md:text-[10px] font-bold ${textColor}`}>
-              {bookedCount}/{totalRooms}
-            </span>
-          </div>
-        )}
-      </div>
-      {isToday && (
-        <div className="absolute top-0.5 right-0.5">
-          <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
-        </div>
-      )}
-    </button>
-  )
-}
-
-// ─── Room Type Calendar Component ───────────────────────────────────
-function RoomTypeCalendar({ roomType, bookings, year, month, today, onDateClick }) {
-  const [collapsed, setCollapsed] = useState(false)
-  const daysInMonth = getDaysInMonth(year, month)
-  const firstDay = getFirstDayOfMonth(year, month)
-  const totalRooms = roomType.count || roomType.roomNumbers?.length || 0
-
-  const dayBookingMap = useMemo(() => {
-    const map = {}
-    for (let d = 1; d <= daysInMonth; d++) {
-      const date = new Date(year, month, d)
-      let bookedRooms = 0
-      const relevantBookings = bookings.filter(b =>
-        b.status !== 'cancelled' &&
-        doesBookingOverlapDate(b, date) &&
-        b.items?.some(item => item.roomTypeKey === roomType.key)
-      )
-      relevantBookings.forEach(b => {
-        b.items?.forEach(item => {
-          if (item.roomTypeKey === roomType.key) {
-            bookedRooms += item.quantity || 0
-          }
-        })
-      })
-      map[d] = { bookedCount: Math.min(bookedRooms, totalRooms), bookings: relevantBookings }
-    }
-    return map
-  }, [bookings, year, month, roomType.key, totalRooms, daysInMonth])
-
-  const stats = useMemo(() => {
-    let fullyBooked = 0, partiallyBooked = 0, available = 0
-    for (let d = 1; d <= daysInMonth; d++) {
-      const { bookedCount } = dayBookingMap[d]
-      const ratio = totalRooms > 0 ? bookedCount / totalRooms : 0
-      if (ratio >= 1) fullyBooked++
-      else if (ratio > 0) partiallyBooked++
-      else available++
-    }
-    return { fullyBooked, partiallyBooked, available }
-  }, [dayBookingMap, totalRooms, daysInMonth])
-
-  const calendarDays = useMemo(() => {
-    const days = []
-    for (let i = 0; i < firstDay; i++) days.push(null)
-    for (let d = 1; d <= daysInMonth; d++) days.push(new Date(year, month, d))
-    return days
-  }, [year, month, firstDay, daysInMonth])
-
-  return (
-    <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden mb-5">
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="w-full flex items-center justify-between p-3 md:p-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 text-white hover:from-indigo-700 hover:via-purple-700 hover:to-indigo-800 transition-all"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-            <Building2 size={22} className="text-white" />
-          </div>
-          <div className="text-left">
-            <h3 className="text-base md:text-lg font-bold">{roomType.title}</h3>
-            <p className="text-xs text-indigo-200">
-              {totalRooms} room{totalRooms !== 1 ? 's' : ''} total
-              {roomType.roomNumbers?.length > 0 && (
-                <span className="ml-2">({roomType.roomNumbers.join(', ')})</span>
-              )}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-500/30 rounded-lg text-xs font-semibold">
-              <div className="w-2 h-2 rounded-full bg-red-300" /> {stats.fullyBooked} Full
-            </span>
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-500/30 rounded-lg text-xs font-semibold">
-              <div className="w-2 h-2 rounded-full bg-amber-300" /> {stats.partiallyBooked} Partial
-            </span>
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/30 rounded-lg text-xs font-semibold">
-              <div className="w-2 h-2 rounded-full bg-emerald-300" /> {stats.available} Free
-            </span>
-          </div>
-          {collapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
-        </div>
-      </button>
-
-      {!collapsed && (
-        <div className="md:hidden flex items-center justify-center gap-2 p-2 bg-indigo-50 border-b border-indigo-100">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[10px] font-bold">
-            <div className="w-1.5 h-1.5 rounded-full bg-red-400" /> {stats.fullyBooked} Full
-          </span>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-bold">
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-400" /> {stats.partiallyBooked} Partial
-          </span>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {stats.available} Free
-          </span>
-        </div>
-      )}
-
-      {!collapsed && (
-        <div className="p-3 md:p-4">
-          <div className="grid grid-cols-7 gap-1 mb-2">
-            {DAY_NAMES.map(name => (
-              <div key={name} className="text-center text-[10px] md:text-xs font-bold text-gray-500 uppercase py-1">{name}</div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {calendarDays.map((day, idx) => (
-              <CalendarDayCell
-                key={idx}
-                day={day}
-                today={today}
-                totalRooms={totalRooms}
-                bookedCount={day ? (dayBookingMap[day.getDate()]?.bookedCount || 0) : 0}
-                isCurrentMonth={!!day}
-                onClick={(d) => onDateClick(d, roomType)}
-              />
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-3 mt-3 pt-3 border-t border-gray-100">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-emerald-200 border border-emerald-300" />
-              <span className="text-[10px] md:text-xs text-gray-600">Available</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-amber-200 border border-amber-300" />
-              <span className="text-[10px] md:text-xs text-gray-600">Partially Booked</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-red-200 border border-red-300" />
-              <span className="text-[10px] md:text-xs text-gray-600">Fully Booked</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-indigo-500 ring-2 ring-indigo-300" />
-              <span className="text-[10px] md:text-xs text-gray-600">Today</span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── Date Details Popup (Level 1) ───────────────────────────────────
-function DateDetailsModal({ date, roomType, bookings, allRoomTypes, onClose, onRoomClick }) {
-  if (!date || !roomType) return null
-
-  const totalRooms = roomType.count || roomType.roomNumbers?.length || 0
-  const roomNumbers = roomType.roomNumbers || []
-
-  const dayBookings = bookings.filter(b =>
-    b.status !== 'cancelled' &&
-    doesBookingOverlapDate(b, date) &&
-    b.items?.some(item => item.roomTypeKey === roomType.key)
-  )
-
-  let totalBooked = 0
-  dayBookings.forEach(b => {
-    b.items?.forEach(item => {
-      if (item.roomTypeKey === roomType.key) totalBooked += item.quantity || 0
-    })
-  })
-  totalBooked = Math.min(totalBooked, totalRooms)
-  const available = Math.max(0, totalRooms - totalBooked)
-
-  const roomDetails = roomNumbers.map(rn => {
-    const bookingsForRoom = dayBookings.filter(b =>
-      b.items?.some(item => item.roomTypeKey === roomType.key && item.allottedRoomNumbers?.includes(rn))
-    )
-    return { roomNumber: rn, bookings: bookingsForRoom, isBooked: bookingsForRoom.length > 0 }
-  })
-
-  const unallottedBookings = dayBookings.filter(b =>
-    b.items?.some(item =>
-      item.roomTypeKey === roomType.key && (!item.allottedRoomNumbers || item.allottedRoomNumbers.length === 0)
-    )
-  )
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 p-4 md:p-5 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg md:text-xl font-bold flex items-center gap-2">
-                <CalendarDays size={22} />
-                {date.toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+/*
               </h2>
               <p className="text-indigo-200 text-sm mt-0.5 flex items-center gap-1">
                 <Building2 size={14} /> {roomType.title}
@@ -694,15 +363,8 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
   )
 }
 
-// ─── Main Page Component ────────────────────────────────────────────
-export default function WorkerBookingCalendarHistory() {
-  const router = useRouter()
-  const toast = useToast()
-  const today = useMemo(() => {
-    const d = new Date()
-    d.setHours(0, 0, 0, 0)
-    return d
-  }, [])
+
+
 
   const [currentYear, setCurrentYear] = useState(today.getFullYear())
   const [currentMonth, setCurrentMonth] = useState(today.getMonth())
@@ -802,7 +464,7 @@ export default function WorkerBookingCalendarHistory() {
 
   if (loading) {
     return (
-      <WorkerLayout>
+      <AdminLayout>
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
@@ -810,12 +472,12 @@ export default function WorkerBookingCalendarHistory() {
             <p className="text-gray-400 text-sm mt-1">Fetching rooms & bookings data</p>
           </div>
         </div>
-      </WorkerLayout>
+      </AdminLayout>
     )
   }
 
   return (
-    <WorkerLayout>
+    <AdminLayout>
       {/* Page Header */}
       <div className="mb-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
@@ -1030,6 +692,7 @@ export default function WorkerBookingCalendarHistory() {
           onCancelBooking={handleCancelBooking}
         />
       )}
-    </WorkerLayout>
+    </AdminLayout>
   )
 }
+*/

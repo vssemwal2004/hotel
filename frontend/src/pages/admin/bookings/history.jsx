@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/router'
 import AdminLayout from '../../../layouts/AdminLayout'
 import api from '../../../utils/api'
+import { useToast } from '../../../components/ToastProvider'
 import {
   Calendar,
   ChevronLeft,
@@ -53,6 +54,12 @@ function formatDate(d) {
   return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+function formatDateTime(d) {
+  if (!d) return '—'
+  return new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+// Check if a booking overlaps with a given date
 function doesBookingOverlapDate(booking, date) {
   const checkIn = new Date(booking.checkIn)
   checkIn.setHours(0, 0, 0, 0)
@@ -477,9 +484,24 @@ function DateDetailsModal({ date, roomType, bookings, allRoomTypes, onClose, onR
 }
 
 // ─── Customer Details Popup (Level 2) ───────────────────────────────
-function CustomerDetailsModal({ roomData, roomType, onClose }) {
+function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) {
+  const [cancelConfirm, setCancelConfirm] = useState(null)
+  const [cancelling, setCancelling] = useState(false)
+
   if (!roomData) return null
   const { roomNumber, bookings } = roomData
+
+  const handleCancel = async (bookingId) => {
+    setCancelling(true)
+    try {
+      await onCancelBooking(bookingId)
+      setCancelConfirm(null)
+    } catch (err) {
+      // error handled by parent
+    } finally {
+      setCancelling(false)
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 md:p-6" onClick={onClose}>
@@ -621,6 +643,48 @@ function CustomerDetailsModal({ roomData, roomType, onClose }) {
                     </div>
                   </div>
                 </div>
+
+                {/* Cancel Booking Button */}
+                {(booking.status === 'paid' || booking.status === 'pending') && (
+                  cancelConfirm === booking._id ? (
+                    <div className="bg-red-50 rounded-xl border-2 border-red-300 p-4">
+                      <p className="text-sm font-bold text-red-700 mb-1">⚠️ Cancel this booking?</p>
+                      <p className="text-xs text-red-500 mb-3">This action cannot be undone. Cancellation emails will be sent to the guest and admin.</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleCancel(booking._id)}
+                          disabled={cancelling}
+                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg text-sm font-bold transition-colors"
+                        >
+                          {cancelling ? (
+                            <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Cancelling...</>
+                          ) : (
+                            <><XCircle size={15} /> Yes, Cancel Booking</>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setCancelConfirm(null)}
+                          disabled={cancelling}
+                          className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-bold transition-colors"
+                        >
+                          No
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setCancelConfirm(booking._id)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 hover:bg-red-100 border-2 border-red-200 hover:border-red-300 text-red-600 rounded-xl text-sm font-bold transition-all"
+                    >
+                      <XCircle size={16} /> Cancel Booking
+                    </button>
+                  )
+                )}
+                {booking.status === 'cancelled' && (
+                  <div className="bg-gray-100 rounded-xl border border-gray-300 p-3 text-center">
+                    <p className="text-sm font-bold text-gray-500 flex items-center justify-center gap-1.5"><XCircle size={15} /> Booking Cancelled</p>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -633,6 +697,7 @@ function CustomerDetailsModal({ roomData, roomType, onClose }) {
 // ─── Main Page Component ────────────────────────────────────────────
 export default function AdminBookingCalendarHistory() {
   const router = useRouter()
+  const toast = useToast()
   const today = useMemo(() => {
     const d = new Date()
     d.setHours(0, 0, 0, 0)
@@ -649,6 +714,7 @@ export default function AdminBookingCalendarHistory() {
 
   const [dateModal, setDateModal] = useState(null)
   const [customerModal, setCustomerModal] = useState(null)
+  const [showCancelled, setShowCancelled] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -674,7 +740,17 @@ export default function AdminBookingCalendarHistory() {
     return () => window.removeEventListener('focus', onFocus)
   }, [fetchData])
 
-  const goToPrevMonth = () => {
+  const handleCancelBooking = async (bookingId) => {
+    try {
+      await api.post(`/bookings/${bookingId}/cancel`)
+      await fetchData()
+    } catch (err) {
+      toast.show({ type: 'error', message: err?.response?.data?.message || 'Failed to cancel booking' })
+      throw err
+    }
+  }
+
+  const goToPrevMonth= () => {
     if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1) }
     else setCurrentMonth(m => m - 1)
   }
@@ -719,6 +795,10 @@ export default function AdminBookingCalendarHistory() {
   const handleRoomClick = (roomData) => {
     if (roomData.bookings.length > 0) setCustomerModal({ roomData, roomType: dateModal?.roomType })
   }
+
+  const cancelledBookings = useMemo(() => {
+    return bookings.filter(b => b.status === 'cancelled').sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
+  }, [bookings])
 
   if (loading) {
     return (
@@ -858,6 +938,77 @@ export default function AdminBookingCalendarHistory() {
         </p>
       </div>
 
+      {/* Cancelled Bookings Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 mt-2 overflow-hidden">
+        <button
+          onClick={() => setShowCancelled(prev => !prev)}
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <XCircle size={18} className="text-red-500" />
+            <span className="text-sm font-bold text-gray-700">Cancelled Bookings</span>
+            {cancelledBookings.length > 0 && (
+              <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-xs font-bold">{cancelledBookings.length}</span>
+            )}
+          </div>
+          {showCancelled ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+        </button>
+        {showCancelled && (
+          <div className="border-t border-gray-100 px-4 py-3">
+            {cancelledBookings.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-4">No cancelled bookings</p>
+            ) : (
+              <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                {cancelledBookings.map(booking => {
+                  const guest = booking.guestDetails || booking.user || {}
+                  const guestName = guest.name || guest.fullName || 'Guest'
+                  const guestEmail = guest.email || ''
+                  const guestPhone = guest.phone || guest.mobile || ''
+                  const checkIn = new Date(booking.checkIn)
+                  const checkOut = new Date(booking.checkOut)
+                  const formatDate = (d) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+
+                  return (
+                    <div key={booking._id} className="bg-red-50 border border-red-200 rounded-xl p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <p className="font-bold text-gray-800 text-sm flex items-center gap-1.5">
+                            <User size={14} className="text-gray-500" /> {guestName}
+                          </p>
+                          {guestEmail && <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5"><Mail size={11} /> {guestEmail}</p>}
+                          {guestPhone && <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5"><Phone size={11} /> {guestPhone}</p>}
+                        </div>
+                        <span className="px-2 py-1 bg-red-200 text-red-700 rounded-lg text-xs font-bold">CANCELLED</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                        <div className="flex items-center gap-1 text-gray-600">
+                          <CalendarDays size={12} /> {formatDate(checkIn)} → {formatDate(checkOut)}
+                        </div>
+                        <div className="flex items-center gap-1 text-gray-600">
+                          <IndianRupee size={12} /> ₹{(booking.totalAmount || booking.total || 0).toLocaleString()}
+                        </div>
+                      </div>
+                      {booking.items && booking.items.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {booking.items.map((item, idx) => (
+                            <span key={idx} className="px-2 py-0.5 bg-white border border-red-200 rounded text-xs text-gray-600">
+                              {item.roomTypeTitle || item.roomTypeKey} × {item.quantity}
+                              {item.allottedRooms && item.allottedRooms.length > 0 && (
+                                <span className="text-gray-400 ml-1">(Room {item.allottedRooms.join(', ')})</span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Date Details Modal */}
       {dateModal && (
         <DateDetailsModal
@@ -876,6 +1027,7 @@ export default function AdminBookingCalendarHistory() {
           roomData={customerModal.roomData}
           roomType={customerModal.roomType}
           onClose={() => setCustomerModal(null)}
+          onCancelBooking={handleCancelBooking}
         />
       )}
     </AdminLayout>

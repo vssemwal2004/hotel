@@ -3,6 +3,7 @@ import WorkerLayout from '../../layouts/WorkerLayout'
 import useAuth from '../../hooks/useAuth'
 import { useRouter } from 'next/router'
 import api from '../../utils/api'
+import { useToast } from '../../components/ToastProvider'
 import { 
   Search, 
   CheckCircle, 
@@ -18,6 +19,7 @@ import {
 export default function CustomerHistoryPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const toast = useToast()
   const [bookings, setBookings] = useState([])
   const [fetching, setFetching] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -138,7 +140,7 @@ export default function CustomerHistoryPage() {
   // Download Excel
   const downloadExcel = () => {
     if (filteredBookings.length === 0) {
-      alert('No data to export')
+      toast.show({ type: 'warning', message: 'No data to export' })
       return
     }
 
@@ -208,7 +210,7 @@ export default function CustomerHistoryPage() {
       setDateFilter('custom')
       setShowCustomDate(false)
     } else {
-      alert('Please select both start and end dates')
+      toast.show({ type: 'warning', message: 'Please select both start and end dates' })
     }
   }
 

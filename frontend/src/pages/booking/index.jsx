@@ -5,6 +5,7 @@ import { useRouter } from 'next/router'
 import { Calendar, Users, Bed, Wifi, Tv, Coffee, Utensils, Sparkles, Check, X, ChevronRight, ShoppingCart, Tag, Info } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { calculateGST, formatGSTLabel } from '../../utils/gst'
+import { useToast } from '../../components/ToastProvider'
 
 function diffNights(checkIn, checkOut, fullDay){
   if (fullDay) return 1
@@ -52,6 +53,7 @@ export default function BookingIndex(){
   const [creating, setCreating] = useState(false)
   const [showMobileSummary, setShowMobileSummary] = useState(true)
   const [expandedDesc, setExpandedDesc] = useState(null) // track which room's description is expanded
+  const toast = useToast()
 
   const checkIn = useMemo(()=> Array.isArray(qi)?qi[0]:qi, [qi])
   const checkOut = useMemo(()=> Array.isArray(qo)?qo[0]:qo, [qo])
@@ -85,7 +87,7 @@ export default function BookingIndex(){
 
   const addToCart = (t) => {
     // Check availability
-    if (t.count === 0) return alert('No rooms available')
+    if (t.count === 0) { toast.show({ type: 'warning', message: 'No rooms available' }); return }
     
     // Open modal with pre-filled data
     setSelecting(t)
@@ -96,7 +98,8 @@ export default function BookingIndex(){
     const childrenCount = Number(qChildren) || 0
     
     if (roomsToBook > t.count) {
-      return alert(`Only ${t.count} room${t.count > 1 ? 's' : ''} available`)
+      toast.show({ type: 'warning', message: `Only ${t.count} room${t.count > 1 ? 's' : ''} available` })
+      return
     }
 
     setQuantity(roomsToBook)
@@ -121,9 +124,9 @@ export default function BookingIndex(){
 
   const confirmAdd = () => {
     if (!selecting) return
-    if (quantity < 1) return alert('Select at least 1 room')
-    if (selecting.count === 0) return alert('Rooms full')
-    if (quantity > selecting.count) return alert(`Only ${selecting.count} rooms available`)
+    if (quantity < 1) { toast.show({ type: 'warning', message: 'Select at least 1 room' }); return }
+    if (selecting.count === 0) { toast.show({ type: 'warning', message: 'Rooms full' }); return }
+    if (quantity > selecting.count) { toast.show({ type: 'warning', message: `Only ${selecting.count} rooms available` }); return }
     // Capacity validation
     const maxA = (selecting.maxAdults || 0) * quantity
     const maxC = (selecting.maxChildren || 0) * quantity
@@ -131,7 +134,8 @@ export default function BookingIndex(){
       const needByA = (selecting.maxAdults || 1) > 0 ? Math.ceil(adults / (selecting.maxAdults || 1)) : adults
       const needByC = (selecting.maxChildren || 1) > 0 ? Math.ceil(children / (selecting.maxChildren || 1)) : children
       const requiredRooms = Math.max(needByA, needByC)
-      return alert(`Selected rooms cannot accommodate all guests. Please add more rooms.\nTo accommodate ${adults} adults and ${children} children, you need at least ${requiredRooms} ${selecting.title}.`)
+      toast.show({ type: 'warning', title: 'Insufficient Rooms', message: `To accommodate ${adults} adults and ${children} children, you need at least ${requiredRooms} ${selecting.title}.` })
+      return
     }
     const item = {
       key: selecting.key,
@@ -173,8 +177,8 @@ export default function BookingIndex(){
   const total = gstData.totalAmount || subtotal
 
   const createAndPay = async () => {
-    if (!checkIn || (!fullDay && !checkOut)) return alert('Missing dates')
-    if (cart.length === 0) return alert('Add at least one room')
+    if (!checkIn || (!fullDay && !checkOut)) { toast.show({ type: 'warning', message: 'Missing dates' }); return }
+    if (cart.length === 0) { toast.show({ type: 'warning', message: 'Add at least one room' }); return }
     // Global capacity validation across cart items
     for (const c of cart) {
       const t = types.find(x => x.key === c.key)
@@ -187,7 +191,7 @@ export default function BookingIndex(){
         const needByA = (t.maxAdults || 1) > 0 ? Math.ceil(adultCount / (t.maxAdults || 1)) : adultCount
         const needByC = (t.maxChildren || 1) > 0 ? Math.ceil(childCount / (t.maxChildren || 1)) : childCount
         const requiredRooms = Math.max(needByA, needByC)
-        alert(`Selected ${t.title} rooms cannot accommodate all guests. Please add more rooms.\nSuggested: ${requiredRooms} rooms for ${adultCount} adults and ${childCount} children.`)
+        toast.show({ type: 'warning', title: 'Insufficient Rooms', message: `Suggested: ${requiredRooms} rooms for ${adultCount} adults and ${childCount} children.` })
         return
       }
     }
@@ -204,7 +208,7 @@ export default function BookingIndex(){
       // Redirect to confirmation page where payment will be initiated
       router.push({ pathname: '/booking/confirmation', query: { bookingId } })
     } catch (e) {
-      alert(e?.response?.data?.message || 'Payment failed')
+      toast.show({ type: 'error', message: e?.response?.data?.message || 'Payment failed' })
     } finally {
       setCreating(false)
     }
@@ -820,7 +824,7 @@ export default function BookingIndex(){
                             onClick={() => {
                               const tRooms = Math.max(needByA, needByC)
                               if (tRooms > (selecting.count || 0)) {
-                                alert(`Only ${selecting.count || 0} rooms available for ${selecting.title}. Please choose another type or adjust guests.`)
+                                toast.show({ type: 'warning', message: `Only ${selecting.count || 0} rooms available for ${selecting.title}. Please choose another type or adjust guests.` })
                               } else {
                                 setQuantity(tRooms)
                               }

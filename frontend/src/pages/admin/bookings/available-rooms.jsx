@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import AdminLayout from '../../layouts/AdminLayout'
-import api from '../../utils/api'
+import AdminLayout from '../../../layouts/AdminLayout'
+import api from '../../../utils/api'
 import { 
   Key,
   Search, 
@@ -16,13 +16,13 @@ import {
   AlertCircle
 } from 'lucide-react'
 
-// This page has been moved to /admin/bookings/available-rooms
-export default function AvailableRooms() {
+export default function AvailableRoomsPage() {
   const router = useRouter()
-  useEffect(() => { router.replace('/admin/bookings/available-rooms') }, [])
-  return null
-}
-/*
+  const [roomTypes, setRoomTypes] = useState([])
+  const [bookings, setBookings] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [roomTypeFilter, setRoomTypeFilter] = useState('all')
+  const [availabilityFilter, setAvailabilityFilter] = useState('all') // all, available, booked
   const [dateRange, setDateRange] = useState({
     checkIn: new Date().toISOString().split('T')[0],
     checkOut: new Date(Date.now() + 86400000).toISOString().split('T')[0] // Tomorrow
@@ -39,7 +39,7 @@ export default function AvailableRooms() {
         api.get('/room-types'),
         api.get('/bookings')
       ])
-      setRoomTypes(roomTypesRes.data.roomTypes || roomTypesRes.data.types || [])
+      setRoomTypes(roomTypesRes.data.types || roomTypesRes.data.roomTypes || [])
       setBookings(bookingsRes.data.bookings || [])
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -90,7 +90,7 @@ export default function AvailableRooms() {
       <AdminLayout>
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
-            <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-600">Loading room availability...</p>
           </div>
         </div>
@@ -104,14 +104,14 @@ export default function AvailableRooms() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Key className="text-purple-600" size={24} />
+            <Key className="text-blue-600" size={24} />
             Room Availability
           </h1>
           <p className="text-xs md:text-sm text-gray-600 mt-0.5">View available and booked rooms by room number</p>
         </div>
         <button
           onClick={fetchData}
-          className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium text-xs md:text-sm transition-colors shadow-md"
+          className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-xs md:text-sm transition-colors shadow-md"
         >
           <RefreshCw size={16} />
           Refresh
@@ -127,7 +127,7 @@ export default function AvailableRooms() {
             <select
               value={roomTypeFilter}
               onChange={(e) => setRoomTypeFilter(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white"
+              className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
             >
               <option value="all">All Room Types</option>
               {roomTypes.map(rt => (
@@ -143,7 +143,7 @@ export default function AvailableRooms() {
             <select
               value={availabilityFilter}
               onChange={(e) => setAvailabilityFilter(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white"
+              className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
             >
               <option value="all">All Rooms</option>
               <option value="available">Available Only</option>
@@ -159,7 +159,7 @@ export default function AvailableRooms() {
               type="date"
               value={dateRange.checkIn}
               onChange={(e) => setDateRange(prev => ({ ...prev, checkIn: e.target.value }))}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
@@ -170,7 +170,7 @@ export default function AvailableRooms() {
               type="date"
               value={dateRange.checkOut}
               onChange={(e) => setDateRange(prev => ({ ...prev, checkOut: e.target.value }))}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
         </div>
@@ -185,7 +185,7 @@ export default function AvailableRooms() {
             const availableRooms = totalRooms - bookedRooms.length
             
             return (
-              <div key={rt.key} className="bg-white rounded-lg p-3 border-l-4 border-purple-500 shadow-sm">
+              <div key={rt.key} className="bg-white rounded-lg p-3 border-l-4 border-blue-500 shadow-sm">
                 <p className="text-xs text-gray-600 mb-0.5 truncate">{rt.title}</p>
                 <p className="text-lg font-bold text-gray-900">
                   {availableRooms}/{totalRooms}
@@ -221,11 +221,11 @@ export default function AvailableRooms() {
 
             return (
               <div key={roomType.key} className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
-                <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-xl font-bold">{roomType.title}</h3>
-                      <p className="text-purple-100 text-sm">
+                      <p className="text-blue-100 text-sm">
                         Total: {roomNumbers.length} | Available: {roomNumbers.length - bookedRooms.length} | Booked: {bookedRooms.length}
                       </p>
                     </div>
@@ -292,4 +292,3 @@ export default function AvailableRooms() {
     </AdminLayout>
   )
 }
-*/

@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react'
 import AdminLayout from '../../layouts/AdminLayout'
 import { Star, Trash2, Eye, MessageSquare, CheckCircle } from 'lucide-react'
 import api from '../../utils/api'
+import { useToast } from '../../components/ToastProvider'
 
 export default function AdminTestimonials() {
   const [testimonials, setTestimonials] = useState([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ totalCount: 0, averageRating: 0 })
+  const toast = useToast()
 
   useEffect(() => {
     fetchTestimonials()
@@ -20,7 +22,7 @@ export default function AdminTestimonials() {
       setTestimonials(response.data)
     } catch (error) {
       console.error('Error fetching testimonials:', error)
-      alert('Failed to fetch testimonials')
+      toast.show({ type: 'error', message: 'Failed to fetch testimonials' })
     } finally {
       setLoading(false)
     }
@@ -40,12 +42,12 @@ export default function AdminTestimonials() {
     
     try {
       await api.delete(`/testimonials/${id}`)
-      alert('Testimonial deleted successfully')
+      toast.show({ type: 'success', message: 'Testimonial deleted successfully' })
       fetchTestimonials()
       fetchStats()
     } catch (error) {
       console.error('Error deleting testimonial:', error)
-      alert('Failed to delete testimonial')
+      toast.show({ type: 'error', message: 'Failed to delete testimonial' })
     }
   }
 

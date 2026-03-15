@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import WorkerLayout from '../../../layouts/WorkerLayout'
+import AdminLayout from '../../../layouts/AdminLayout'
 import api from '../../../utils/api'
 import { useToast } from '../../../components/ToastProvider'
 import { 
@@ -152,7 +152,7 @@ export default function AllotRoomsPage() {
     try {
       await api.post(`/bookings/${booking._id}/allot-rooms`, { allotments })
       toast.show({ type: 'success', message: 'Room allotment saved successfully!' })
-      router.push('/worker/bookings/check-in')
+      router.push('/admin/bookings/check-in')
     } catch (error) {
       console.error('Error saving allotment:', error)
       toast.show({ type: 'error', message: error.response?.data?.message || 'Failed to save room allotment' })
@@ -163,32 +163,32 @@ export default function AllotRoomsPage() {
 
   if (loading) {
     return (
-      <WorkerLayout>
+      <AdminLayout>
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-600">Loading booking details...</p>
           </div>
         </div>
-      </WorkerLayout>
+      </AdminLayout>
     )
   }
 
   if (!booking) {
     return (
-      <WorkerLayout>
+      <AdminLayout>
         <div className="text-center py-20">
           <AlertCircle size={48} className="mx-auto text-red-500 mb-3" />
           <p className="text-gray-600">Booking not found</p>
         </div>
-      </WorkerLayout>
+      </AdminLayout>
     )
   }
 
   // Prevent allotment for non-paid bookings
   if (booking.status !== 'paid') {
     return (
-      <WorkerLayout>
+      <AdminLayout>
         <div className="text-center py-20">
           <AlertCircle size={48} className="mx-auto text-amber-500 mb-3" />
           <p className="text-xl font-bold text-gray-900 mb-2">Payment Required</p>
@@ -207,12 +207,12 @@ export default function AllotRoomsPage() {
             Go Back
           </button>
         </div>
-      </WorkerLayout>
+      </AdminLayout>
     )
   }
 
   return (
-    <WorkerLayout>
+    <AdminLayout>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div>
@@ -342,6 +342,6 @@ export default function AllotRoomsPage() {
           )}
         </button>
       </div>
-    </WorkerLayout>
+    </AdminLayout>
   )
 }

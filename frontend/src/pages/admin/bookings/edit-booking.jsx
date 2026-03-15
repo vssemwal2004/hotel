@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import WorkerLayout from '../../../layouts/WorkerLayout'
+import AdminLayout from '../../../layouts/AdminLayout'
 import api from '../../../utils/api'
 import { useToast } from '../../../components/ToastProvider'
 import { 
@@ -243,32 +243,32 @@ export default function EditBookingPage() {
 
   if (loading) {
     return (
-      <WorkerLayout>
+      <AdminLayout>
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-600">Loading booking details...</p>
           </div>
         </div>
-      </WorkerLayout>
+      </AdminLayout>
     )
   }
 
   if (!booking) {
     return (
-      <WorkerLayout>
+      <AdminLayout>
         <div className="text-center py-20">
           <AlertCircle size={48} className="mx-auto text-red-500 mb-3" />
           <p className="text-gray-600">Booking not found</p>
         </div>
-      </WorkerLayout>
+      </AdminLayout>
     )
   }
 
   // Prevent editing cancelled bookings
   if (booking.status === 'cancelled') {
     return (
-      <WorkerLayout>
+      <AdminLayout>
         <div className="text-center py-20">
           <X size={48} className="mx-auto text-red-500 mb-3" />
           <p className="text-xl font-bold text-gray-900 mb-2">Booking Cancelled</p>
@@ -282,12 +282,12 @@ export default function EditBookingPage() {
             Go Back
           </button>
         </div>
-      </WorkerLayout>
+      </AdminLayout>
     )
   }
 
   return (
-    <WorkerLayout>
+    <AdminLayout>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div>
@@ -577,6 +577,6 @@ export default function EditBookingPage() {
           )}
         </button>
       </div>
-    </WorkerLayout>
+    </AdminLayout>
   )
 }

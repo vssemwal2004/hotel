@@ -3,10 +3,12 @@ import { useRouter } from 'next/router'
 import { Calendar, Users, Baby, Bed, Clock } from 'lucide-react'
 import { motion } from 'framer-motion'
 import useAuth from '../hooks/useAuth'
+import { useToast } from './ToastProvider'
 
 export default function BookingBar() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
+  const toast = useToast()
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [checkInTime, setCheckInTime] = useState('14:00')
@@ -47,12 +49,12 @@ export default function BookingBar() {
 
   const handleBookNow = () => {
     if (!checkIn || !checkOut) {
-      alert('Please select check-in and check-out dates')
+      toast.show({ type: 'warning', message: 'Please select check-in and check-out dates' })
       return
     }
 
     if (new Date(checkIn) >= new Date(checkOut)) {
-      alert('Check-out date must be after check-in date')
+      toast.show({ type: 'warning', message: 'Check-out date must be after check-in date' })
       return
     }
 

@@ -4,6 +4,7 @@ import MainLayout from '../../layouts/MainLayout'
 import useAuth from '../../hooks/useAuth'
 import api from '../../utils/api'
 import { Calendar, CheckCircle, IndianRupee, Bed } from 'lucide-react'
+import { useToast } from '../../components/ToastProvider'
 
 export default function Confirmation(){
   const router = useRouter()
@@ -12,6 +13,7 @@ export default function Confirmation(){
   const [booking, setBooking] = useState(null)
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(false)
+  const toast = useToast()
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -79,14 +81,14 @@ export default function Confirmation(){
             // Go to user's bookings page
             router.push('/bookings')
           } catch (e) {
-            alert(e?.response?.data?.message || 'Payment verification failed')
+            toast.show({ type: 'error', message: e?.response?.data?.message || 'Payment verification failed' })
           }
         }
       }
       const rzp = new window.Razorpay(options)
       rzp.open()
     } catch (e) {
-      alert(e?.response?.data?.message || 'Failed to initiate payment')
+      toast.show({ type: 'error', message: e?.response?.data?.message || 'Failed to initiate payment' })
     } finally {
       setPaying(false)
     }

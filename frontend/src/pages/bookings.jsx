@@ -10,10 +10,12 @@ import Header from '../components/header'
 import Footer from '../components/Footer'
 import useAuth from '../hooks/useAuth'
 import api from '../utils/api'
+import { useToast } from '../components/ToastProvider'
 
 export default function BookingsPage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
+  const toast = useToast()
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('all') // all, current, past, cancelled
@@ -86,16 +88,16 @@ export default function BookingsPage() {
             })
             // Refresh bookings
             await fetchBookings()
-            alert('Payment successful! Your booking is confirmed.')
+            toast.show({ type: 'success', message: 'Payment successful! Your booking is confirmed.' })
           } catch (e) {
-            alert(e?.response?.data?.message || 'Payment verification failed')
+            toast.show({ type: 'error', message: e?.response?.data?.message || 'Payment verification failed' })
           }
         }
       }
       const rzp = new window.Razorpay(options)
       rzp.open()
     } catch (e) {
-      alert(e?.response?.data?.message || 'Failed to initiate payment')
+      toast.show({ type: 'error', message: e?.response?.data?.message || 'Failed to initiate payment' })
     }
   }
 

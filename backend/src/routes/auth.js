@@ -1,12 +1,46 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import crypto from 'crypto'
+import rateLimit from 'express-rate-limit'
 import User from '../models/User.js'
 import { signToken, verifyToken, cookieOptions } from '../utils/auth.js'
 import { sendPasswordResetEmail } from '../utils/email.js'
 import { OAuth2Client } from 'google-auth-library'
 
 const router = Router()
+
+// Rate limiters for auth routes
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 login attempts per 15 min
+  message: { message: 'Too many login attempts. Please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // 5 registrations per hour per IP
+  message: { message: 'Too many accounts created. Please try again after an hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 reset requests per 15 min
+  message: { message: 'Too many password reset requests. Please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  message: { message: 'Too many password reset attempts. Please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
 
 const registerSchema = z.object({
   name: z.string().min(2),
@@ -19,7 +53,7 @@ const loginSchema = z.object({
   password: z.string().min(1)
 })
 
-router.post('/register', async (req, res, next) => {
+router.post('/register', registerLimiter, async (req, res, next) => {
   try {
     const { name, email, password } = registerSchema.parse(req.body)
     const exists = await User.findOne({ email })
@@ -36,7 +70,7 @@ router.post('/register', async (req, res, next) => {
   }
 })
 
-router.post('/login', async (req, res, next) => {
+router.post('/login', loginLimiter, async (req, res, next) => {
   try {
     console.log('Login attempt:', req.body?.email)
     const { email, password } = loginSchema.parse(req.body)
@@ -89,7 +123,7 @@ router.get('/me', async (req, res) => {
 })
 
 // Forgot password - request reset
-router.post('/forgot-password', async (req, res, next) => {
+router.post('/forgot-password', forgotPasswordLimiter, async (req, res, next) => {
   try {
     const { email } = req.body || {}
     if (!email) return res.status(400).json({ message: 'Email is required' })
@@ -148,7 +182,7 @@ router.post('/verify-reset-token', async (req, res) => {
 })
 
 // Reset password
-router.post('/reset-password', async (req, res, next) => {
+router.post('/reset-password', resetPasswordLimiter, async (req, res, next) => {
   try {
     const { token, password } = req.body || {}
     
@@ -187,7 +221,7 @@ router.post('/reset-password', async (req, res, next) => {
 export default router
 
 // Google OAuth login with ID token
-router.post('/google', async (req, res, next) => {
+router.post('/google', loginLimiter, async (req, res, next) => {
   try {
     const { idToken } = req.body || {}
     if (!idToken) {

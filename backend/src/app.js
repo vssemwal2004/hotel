@@ -32,8 +32,13 @@ export const app = express()
 const isProd = process.env.NODE_ENV === 'production'
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000'
 
-console.log('Environment:', isProd ? 'PRODUCTION' : 'DEVELOPMENT')
-console.log('CLIENT_ORIGIN:', CLIENT_ORIGIN)
+// Suppress console.log/warn in production for security (keep console.error for critical issues)
+if (isProd) {
+  console.log = () => {}
+  console.warn = () => {}
+  console.info = () => {}
+  console.debug = () => {}
+}
 
 // Security headers - Configure helmet for Google OAuth compatibility
 app.use(helmet({
@@ -42,8 +47,10 @@ app.use(helmet({
   contentSecurityPolicy: false // Disable CSP to allow Google OAuth scripts
 }))
 
-// Logging
-app.use(morgan('dev'))
+// Logging (only in development)
+if (!isProd) {
+  app.use(morgan('dev'))
+}
 
 // Parse JSON and cookies
 app.use(express.json())

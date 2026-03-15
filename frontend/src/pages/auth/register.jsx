@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import Link from 'next/link'
 import useAuth from '../../hooks/useAuth'
 import { useRouter } from 'next/router'
+import { useToast } from '../../components/ToastProvider'
 
 export default function Register(){
   const { register, handleSubmit, formState: { errors }, watch } = useForm()
@@ -13,6 +14,7 @@ export default function Register(){
   const router = useRouter()
   const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
   const [googleReady, setGoogleReady] = useState(false)
+  const toast = useToast()
 
   useEffect(() => setIsMounted(true), [])
 
@@ -53,7 +55,7 @@ export default function Register(){
         router.push('/home')
       }
     } catch (e) {
-      alert(e?.response?.data?.message || 'Registration failed')
+      toast.show({ type: 'error', message: e?.response?.data?.message || 'Registration failed' })
     } finally {
       setIsLoading(false)
     }
@@ -61,8 +63,8 @@ export default function Register(){
 
   const handleGoogle = async () => {
     try {
-      if (!GOOGLE_CLIENT_ID) return alert('Google login not configured. Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID')
-      if (!googleReady || !window.google?.accounts?.id) return alert('Google is still loading, please try again.')
+      if (!GOOGLE_CLIENT_ID) { toast.show({ type: 'error', message: 'Google login not configured. Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID' }); return }
+      if (!googleReady || !window.google?.accounts?.id) { toast.show({ type: 'warning', message: 'Google is still loading, please try again.' }); return }
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: async (resp) => {
@@ -88,7 +90,7 @@ export default function Register(){
               router.push('/home')
             }
           } catch (e) {
-            alert(e?.response?.data?.message || 'Google sign-in failed')
+            toast.show({ type: 'error', message: e?.response?.data?.message || 'Google sign-in failed' })
           }
         },
         auto_select: false,
@@ -96,7 +98,7 @@ export default function Register(){
       })
       window.google.accounts.id.prompt()
     } catch (e) {
-      alert('Google login failed')
+      toast.show({ type: 'error', message: 'Google login failed' })
     }
   }
 

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import useAuth from '../../hooks/useAuth'
 import { useRouter } from 'next/router'
 import api from '../../utils/api'
+import { useToast } from '../../components/ToastProvider'
 
 export default function Login(){
   const { register, handleSubmit, formState: { errors } } = useForm()
@@ -13,6 +14,7 @@ export default function Login(){
   const [testimonial, setTestimonial] = useState(null)
   const { login, googleLogin } = useAuth()
   const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+  const toast = useToast()
   const [googleReady, setGoogleReady] = useState(false)
   const googleBtnRef = useRef(null)
   const [gsiRendered, setGsiRendered] = useState(false)
@@ -82,7 +84,7 @@ export default function Login(){
               }
             }
           } catch (e) {
-            alert(e?.response?.data?.message || 'Google sign-in failed')
+            toast.show({ type: 'error', message: e?.response?.data?.message || 'Google sign-in failed' })
           }
         },
         auto_select: false,
@@ -156,7 +158,7 @@ export default function Login(){
       console.error('Login error:', e)
       console.error('Error response:', e?.response?.data)
       const errorMsg = e?.response?.data?.message || e?.message || 'Login failed'
-      alert(errorMsg)
+      toast.show({ type: 'error', message: errorMsg })
     } finally {
       setIsLoading(false)
     }
@@ -165,10 +167,12 @@ export default function Login(){
   const handleGoogle = async () => {
     try {
       if (!GOOGLE_CLIENT_ID) {
-        return alert('Google login not configured. Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID')
+        toast.show({ type: 'error', message: 'Google login not configured. Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID' })
+        return
       }
       if (!googleReady || !window.google?.accounts?.id) {
-        return alert('Google is still loading, please try again in a moment.')
+        toast.show({ type: 'warning', message: 'Google is still loading, please try again in a moment.' })
+        return
       }
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
@@ -201,7 +205,7 @@ export default function Login(){
               }
             }
           } catch (e) {
-            alert(e?.response?.data?.message || 'Google sign-in failed')
+            toast.show({ type: 'error', message: e?.response?.data?.message || 'Google sign-in failed' })
           }
         },
         auto_select: false,
@@ -210,7 +214,7 @@ export default function Login(){
       // Show the account chooser / One Tap prompt
       window.google.accounts.id.prompt()
     } catch (e) {
-      alert('Google login failed')
+      toast.show({ type: 'error', message: 'Google login failed' })
     }
   }
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import AdminLayout from '../../layouts/AdminLayout'
 import { Mail, Trash2, Eye, Clock, CheckCircle, Reply } from 'lucide-react'
 import api from '../../utils/api'
+import { useToast } from '../../components/ToastProvider'
 
 export default function AdminMessages() {
   const [messages, setMessages] = useState([])
@@ -9,6 +10,7 @@ export default function AdminMessages() {
   const [stats, setStats] = useState({ totalCount: 0, newCount: 0, unreadCount: 0 })
   const [selectedMessage, setSelectedMessage] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  const toast = useToast()
 
   useEffect(() => {
     fetchMessages()
@@ -28,7 +30,7 @@ export default function AdminMessages() {
       setMessages(response.data)
     } catch (error) {
       console.error('Error fetching messages:', error)
-      alert('Failed to fetch messages')
+      toast.show({ type: 'error', message: 'Failed to fetch messages' })
     } finally {
       setLoading(false)
     }
@@ -50,7 +52,7 @@ export default function AdminMessages() {
       fetchStats()
     } catch (error) {
       console.error('Error marking message as read:', error)
-      alert('Failed to mark as read')
+      toast.show({ type: 'error', message: 'Failed to mark as read' })
     }
   }
 
@@ -64,7 +66,7 @@ export default function AdminMessages() {
       }
     } catch (error) {
       console.error('Error updating status:', error)
-      alert('Failed to update status')
+      toast.show({ type: 'error', message: 'Failed to update status' })
     }
   }
 
@@ -73,7 +75,7 @@ export default function AdminMessages() {
     
     try {
       await api.delete(`/contact/${id}`)
-      alert('Message deleted successfully')
+      toast.show({ type: 'success', message: 'Message deleted successfully' })
       fetchMessages()
       fetchStats()
       if (selectedMessage && selectedMessage._id === id) {
@@ -82,7 +84,7 @@ export default function AdminMessages() {
       }
     } catch (error) {
       console.error('Error deleting message:', error)
-      alert('Failed to delete message')
+      toast.show({ type: 'error', message: 'Failed to delete message' })
     }
   }
 
