@@ -313,7 +313,7 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
                   </div>
                 </div>
 
-                {/* Cancel Booking Button */}
+                {/* Cancel Booking Button * /}
                 {(booking.status === 'paid' || booking.status === 'pending') && (
                   cancelConfirm === booking._id ? (
                     <div className="bg-red-50 rounded-xl border-2 border-red-300 p-4">
@@ -478,7 +478,7 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
 
   return (
     <AdminLayout>
-      {/* Page Header */}
+      {/* Page Header * /}
       <div className="mb-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
           <div>
@@ -499,7 +499,7 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
         </div>
       </div>
 
-      {/* Month Navigation & Filters */}
+      {/* Month Navigation & Filters * /}
       <div className="bg-white rounded-xl shadow-md border border-gray-100 p-3 md:p-4 mb-5">
         <div className="flex items-center justify-between mb-3">
           <button onClick={goToPrevMonth} className="flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-700 transition-colors">
@@ -554,7 +554,7 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
         </div>
       </div>
 
-      {/* Room Type Calendars */}
+      {/* Room Type Calendars * /}
       {filteredRoomTypes.length === 0 ? (
         <div className="bg-white rounded-xl shadow-md p-12 text-center">
           <Building2 size={48} className="mx-auto text-gray-300 mb-3" />
@@ -575,7 +575,7 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
         ))
       )}
 
-      {/* Legend Footer */}
+      {/* Legend Footer * /}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mt-2">
         <div className="flex items-center gap-2 mb-2">
           <Info size={14} className="text-gray-400" />
@@ -600,7 +600,7 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
         </p>
       </div>
 
-      {/* Cancelled Bookings Section */}
+      {/* Cancelled Bookings Section * /}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 mt-2 overflow-hidden">
         <button
           onClick={() => setShowCancelled(prev => !prev)}
@@ -671,7 +671,7 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
         )}
       </div>
 
-      {/* Date Details Modal */}
+      {/* Date Details Modal * /}
       {dateModal && (
         <DateDetailsModal
           date={dateModal.date}
@@ -683,7 +683,7 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
         />
       )}
 
-      {/* Customer Details Modal */}
+      {/* Customer Details Modal * /}
       {customerModal && (
         <CustomerDetailsModal
           roomData={customerModal.roomData}

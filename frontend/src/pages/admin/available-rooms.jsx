@@ -1,25 +1,10 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/router'
-import AdminLayout from '../../layouts/AdminLayout'
-import api from '../../utils/api'
-import { 
-  Key,
-  Search, 
-  Filter, 
-  Calendar,
-  Bed,
-  ChevronDown,
-  RefreshCw,
-  Check,
-  X,
-  Clock,
-  AlertCircle
-} from 'lucide-react'
 
 // This page has been moved to /admin/bookings/available-rooms
 export default function AvailableRooms() {
   const router = useRouter()
-  useEffect(() => { router.replace('/admin/bookings/available-rooms') }, [])
+  useEffect(() => { router.replace('/admin/bookings/available-rooms') }, [router])
   return null
 }
 /*
@@ -100,7 +85,7 @@ export default function AvailableRooms() {
 
   return (
     <AdminLayout>
-      {/* Header */}
+      {/* Header * /}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -118,10 +103,10 @@ export default function AvailableRooms() {
         </button>
       </div>
 
-      {/* Filters */}
+      {/* Filters * /}
       <div className="bg-white rounded-lg shadow-md p-4 mb-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* Room Type Filter */}
+          {/* Room Type Filter * /}
           <div className="relative">
             <Filter size={16} className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <select
@@ -137,7 +122,7 @@ export default function AvailableRooms() {
             <ChevronDown size={16} className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
 
-          {/* Availability Filter */}
+          {/* Availability Filter * /}
           <div className="relative">
             <Bed size={16} className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <select
@@ -152,7 +137,7 @@ export default function AvailableRooms() {
             <ChevronDown size={16} className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
 
-          {/* Check-In Date */}
+          {/* Check-In Date * /}
           <div className="relative">
             <Calendar size={16} className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
@@ -163,7 +148,7 @@ export default function AvailableRooms() {
             />
           </div>
 
-          {/* Check-Out Date */}
+          {/* Check-Out Date * /}
           <div className="relative">
             <Calendar size={16} className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
@@ -176,7 +161,7 @@ export default function AvailableRooms() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats * /}
       <div className="mb-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {filteredRoomTypes.map(rt => {
@@ -197,7 +182,7 @@ export default function AvailableRooms() {
         </div>
       </div>
 
-      {/* Room Cards */}
+      {/* Room Cards * /}
       <div className="space-y-4">
         {filteredRoomTypes.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
@@ -272,7 +257,7 @@ export default function AvailableRooms() {
         )}
       </div>
 
-      {/* Legend */}
+      {/* Legend * /}
       <div className="bg-white rounded-lg shadow-md p-4 mt-4">
         <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
           <AlertCircle size={18} />
