@@ -7,6 +7,7 @@ import RoomType from '../models/RoomType.js'
 import User from '../models/User.js'
 import { sendBookingConfirmationToUser, sendBookingNotificationToAdmin, sendCancellationToUser, sendCancellationToAdmin } from '../utils/email.js'
 import { calculateGST } from '../utils/gst.js'
+import { logActivity } from '../utils/activityLogger.js'
 
 const router = Router()
 
@@ -174,6 +175,8 @@ router.post('/', authRequired, async (req, res, next) => {
     )
 
     res.status(201).json({ booking })
+
+    logActivity({ action: 'booking_created', req, target: { type: 'booking', id: booking._id.toString(), name: req.user.name }, details: `Online booking created - ${items.map(i => `${i.quantity}x ${i.title}`).join(', ')} - ₹${total}`, metadata: { bookingId: booking._id, total, nights } })
   } catch (e) { next(e) }
 })
 
@@ -197,6 +200,9 @@ router.post('/:id/pay', authRequired, async (req, res, next) => {
     }
     booking.status = 'paid'
     await booking.save()
+
+    logActivity({ action: 'booking_paid', req, target: { type: 'booking', id: booking._id.toString() }, details: `Booking marked as paid - ₹${booking.total}`, metadata: { bookingId: booking._id, total: booking.total } })
+
     res.json({ booking })
   } catch (e) { next(e) }
 })
@@ -288,6 +294,10 @@ router.post('/:id/allot-rooms', authRequired, rolesRequired('admin','worker'), a
 
     booking.markModified('items')
     await booking.save()
+
+    const allottedSummary = allotments.map(a => `${a.roomTypeKey}: [${a.roomNumbers.join(', ')}]`).join('; ')
+    logActivity({ action: 'rooms_allotted', req, target: { type: 'booking', id: booking._id.toString() }, details: `Rooms allotted - ${allottedSummary}`, metadata: { bookingId: booking._id, allotments } })
+
     res.json({ booking })
   } catch (e) { next(e) }
 })
@@ -444,6 +454,9 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
 
     booking.markModified('items')
     await booking.save()
+
+    logActivity({ action: 'booking_edited', req, target: { type: 'booking', id: booking._id.toString() }, details: `Booking updated - ₹${booking.total}`, metadata: { bookingId: booking._id, total: booking.total } })
+
     res.json({ booking })
   } catch (e) { next(e) }
 })
@@ -632,6 +645,8 @@ router.post('/bulk', authRequired, rolesRequired('admin','worker'), async (req, 
           console.error(`Bulk booking ${idx + 1}: Failed to send admin email:`, err)
         )
         results.push({ index: idx, success: true, booking })
+
+        logActivity({ action: 'bulk_booking_created', req, target: { type: 'booking', id: booking._id.toString(), name: guestName }, details: `Bulk booking for ${guestName} - ${items.map(i => `${i.quantity}x ${i.title}`).join(', ')}`, metadata: { bookingId: booking._id, guestName, guestEmail } })
       } catch (entryErr) {
         errors.push({ index: idx, message: `Entry ${idx + 1}: ${entryErr.message}` })
       }
@@ -833,6 +848,8 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
     )
 
     res.status(201).json({ booking })
+
+    logActivity({ action: 'walk_in_created', req, target: { type: 'booking', id: booking._id.toString(), name }, details: `Walk-in booking for ${name} - ${items.map(i => `${i.quantity}x ${i.title}`).join(', ')} - ₹${manualTotal}`, metadata: { bookingId: booking._id, guestName: name, guestEmail: email, total: manualTotal } })
   } catch (e) { next(e) }
 })
 
@@ -847,6 +864,9 @@ router.post('/:id/checkout', authRequired, rolesRequired('admin','worker'), asyn
     }
     booking.status = 'completed'
     await booking.save()
+
+    logActivity({ action: 'guest_checked_out', req, target: { type: 'booking', id: booking._id.toString() }, details: `Guest checked out - ${booking.items.map(i => `${i.quantity}x ${i.title}`).join(', ')}`, metadata: { bookingId: booking._id } })
+
     res.json({ booking })
   } catch (e) { next(e) }
 })
@@ -889,5 +909,8 @@ router.post('/:id/cancel', authRequired, rolesRequired('admin','worker'), async 
       message: 'Booking cancelled successfully',
       booking 
     })
+
+    const guestName = booking.user?.name || 'Unknown'
+    logActivity({ action: 'booking_cancelled', req, target: { type: 'booking', id: booking._id.toString(), name: guestName }, details: `Booking cancelled for ${guestName} - ₹${booking.total}`, metadata: { bookingId: booking._id, guestName, total: booking.total } })
   } catch (e) { next(e) }
 })

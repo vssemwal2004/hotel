@@ -14,7 +14,9 @@ import {
   Eye,
   Check,
   Clock,
-  IndianRupee
+  IndianRupee,
+  PencilLine,
+  Hash
 } from 'lucide-react'
 
 export default function CheckInPage() {
@@ -321,13 +323,24 @@ export default function CheckInPage() {
                         {getStatusBadge(booking.status)}
                       </td>
                       <td className="px-3 py-2.5">
-                        <button
-                          onClick={() => router.push('/admin/bookings')}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors"
-                        >
-                          <Eye size={14} />
-                          View
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => router.push(`/admin/bookings/edit-booking?id=${booking._id}`)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-medium transition-colors"
+                            title="Edit Booking"
+                          >
+                            <PencilLine size={13} />
+                          </button>
+                          {booking.status === 'paid' && (
+                            <button
+                              onClick={() => router.push(`/admin/bookings/allot-rooms?id=${booking._id}`)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-medium transition-colors"
+                              title="Assign Rooms"
+                            >
+                              <Hash size={13} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -363,13 +376,22 @@ export default function CheckInPage() {
                       <p className="text-sm font-bold text-green-600">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => router.push('/admin/bookings')}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    <Eye size={16} />
-                    View Details
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => router.push(`/admin/bookings/edit-booking?id=${booking._id}`)}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <PencilLine size={15} /> Edit
+                    </button>
+                    {booking.status === 'paid' && (
+                      <button
+                        onClick={() => router.push(`/admin/bookings/allot-rooms?id=${booking._id}`)}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        <Hash size={15} /> Assign
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

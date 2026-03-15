@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import AdminLayout from '../../layouts/AdminLayout'
 import api from '../../utils/api'
+import { useToast } from '../../components/ToastProvider'
 import * as XLSX from 'xlsx'
 import { 
   Search, 
@@ -16,7 +17,9 @@ import {
   Bed,
   ChevronDown,
   RefreshCw,
-  Download
+  Download,
+  XCircle,
+  Ban
 } from 'lucide-react'
 import { 
   CalendarCheck,
@@ -25,6 +28,7 @@ import {
 } from 'lucide-react'
 
 export default function AdminBookings(){
+  const toast = useToast()
   const [bookings, setBookings] = useState([])
   const [filteredBookings, setFilteredBookings] = useState([])
   const [loading, setLoading] = useState(true)
@@ -35,6 +39,8 @@ export default function AdminBookings(){
   const [customEndDate, setCustomEndDate] = useState('')
   const [bookingTypeFilter, setBookingTypeFilter] = useState('all') // all, upcoming, current, past
   const [selectedBooking, setSelectedBooking] = useState(null)
+  const [cancelConfirmId, setCancelConfirmId] = useState(null)
+  const [cancelling, setCancelling] = useState(false)
 
   useEffect(() => {
     fetchBookings()
@@ -53,6 +59,20 @@ export default function AdminBookings(){
       console.error('Error fetching bookings:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleCancelBooking = async (bookingId) => {
+    setCancelling(true)
+    try {
+      await api.post(`/bookings/${bookingId}/cancel`)
+      toast.show({ type: 'success', title: 'Cancelled', message: 'Booking has been cancelled successfully' })
+      setCancelConfirmId(null)
+      await fetchBookings()
+    } catch (err) {
+      toast.show({ type: 'error', title: 'Error', message: err?.response?.data?.message || 'Failed to cancel booking' })
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -632,13 +652,24 @@ export default function AdminBookings(){
                         {getStatusBadge(booking.status)}
                       </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        <button
-                          onClick={() => setSelectedBooking(booking)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all shadow-sm hover:shadow-md text-xs font-medium"
-                        >
-                          <Eye size={14} />
-                          View
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => setSelectedBooking(booking)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all shadow-sm hover:shadow-md text-xs font-medium"
+                          >
+                            <Eye size={14} />
+                            View
+                          </button>
+                          {(booking.status === 'paid' || booking.status === 'pending') && (
+                            <button
+                              onClick={() => setCancelConfirmId(booking._id)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-lg transition-all shadow-sm hover:shadow-md text-xs font-medium"
+                            >
+                              <Ban size={14} />
+                              Cancel
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -687,13 +718,24 @@ export default function AdminBookings(){
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => setSelectedBooking(booking)}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-medium text-sm transition-all shadow-sm"
-                    >
-                      <Eye size={16} />
-                      View Full Details
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setSelectedBooking(booking)}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-medium text-sm transition-all shadow-sm"
+                      >
+                        <Eye size={16} />
+                        View Details
+                      </button>
+                      {(booking.status === 'paid' || booking.status === 'pending') && (
+                        <button
+                          onClick={() => setCancelConfirmId(booking._id)}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-lg font-medium text-sm transition-all shadow-sm"
+                        >
+                          <Ban size={16} />
+                          Cancel
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -708,6 +750,49 @@ export default function AdminBookings(){
           booking={selectedBooking}
           onClose={() => setSelectedBooking(null)}
         />
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {cancelConfirmId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => !cancelling && setCancelConfirmId(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-rose-500 to-rose-600 p-5 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <XCircle size={28} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Cancel Booking</h3>
+                  <p className="text-rose-100 text-sm">This action cannot be undone</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-5">
+              <p className="text-sm text-gray-600 mb-1">Are you sure you want to cancel this booking?</p>
+              <p className="text-xs text-gray-400 mb-4">Cancellation emails will be sent to the guest and admin. If the booking was paid, the room count will be restored.</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleCancelBooking(cancelConfirmId)}
+                  disabled={cancelling}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 text-white rounded-xl font-semibold text-sm transition-all"
+                >
+                  {cancelling ? (
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Cancelling...</>
+                  ) : (
+                    <><XCircle size={16} /> Yes, Cancel Booking</>
+                  )}
+                </button>
+                <button
+                  onClick={() => setCancelConfirmId(null)}
+                  disabled={cancelling}
+                  className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold text-sm transition-all"
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </AdminLayout>
   )

@@ -188,8 +188,8 @@ router.get('/availability/stats', authRequired, rolesRequired('admin','worker'),
     
     const stats = types.map(t => {
       const booked = bookedMap[t.key] || 0
-      const available = t.count
-      const totalRooms = available + booked
+      const totalRooms = (t.roomNumbers && t.roomNumbers.length > 0) ? t.roomNumbers.length : (t.count + booked)
+      const available = Math.max(0, totalRooms - booked)
       return {
         key: t.key,
         title: t.title,

@@ -15,7 +15,8 @@ import {
   Minus,
   Users,
   Check,
-  DoorOpen
+  DoorOpen,
+  Search
 } from 'lucide-react'
 
 export default function EditBookingPage() {
@@ -23,9 +24,14 @@ export default function EditBookingPage() {
   const { id } = router.query
   const toast = useToast()
   const [booking, setBooking] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   
+  // Search state (when no id provided)
+  const [allBookings, setAllBookings] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchLoading, setSearchLoading] = useState(false)
+
   // Form state
   const [newCheckOut, setNewCheckOut] = useState('')
   const [additionalGuests, setAdditionalGuests] = useState({}) // { roomTypeKey: [guests] }
@@ -38,9 +44,21 @@ export default function EditBookingPage() {
 
   useEffect(() => {
     if (id) {
+      setLoading(true)
       fetchBooking()
+    } else {
+      fetchAllBookings()
     }
   }, [id])
+
+  const fetchAllBookings = async () => {
+    setSearchLoading(true)
+    try {
+      const { data } = await api.get('/bookings')
+      setAllBookings((data.bookings || []).filter(b => b.status === 'paid' || b.status === 'pending'))
+    } catch (e) { /* ignore */ }
+    finally { setSearchLoading(false) }
+  }
 
   const fetchBooking = async () => {
     setLoading(true)
@@ -249,6 +267,71 @@ export default function EditBookingPage() {
             <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-600">Loading booking details...</p>
           </div>
+        </div>
+      </AdminLayout>
+    )
+  }
+
+  // No ID provided — show booking selector
+  if (!id) {
+    const filtered = allBookings.filter(b => {
+      if (!searchQuery) return true
+      const q = searchQuery.toLowerCase()
+      const guest = b.guestDetails || b.user || {}
+      return (guest.name || '').toLowerCase().includes(q) ||
+             (guest.email || '').toLowerCase().includes(q) ||
+             (guest.phone || '').includes(q) ||
+             (b._id || '').toLowerCase().includes(q)
+    })
+    return (
+      <AdminLayout>
+        <div className="max-w-3xl mx-auto">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><Edit size={24} className="text-blue-600" /> Edit Booking</h1>
+            <p className="text-sm text-gray-500 mt-1">Select a booking to edit</p>
+          </div>
+          <div className="relative mb-4">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text" placeholder="Search by guest name, email, phone, or booking ID..."
+              value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            />
+          </div>
+          {searchLoading ? (
+            <div className="text-center py-10"><div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" /></div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-10 text-gray-400">
+              <AlertCircle size={40} className="mx-auto mb-2" />
+              <p>No active bookings found</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filtered.slice(0, 20).map(b => {
+                const guest = b.guestDetails || b.user || {}
+                return (
+                  <button key={b._id}
+                    onClick={() => router.push(`/admin/bookings/edit-booking?id=${b._id}`)}
+                    className="w-full text-left bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-md transition-all flex items-center gap-4"
+                  >
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm shrink-0">
+                      {(guest.name || 'G')[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm truncate">{guest.name || 'Guest'}</p>
+                      <p className="text-xs text-gray-500 truncate">{guest.email || guest.phone || b._id}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${b.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {b.status.toUpperCase()}
+                      </span>
+                      <p className="text-xs text-gray-400 mt-1">{new Date(b.checkIn).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       </AdminLayout>
     )

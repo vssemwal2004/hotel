@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import WorkerLayout from '../../../layouts/WorkerLayout'
 import api from '../../../utils/api'
 import { useToast } from '../../../components/ToastProvider'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Calendar,
   ChevronLeft,
@@ -73,11 +74,11 @@ function doesBookingOverlapDate(booking, date) {
 // ─── Status Badge Component ─────────────────────────────────────────
 function StatusBadge({ status }) {
   const styles = {
-    paid: 'bg-green-100 text-green-700 border-green-300',
-    pending: 'bg-amber-100 text-amber-700 border-amber-300',
-    failed: 'bg-red-100 text-red-700 border-red-300',
-    completed: 'bg-blue-100 text-blue-700 border-blue-300',
-    cancelled: 'bg-gray-200 text-gray-600 border-gray-300'
+    paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    pending: 'bg-amber-50 text-amber-700 border-amber-200',
+    failed: 'bg-rose-50 text-rose-700 border-rose-200',
+    completed: 'bg-blue-50 text-blue-700 border-blue-200',
+    cancelled: 'bg-gray-100 text-gray-500 border-gray-200'
   }
   const icons = {
     paid: <CheckCircle2 size={12} />,
@@ -98,62 +99,76 @@ function StatusBadge({ status }) {
 // ─── Calendar Day Cell Component ────────────────────────────────────
 function CalendarDayCell({ day, today, totalRooms, bookedCount, onClick, isCurrentMonth }) {
   if (!day) {
-    return <div className="h-14 md:h-16 bg-gray-50 rounded" />
+    return <div className="h-16 md:h-20 bg-gray-50/50 rounded-xl" />
   }
 
   const isToday = isSameDay(day, today)
   const ratio = totalRooms > 0 ? bookedCount / totalRooms : 0
   const isFull = ratio >= 1
   const isPartial = ratio > 0 && ratio < 1
+  const pct = Math.round(ratio * 100)
 
-  let bgColor = 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200'
-  let textColor = 'text-emerald-700'
-  let dotColor = 'bg-emerald-400'
+  let barColor = 'bg-emerald-500'
+  let textColor = 'text-gray-700'
+  let bgHover = 'hover:bg-gray-50'
 
   if (isFull) {
-    bgColor = 'bg-red-50 hover:bg-red-100 border-red-200'
-    textColor = 'text-red-700'
-    dotColor = 'bg-red-400'
+    barColor = 'bg-rose-500'
+    textColor = 'text-rose-700'
+    bgHover = 'hover:bg-rose-50/50'
   } else if (isPartial) {
-    bgColor = 'bg-amber-50 hover:bg-amber-100 border-amber-200'
+    barColor = 'bg-amber-500'
     textColor = 'text-amber-700'
-    dotColor = 'bg-amber-400'
+    bgHover = 'hover:bg-amber-50/50'
   }
 
   if (!isCurrentMonth) {
-    bgColor = 'bg-gray-50 border-gray-100'
-    textColor = 'text-gray-400'
+    textColor = 'text-gray-300'
   }
 
   return (
-    <button
+    <motion.button
       onClick={() => onClick(day)}
-      className={`relative h-14 md:h-16 rounded-lg border transition-all duration-200 ${bgColor} ${isToday ? 'ring-2 ring-indigo-500 ring-offset-1' : ''} cursor-pointer group`}
+      whileHover={{ scale: 1.04, y: -2 }}
+      whileTap={{ scale: 0.97 }}
+      className={`relative h-16 md:h-20 rounded-xl border border-gray-100 bg-white transition-all duration-300 ${bgHover} ${isToday ? 'ring-2 ring-indigo-500 ring-offset-2 shadow-md' : 'hover:shadow-lg'} cursor-pointer group overflow-hidden`}
     >
-      <div className="flex flex-col items-center justify-center h-full px-1">
-        <span className={`text-sm md:text-base font-bold ${isCurrentMonth ? textColor : 'text-gray-400'}`}>
+      <div className="flex flex-col items-center justify-center h-full px-1 pb-2">
+        <span className={`text-base md:text-lg font-bold ${textColor}`}>
           {day.getDate()}
         </span>
-        {isCurrentMonth && totalRooms > 0 && (
-          <div className="flex items-center gap-0.5 mt-0.5">
-            <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-            <span className={`text-[9px] md:text-[10px] font-bold ${textColor}`}>
-              {bookedCount}/{totalRooms}
-            </span>
-          </div>
+        {isCurrentMonth && totalRooms > 0 && isPartial && (
+          <span className={`text-[10px] md:text-xs font-bold ${textColor} mt-0.5`}>
+            {pct}%
+          </span>
         )}
       </div>
-      {isToday && (
-        <div className="absolute top-0.5 right-0.5">
-          <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
+
+      {isCurrentMonth && totalRooms > 0 && (
+        <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-100">
+          <motion.div
+            className={`h-full rounded-full ${barColor}`}
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.max(pct, ratio > 0 ? 10 : 0)}%` }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          />
         </div>
       )}
-    </button>
+
+      {isToday && (
+        <div className="absolute top-1.5 right-1.5">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500" />
+          </span>
+        </div>
+      )}
+    </motion.button>
   )
 }
 
 // ─── Room Type Calendar Component ───────────────────────────────────
-function RoomTypeCalendar({ roomType, bookings, year, month, today, onDateClick }) {
+function RoomTypeCalendar({ roomType, bookings, year, month, today, onDateClick, index }) {
   const [collapsed, setCollapsed] = useState(false)
   const daysInMonth = getDaysInMonth(year, month)
   const firstDay = getFirstDayOfMonth(year, month)
@@ -193,6 +208,15 @@ function RoomTypeCalendar({ roomType, bookings, year, month, today, onDateClick 
     return { fullyBooked, partiallyBooked, available }
   }, [dayBookingMap, totalRooms, daysInMonth])
 
+  const monthOccupancy = useMemo(() => {
+    if (totalRooms === 0) return 0
+    let totalBooked = 0
+    for (let d = 1; d <= daysInMonth; d++) {
+      totalBooked += dayBookingMap[d].bookedCount
+    }
+    return Math.round((totalBooked / (totalRooms * daysInMonth)) * 100)
+  }, [dayBookingMap, totalRooms, daysInMonth])
+
   const calendarDays = useMemo(() => {
     const days = []
     for (let i = 0; i < firstDay; i++) days.push(null)
@@ -201,96 +225,130 @@ function RoomTypeCalendar({ roomType, bookings, year, month, today, onDateClick 
   }, [year, month, firstDay, daysInMonth])
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden mb-5">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: index * 0.1 }}
+      className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden mb-5"
+    >
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="w-full flex items-center justify-between p-3 md:p-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 text-white hover:from-indigo-700 hover:via-purple-700 hover:to-indigo-800 transition-all"
+        className="w-full flex items-center justify-between p-3 md:p-4 bg-gradient-to-r from-slate-800 to-slate-700 text-white hover:from-slate-700 hover:to-slate-600 transition-all duration-300"
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-            <Building2 size={22} className="text-white" />
+          <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm shadow-lg shadow-white/5">
+            <Building2 size={22} className="text-white drop-shadow" />
           </div>
           <div className="text-left">
             <h3 className="text-base md:text-lg font-bold">{roomType.title}</h3>
-            <p className="text-xs text-indigo-200">
+            <p className="text-xs text-slate-300">
               {totalRooms} room{totalRooms !== 1 ? 's' : ''} total
               {roomType.roomNumbers?.length > 0 && (
-                <span className="ml-2">({roomType.roomNumbers.join(', ')})</span>
+                <span className="ml-2 text-slate-400">({roomType.roomNumbers.join(', ')})</span>
               )}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-500/30 rounded-lg text-xs font-semibold">
-              <div className="w-2 h-2 rounded-full bg-red-300" /> {stats.fullyBooked} Full
+        <div className="flex items-center gap-4">
+          {/* Occupancy mini bar */}
+          <div className="hidden md:flex items-center gap-2.5">
+            <div className="flex flex-col items-end mr-1">
+              <span className="text-[10px] text-slate-400 font-medium">Occupancy</span>
+              <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden mt-0.5">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${monthOccupancy >= 80 ? 'bg-rose-400' : monthOccupancy >= 40 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                  style={{ width: `${monthOccupancy}%` }}
+                />
+              </div>
+            </div>
+            <span className="text-sm font-bold text-white/90">{monthOccupancy}%</span>
+          </div>
+          <div className="hidden lg:flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-500/20 rounded-lg text-xs font-semibold backdrop-blur-sm">
+              <div className="w-2 h-2 rounded-full bg-rose-400" /> {stats.fullyBooked} Full
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-500/30 rounded-lg text-xs font-semibold">
-              <div className="w-2 h-2 rounded-full bg-amber-300" /> {stats.partiallyBooked} Partial
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 rounded-lg text-xs font-semibold backdrop-blur-sm">
+              <div className="w-2 h-2 rounded-full bg-amber-400" /> {stats.partiallyBooked} Partial
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/30 rounded-lg text-xs font-semibold">
-              <div className="w-2 h-2 rounded-full bg-emerald-300" /> {stats.available} Free
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 rounded-lg text-xs font-semibold backdrop-blur-sm">
+              <div className="w-2 h-2 rounded-full bg-emerald-400" /> {stats.available} Free
             </span>
           </div>
-          {collapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+          <motion.div animate={{ rotate: collapsed ? 0 : 180 }} transition={{ duration: 0.2 }}>
+            <ChevronDown size={20} />
+          </motion.div>
         </div>
       </button>
 
-      {!collapsed && (
-        <div className="md:hidden flex items-center justify-center gap-2 p-2 bg-indigo-50 border-b border-indigo-100">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[10px] font-bold">
-            <div className="w-1.5 h-1.5 rounded-full bg-red-400" /> {stats.fullyBooked} Full
-          </span>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-bold">
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-400" /> {stats.partiallyBooked} Partial
-          </span>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {stats.available} Free
-          </span>
-        </div>
-      )}
+      <AnimatePresence>
+        {!collapsed && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div className="md:hidden flex items-center justify-center gap-2 p-2.5 bg-slate-50 border-b border-slate-100">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full text-[10px] font-bold">
+                <div className="w-1.5 h-1.5 rounded-full bg-rose-400" /> {stats.fullyBooked} Full
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-bold">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-400" /> {stats.partiallyBooked} Partial
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {stats.available} Free
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[10px] font-bold">
+                {monthOccupancy}% occ.
+              </span>
+            </div>
 
-      {!collapsed && (
-        <div className="p-3 md:p-4">
-          <div className="grid grid-cols-7 gap-1 mb-2">
-            {DAY_NAMES.map(name => (
-              <div key={name} className="text-center text-[10px] md:text-xs font-bold text-gray-500 uppercase py-1">{name}</div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {calendarDays.map((day, idx) => (
-              <CalendarDayCell
-                key={idx}
-                day={day}
-                today={today}
-                totalRooms={totalRooms}
-                bookedCount={day ? (dayBookingMap[day.getDate()]?.bookedCount || 0) : 0}
-                isCurrentMonth={!!day}
-                onClick={(d) => onDateClick(d, roomType)}
-              />
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-3 mt-3 pt-3 border-t border-gray-100">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-emerald-200 border border-emerald-300" />
-              <span className="text-[10px] md:text-xs text-gray-600">Available</span>
+            <div className="p-3 md:p-5">
+              <div className="grid grid-cols-7 gap-1.5 mb-2">
+                {DAY_NAMES.map(name => (
+                  <div key={name} className="text-center text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider py-1">{name}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1.5">
+                {calendarDays.map((day, idx) => (
+                  <CalendarDayCell
+                    key={idx}
+                    day={day}
+                    today={today}
+                    totalRooms={totalRooms}
+                    bookedCount={day ? (dayBookingMap[day.getDate()]?.bookedCount || 0) : 0}
+                    isCurrentMonth={!!day}
+                    onClick={(d) => onDateClick(d, roomType)}
+                  />
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-4 mt-4 pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-6 h-1.5 rounded-full bg-emerald-500" />
+                  <span className="text-[10px] md:text-xs text-gray-500">Available</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-6 h-1.5 rounded-full bg-amber-500" />
+                  <span className="text-[10px] md:text-xs text-gray-500">Partial</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-6 h-1.5 rounded-full bg-rose-500" />
+                  <span className="text-[10px] md:text-xs text-gray-500">Full</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500" />
+                  </span>
+                  <span className="text-[10px] md:text-xs text-gray-500">Today</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-amber-200 border border-amber-300" />
-              <span className="text-[10px] md:text-xs text-gray-600">Partially Booked</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-red-200 border border-red-300" />
-              <span className="text-[10px] md:text-xs text-gray-600">Fully Booked</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-indigo-500 ring-2 ring-indigo-300" />
-              <span className="text-[10px] md:text-xs text-gray-600">Today</span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   )
 }
 
@@ -331,36 +389,52 @@ function DateDetailsModal({ date, roomType, bookings, allRoomTypes, onClose, onR
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 p-4 md:p-5 text-white">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="absolute inset-0 bg-black/50 backdrop-blur-xl"
+      />
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 20, scale: 0.98 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="bg-gradient-to-r from-slate-800 to-slate-700 p-4 md:p-5 text-white">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg md:text-xl font-bold flex items-center gap-2">
                 <CalendarDays size={22} />
                 {date.toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
               </h2>
-              <p className="text-indigo-200 text-sm mt-0.5 flex items-center gap-1">
+              <p className="text-slate-300 text-sm mt-0.5 flex items-center gap-1">
                 <Building2 size={14} /> {roomType.title}
               </p>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-xl transition-colors"><X size={22} /></button>
+            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-all duration-300"><X size={22} /></button>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 p-4 bg-gray-50 border-b border-gray-200">
-          <div className="bg-white rounded-xl p-3 text-center border border-gray-200 shadow-sm">
+        <div className="grid grid-cols-3 gap-3 p-4 bg-gray-50/80 border-b border-gray-100">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            className="bg-white/80 backdrop-blur rounded-2xl p-3 text-center border border-gray-100 shadow-sm">
             <p className="text-2xl font-black text-gray-900">{totalRooms}</p>
-            <p className="text-[10px] md:text-xs text-gray-500 font-medium mt-0.5">Total Rooms</p>
-          </div>
-          <div className="bg-red-50 rounded-xl p-3 text-center border border-red-200 shadow-sm">
-            <p className="text-2xl font-black text-red-600">{totalBooked}</p>
-            <p className="text-[10px] md:text-xs text-red-500 font-medium mt-0.5">Booked</p>
-          </div>
-          <div className="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-200 shadow-sm">
+            <p className="text-[10px] md:text-xs text-gray-400 font-medium mt-0.5">Total Rooms</p>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+            className="bg-rose-50/80 backdrop-blur rounded-2xl p-3 text-center border border-rose-100 shadow-sm">
+            <p className="text-2xl font-black text-rose-600">{totalBooked}</p>
+            <p className="text-[10px] md:text-xs text-rose-400 font-medium mt-0.5">Booked</p>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+            className="bg-emerald-50/80 backdrop-blur rounded-2xl p-3 text-center border border-emerald-100 shadow-sm">
             <p className="text-2xl font-black text-emerald-600">{available}</p>
-            <p className="text-[10px] md:text-xs text-emerald-500 font-medium mt-0.5">Available</p>
-          </div>
+            <p className="text-[10px] md:text-xs text-emerald-400 font-medium mt-0.5">Available</p>
+          </motion.div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -375,25 +449,25 @@ function DateDetailsModal({ date, roomType, bookings, allRoomTypes, onClose, onR
                 <button
                   key={rd.roomNumber}
                   onClick={() => rd.isBooked && onRoomClick(rd)}
-                  className={`relative rounded-xl border-2 p-3 transition-all duration-200 text-left ${
+                  className={`relative rounded-2xl border-2 p-3 transition-all duration-300 text-left ${
                     rd.isBooked
-                      ? 'bg-red-50 border-red-300 hover:border-red-400 hover:shadow-md cursor-pointer'
-                      : 'bg-emerald-50 border-emerald-300 cursor-default'
+                      ? 'bg-rose-50 border-rose-200 hover:border-rose-400 hover:shadow-lg hover:-translate-y-0.5 cursor-pointer'
+                      : 'bg-emerald-50 border-emerald-200 cursor-default'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className={`text-lg font-black ${rd.isBooked ? 'text-red-700' : 'text-emerald-700'}`}>{rd.roomNumber}</span>
+                    <span className={`text-lg font-black ${rd.isBooked ? 'text-rose-700' : 'text-emerald-700'}`}>{rd.roomNumber}</span>
                     {rd.isBooked ? (
-                      <div className="w-6 h-6 bg-red-200 rounded-full flex items-center justify-center"><Bed size={13} className="text-red-600" /></div>
+                      <div className="w-6 h-6 bg-rose-200 rounded-full flex items-center justify-center"><Bed size={13} className="text-rose-600" /></div>
                     ) : (
                       <div className="w-6 h-6 bg-emerald-200 rounded-full flex items-center justify-center"><CheckCircle2 size={13} className="text-emerald-600" /></div>
                     )}
                   </div>
-                  <p className={`text-[10px] font-semibold ${rd.isBooked ? 'text-red-500' : 'text-emerald-500'}`}>
+                  <p className={`text-[10px] font-semibold ${rd.isBooked ? 'text-rose-500' : 'text-emerald-500'}`}>
                     {rd.isBooked ? 'Occupied' : 'Available'}
                   </p>
                   {rd.isBooked && (
-                    <p className="text-[9px] text-red-400 mt-0.5 flex items-center gap-0.5"><Eye size={9} /> Tap for details</p>
+                    <p className="text-[9px] text-rose-400 mt-0.5 flex items-center gap-0.5"><Eye size={9} /> Tap for details</p>
                   )}
                 </button>
               ))}
@@ -407,7 +481,7 @@ function DateDetailsModal({ date, roomType, bookings, allRoomTypes, onClose, onR
 
           {unallottedBookings.length > 0 && (
             <div className="mt-4">
-              <h4 className="text-xs font-bold text-amber-700 mb-2 flex items-center gap-1.5 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+              <h4 className="text-xs font-bold text-amber-700 mb-2 flex items-center gap-1.5 bg-amber-50 px-3 py-2 rounded-xl border border-amber-200">
                 <AlertCircle size={14} /> Bookings Without Room Allotment ({unallottedBookings.length})
               </h4>
               <div className="space-y-2">
@@ -415,7 +489,7 @@ function DateDetailsModal({ date, roomType, bookings, allRoomTypes, onClose, onR
                   <button
                     key={booking._id}
                     onClick={() => onRoomClick({ roomNumber: 'N/A', bookings: [booking], isBooked: true })}
-                    className="w-full flex items-center gap-3 p-3 bg-amber-50 hover:bg-amber-100 rounded-xl border border-amber-200 transition-all text-left"
+                    className="w-full flex items-center gap-3 p-3 bg-amber-50 hover:bg-amber-100 rounded-xl border border-amber-200 transition-all duration-300 text-left hover:shadow-md"
                   >
                     <div className="w-9 h-9 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0">
                       {booking.user?.name?.[0]?.toUpperCase() || 'G'}
@@ -445,7 +519,7 @@ function DateDetailsModal({ date, roomType, bookings, allRoomTypes, onClose, onR
                     <button
                       key={booking._id}
                       onClick={() => onRoomClick({ roomNumber: itemForType?.allottedRoomNumbers?.join(', ') || 'N/A', bookings: [booking], isBooked: true })}
-                      className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-indigo-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all text-left"
+                      className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-indigo-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-all duration-300 text-left hover:shadow-md"
                     >
                       <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0">
                         {booking.user?.name?.[0]?.toUpperCase() || 'G'}
@@ -458,7 +532,7 @@ function DateDetailsModal({ date, roomType, bookings, allRoomTypes, onClose, onR
                             <span className="text-[10px] text-indigo-500 font-semibold">[{itemForType.allottedRoomNumbers.join(', ')}]</span>
                           )}
                           <span className="text-[10px] text-gray-400">•</span>
-                          <span className="text-[10px] font-bold text-green-600">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</span>
+                          <span className="text-[10px] font-bold text-emerald-600">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</span>
                           <StatusBadge status={booking.status} />
                         </div>
                       </div>
@@ -478,7 +552,7 @@ function DateDetailsModal({ date, roomType, bookings, allRoomTypes, onClose, onR
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }
@@ -505,30 +579,49 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 md:p-6" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 text-white">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="absolute inset-0 bg-black/50 backdrop-blur-xl"
+      />
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 20, scale: 0.98 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="bg-gradient-to-r from-slate-800 to-slate-700 p-4 text-white">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold flex items-center gap-2"><DoorOpen size={20} /> Room {roomNumber}</h2>
-              <p className="text-purple-200 text-xs mt-0.5">{roomType?.title} • Customer Details</p>
+              <p className="text-slate-300 text-xs mt-0.5">{roomType?.title} • Customer Details</p>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-xl transition-colors"><X size={20} /></button>
+            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-all duration-300"><X size={20} /></button>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {bookings.map((booking, idx) => (
-            <div key={booking._id || idx} className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-gray-100 to-gray-50 px-4 py-3 border-b border-gray-200">
+            <motion.div
+              key={booking._id || idx}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.05 }}
+              className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden"
+            >
+              <div className="bg-gradient-to-r from-gray-100 to-gray-50 px-4 py-3 border-b border-gray-100">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-200/50">
                       {booking.user?.name?.[0]?.toUpperCase() || 'G'}
                     </div>
                     <div>
                       <p className="font-bold text-gray-900">{booking.user?.name || 'Guest'}</p>
-                      <p className="text-[10px] text-gray-500 font-mono">ID: #{booking._id?.slice(-8)}</p>
+                      <p className="text-[10px] text-gray-400 font-mono">ID: #{booking._id?.slice(-8)}</p>
                     </div>
                   </div>
                   <StatusBadge status={booking.status} />
@@ -539,20 +632,20 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
                 <div className="grid grid-cols-1 gap-2">
                   {booking.user?.email && (
                     <div className="flex items-center gap-2 text-sm">
-                      <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center shrink-0"><Mail size={13} className="text-blue-600" /></div>
-                      <span className="text-gray-700 truncate">{booking.user.email}</span>
+                      <div className="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center shrink-0"><Mail size={13} className="text-blue-500" /></div>
+                      <span className="text-gray-600 truncate">{booking.user.email}</span>
                     </div>
                   )}
                   {booking.user?.phone && (
                     <div className="flex items-center gap-2 text-sm">
-                      <div className="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center shrink-0"><Phone size={13} className="text-green-600" /></div>
-                      <span className="text-gray-700">{booking.user.phone}</span>
+                      <div className="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center shrink-0"><Phone size={13} className="text-emerald-500" /></div>
+                      <span className="text-gray-600">{booking.user.phone}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="bg-white rounded-lg border border-gray-200 p-3">
-                  <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1"><Calendar size={12} /> Stay Details</h4>
+                <div className="bg-white rounded-xl border border-gray-100 p-3">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase mb-2 flex items-center gap-1"><Calendar size={12} /> Stay Details</h4>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <p className="text-[10px] text-gray-400 font-medium">Check-In</p>
@@ -573,10 +666,10 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg border border-gray-200 p-3">
-                  <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1"><Bed size={12} /> Rooms Booked</h4>
+                <div className="bg-white rounded-xl border border-gray-100 p-3">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase mb-2 flex items-center gap-1"><Bed size={12} /> Rooms Booked</h4>
                   {booking.items?.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
+                    <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                       <div>
                         <p className="text-sm font-medium text-gray-900">{item.title}</p>
                         <div className="flex items-center gap-1 mt-0.5">
@@ -584,7 +677,7 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
                           {item.allottedRoomNumbers?.length > 0 && (
                             <div className="flex gap-0.5">
                               {item.allottedRoomNumbers.map(rn => (
-                                <span key={rn} className="text-[9px] bg-indigo-100 text-indigo-700 px-1 py-0.5 rounded font-semibold">{rn}</span>
+                                <span key={rn} className="text-[9px] bg-indigo-50 text-indigo-600 px-1 py-0.5 rounded font-semibold">{rn}</span>
                               ))}
                             </div>
                           )}
@@ -596,13 +689,13 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
                 </div>
 
                 {booking.items?.some(item => item.guests?.length > 0) && (
-                  <div className="bg-white rounded-lg border border-gray-200 p-3">
-                    <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1"><Users size={12} /> Guest Details</h4>
+                  <div className="bg-white rounded-xl border border-gray-100 p-3">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase mb-2 flex items-center gap-1"><Users size={12} /> Guest Details</h4>
                     {booking.items.flatMap((item, itemIdx) =>
                       (item.guests || []).map((guest, gIdx) => (
-                        <div key={`${itemIdx}-${gIdx}`} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
+                        <div key={`${itemIdx}-${gIdx}`} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                           <div className="flex items-center gap-2">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${guest.type === 'child' ? 'bg-pink-100 text-pink-600' : 'bg-blue-100 text-blue-600'}`}>
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${guest.type === 'child' ? 'bg-pink-50 text-pink-600' : 'bg-blue-50 text-blue-600'}`}>
                               {guest.name?.[0]?.toUpperCase() || '?'}
                             </div>
                             <div>
@@ -611,7 +704,7 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
                             </div>
                           </div>
                           <div className="text-right">
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${guest.type === 'child' ? 'bg-pink-100 text-pink-600' : 'bg-blue-100 text-blue-600'}`}>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${guest.type === 'child' ? 'bg-pink-50 text-pink-600' : 'bg-blue-50 text-blue-600'}`}>
                               {guest.type === 'child' ? 'Child' : 'Adult'}
                             </span>
                             {guest.age !== undefined && <p className="text-[10px] text-gray-400 mt-0.5">Age: {guest.age}</p>}
@@ -622,8 +715,8 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
                   </div>
                 )}
 
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-3">
-                  <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1"><IndianRupee size={12} /> Payment Summary</h4>
+                <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border border-emerald-100 p-3">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase mb-2 flex items-center gap-1"><IndianRupee size={12} /> Payment Summary</h4>
                   <div className="space-y-1">
                     {booking.subtotal && (
                       <div className="flex justify-between text-sm">
@@ -637,9 +730,9 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
                         <span className="text-gray-900">₹{booking.gstAmount.toLocaleString()}</span>
                       </div>
                     )}
-                    <div className="flex justify-between text-base font-bold pt-1 border-t border-green-200">
+                    <div className="flex justify-between text-base font-bold pt-1 border-t border-emerald-200">
                       <span className="text-gray-900">Total</span>
-                      <span className="text-green-600">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</span>
+                      <span className="text-emerald-600">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
@@ -647,14 +740,14 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
                 {/* Cancel Booking Button */}
                 {(booking.status === 'paid' || booking.status === 'pending') && (
                   cancelConfirm === booking._id ? (
-                    <div className="bg-red-50 rounded-xl border-2 border-red-300 p-4">
-                      <p className="text-sm font-bold text-red-700 mb-1">⚠️ Cancel this booking?</p>
-                      <p className="text-xs text-red-500 mb-3">This action cannot be undone. Cancellation emails will be sent to the guest and admin.</p>
+                    <div className="bg-rose-50 rounded-2xl border-2 border-rose-200 p-4">
+                      <p className="text-sm font-bold text-rose-700 mb-1">⚠️ Cancel this booking?</p>
+                      <p className="text-xs text-rose-500 mb-3">This action cannot be undone. Cancellation emails will be sent to the guest and admin.</p>
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleCancel(booking._id)}
                           disabled={cancelling}
-                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg text-sm font-bold transition-colors"
+                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 text-white rounded-xl text-sm font-bold transition-all duration-300"
                         >
                           {cancelling ? (
                             <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Cancelling...</>
@@ -665,7 +758,7 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
                         <button
                           onClick={() => setCancelConfirm(null)}
                           disabled={cancelling}
-                          className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-bold transition-colors"
+                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-bold transition-all duration-300"
                         >
                           No
                         </button>
@@ -674,22 +767,22 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
                   ) : (
                     <button
                       onClick={() => setCancelConfirm(booking._id)}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 hover:bg-red-100 border-2 border-red-200 hover:border-red-300 text-red-600 rounded-xl text-sm font-bold transition-all"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-50 hover:bg-rose-100 border-2 border-rose-200 hover:border-rose-300 text-rose-600 rounded-xl text-sm font-bold transition-all duration-300"
                     >
                       <XCircle size={16} /> Cancel Booking
                     </button>
                   )
                 )}
                 {booking.status === 'cancelled' && (
-                  <div className="bg-gray-100 rounded-xl border border-gray-300 p-3 text-center">
-                    <p className="text-sm font-bold text-gray-500 flex items-center justify-center gap-1.5"><XCircle size={15} /> Booking Cancelled</p>
+                  <div className="bg-gray-50 rounded-xl border border-gray-200 p-3 text-center">
+                    <p className="text-sm font-bold text-gray-400 flex items-center justify-center gap-1.5"><XCircle size={15} /> Booking Cancelled</p>
                   </div>
                 )}
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }
@@ -788,8 +881,30 @@ export default function WorkerBookingCalendarHistory() {
         totalRevenueThisMonth += b.totalAmount || b.total || 0
       }
     })
-    return { totalBookingsThisMonth, totalRevenueThisMonth, daysInMonth }
-  }, [bookings, currentYear, currentMonth])
+
+    // Occupancy rate calculation
+    let totalRoomDays = 0
+    let totalBookedRoomDays = 0
+    roomTypes.forEach(rt => {
+      const rtRooms = rt.count || rt.roomNumbers?.length || 0
+      totalRoomDays += rtRooms * daysInMonth
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(currentYear, currentMonth, d)
+        let bookedRooms = 0
+        bookings.forEach(b => {
+          if (b.status === 'cancelled') return
+          if (!doesBookingOverlapDate(b, date)) return
+          b.items?.forEach(item => {
+            if (item.roomTypeKey === rt.key) bookedRooms += item.quantity || 0
+          })
+        })
+        totalBookedRoomDays += Math.min(bookedRooms, rtRooms)
+      }
+    })
+    const occupancyRate = totalRoomDays > 0 ? Math.round((totalBookedRoomDays / totalRoomDays) * 100) : 0
+
+    return { totalBookingsThisMonth, totalRevenueThisMonth, daysInMonth, occupancyRate }
+  }, [bookings, roomTypes, currentYear, currentMonth])
 
   const handleDateClick = (date, roomType) => setDateModal({ date, roomType })
   const handleRoomClick = (roomData) => {
@@ -817,7 +932,7 @@ export default function WorkerBookingCalendarHistory() {
   return (
     <WorkerLayout>
       {/* Page Header */}
-      <div className="mb-4">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
           <div>
             <h1 className="text-xl md:text-2xl font-black text-gray-900 flex items-center gap-2">
@@ -828,35 +943,44 @@ export default function WorkerBookingCalendarHistory() {
               Visual overview of all bookings by room type • Click any date to see details
             </p>
           </div>
-          <button
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             onClick={fetchData}
-            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-sm transition-colors shadow-lg shadow-indigo-200"
+            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-sm transition-all duration-300 shadow-lg shadow-indigo-200"
           >
             <RefreshCw size={16} /> Refresh
-          </button>
+          </motion.button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Month Navigation & Filters */}
-      <div className="bg-white rounded-xl shadow-md border border-gray-100 p-3 md:p-4 mb-5">
-        <div className="flex items-center justify-between mb-3">
-          <button onClick={goToPrevMonth} className="flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-700 transition-colors">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 md:p-5 mb-5"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={goToPrevMonth}
+            className="flex items-center gap-1 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-xl text-sm font-medium text-gray-700 transition-all duration-300 border border-gray-100">
             <ChevronLeft size={18} /> <span className="hidden md:inline">Prev</span>
-          </button>
+          </motion.button>
           <div className="text-center">
-            <h2 className="text-lg md:text-2xl font-black text-gray-900">{MONTH_NAMES[currentMonth]} {currentYear}</h2>
-            <button onClick={goToToday} className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold mt-0.5 hover:underline">Go to Today</button>
+            <h2 className="text-lg md:text-2xl font-black text-gray-900 tracking-tight">{MONTH_NAMES[currentMonth]} {currentYear}</h2>
+            <button onClick={goToToday} className="text-xs text-indigo-500 hover:text-indigo-600 font-semibold mt-0.5 hover:underline transition-colors">Go to Today</button>
           </div>
-          <button onClick={goToNextMonth} className="flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-700 transition-colors">
+          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={goToNextMonth}
+            className="flex items-center gap-1 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-xl text-sm font-medium text-gray-700 transition-all duration-300 border border-gray-100">
             <span className="hidden md:inline">Next</span> <ChevronRight size={18} />
-          </button>
+          </motion.button>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-2 pt-3 border-t border-gray-100">
+        <div className="flex flex-col md:flex-row gap-2 pt-4 border-t border-gray-100">
           <div className="relative flex-1">
             <Building2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <select value={roomTypeFilter} onChange={(e) => setRoomTypeFilter(e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white font-medium">
+              className="w-full pl-9 pr-8 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white font-medium transition-all duration-300">
               <option value="all">All Room Types</option>
               {roomTypes.map(rt => (<option key={rt.key} value={rt.key}>{rt.title}</option>))}
             </select>
@@ -865,7 +989,7 @@ export default function WorkerBookingCalendarHistory() {
           <div className="relative flex-1">
             <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white font-medium">
+              className="w-full pl-9 pr-8 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white font-medium transition-all duration-300">
               <option value="all">All Statuses</option>
               <option value="paid">Confirmed (Paid)</option>
               <option value="pending">Pending</option>
@@ -876,31 +1000,34 @@ export default function WorkerBookingCalendarHistory() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-gray-100">
-          <div className="bg-indigo-50 rounded-xl p-3 text-center border border-indigo-100">
+        <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+            className="bg-indigo-50/80 backdrop-blur rounded-2xl p-3 text-center border border-indigo-100/80">
             <p className="text-xl md:text-2xl font-black text-indigo-600">{monthStats.totalBookingsThisMonth}</p>
-            <p className="text-[10px] md:text-xs text-indigo-400 font-semibold">Bookings This Month</p>
-          </div>
-          <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
-            <p className="text-xl md:text-2xl font-black text-green-600">₹{monthStats.totalRevenueThisMonth.toLocaleString()}</p>
-            <p className="text-[10px] md:text-xs text-green-400 font-semibold">Revenue This Month</p>
-          </div>
-          <div className="bg-purple-50 rounded-xl p-3 text-center border border-purple-100">
-            <p className="text-xl md:text-2xl font-black text-purple-600">{filteredRoomTypes.length}</p>
-            <p className="text-[10px] md:text-xs text-purple-400 font-semibold">Room Types</p>
-          </div>
+            <p className="text-[10px] md:text-xs text-indigo-400 font-semibold">Bookings</p>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+            className="bg-emerald-50/80 backdrop-blur rounded-2xl p-3 text-center border border-emerald-100/80">
+            <p className="text-xl md:text-2xl font-black text-emerald-600">₹{monthStats.totalRevenueThisMonth.toLocaleString()}</p>
+            <p className="text-[10px] md:text-xs text-emerald-400 font-semibold">Revenue</p>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+            className="bg-amber-50/80 backdrop-blur rounded-2xl p-3 text-center border border-amber-100/80">
+            <p className="text-xl md:text-2xl font-black text-amber-600">{monthStats.occupancyRate}%</p>
+            <p className="text-[10px] md:text-xs text-amber-400 font-semibold">Occupancy Rate</p>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Room Type Calendars */}
       {filteredRoomTypes.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center">
+        <div className="bg-white rounded-2xl shadow-md p-12 text-center">
           <Building2 size={48} className="mx-auto text-gray-300 mb-3" />
           <p className="text-gray-600 font-semibold">No room types found</p>
           <p className="text-gray-400 text-sm mt-1">Please add room types from the admin panel</p>
         </div>
       ) : (
-        filteredRoomTypes.map(rt => (
+        filteredRoomTypes.map((rt, idx) => (
           <RoomTypeCalendar
             key={rt.key}
             roomType={rt}
@@ -909,127 +1036,149 @@ export default function WorkerBookingCalendarHistory() {
             month={currentMonth}
             today={today}
             onDateClick={handleDateClick}
+            index={idx}
           />
         ))
       )}
 
       {/* Legend Footer */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mt-2">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mt-2"
+      >
         <div className="flex items-center gap-2 mb-2">
           <Info size={14} className="text-gray-400" />
-          <span className="text-xs font-bold text-gray-500 uppercase">How to Use</span>
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">How to Use</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-gray-500">
           <p className="flex items-center gap-1.5">
-            <span className="w-4 h-4 rounded bg-emerald-200 border border-emerald-300 shrink-0" />
+            <span className="w-5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
             Green = All rooms available on that date
           </p>
           <p className="flex items-center gap-1.5">
-            <span className="w-4 h-4 rounded bg-amber-200 border border-amber-300 shrink-0" />
+            <span className="w-5 h-1.5 rounded-full bg-amber-500 shrink-0" />
             Yellow = Some rooms booked (partially occupied)
           </p>
           <p className="flex items-center gap-1.5">
-            <span className="w-4 h-4 rounded bg-red-200 border border-red-300 shrink-0" />
+            <span className="w-5 h-1.5 rounded-full bg-rose-500 shrink-0" />
             Red = All rooms fully booked on that date
           </p>
         </div>
         <p className="text-[10px] text-gray-400 mt-2">
-          Click on any colored date to see detailed booking info. Numbers show booked/total rooms.
+          Click on any date to see detailed booking info. The progress bar shows occupancy percentage.
         </p>
-      </div>
+      </motion.div>
 
       {/* Cancelled Bookings Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 mt-2 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mt-2 overflow-hidden">
         <button
           onClick={() => setShowCancelled(prev => !prev)}
-          className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-all duration-300"
         >
           <div className="flex items-center gap-2">
-            <XCircle size={18} className="text-red-500" />
+            <XCircle size={18} className="text-rose-500" />
             <span className="text-sm font-bold text-gray-700">Cancelled Bookings</span>
             {cancelledBookings.length > 0 && (
-              <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-xs font-bold">{cancelledBookings.length}</span>
+              <span className="px-2 py-0.5 bg-rose-100 text-rose-600 rounded-full text-xs font-bold">{cancelledBookings.length}</span>
             )}
           </div>
-          {showCancelled ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+          <motion.div animate={{ rotate: showCancelled ? 180 : 0 }} transition={{ duration: 0.2 }}>
+            <ChevronDown size={18} className="text-gray-400" />
+          </motion.div>
         </button>
-        {showCancelled && (
-          <div className="border-t border-gray-100 px-4 py-3">
-            {cancelledBookings.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">No cancelled bookings</p>
-            ) : (
-              <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                {cancelledBookings.map(booking => {
-                  const guest = booking.guestDetails || booking.user || {}
-                  const guestName = guest.name || guest.fullName || 'Guest'
-                  const guestEmail = guest.email || ''
-                  const guestPhone = guest.phone || guest.mobile || ''
-                  const checkIn = new Date(booking.checkIn)
-                  const checkOut = new Date(booking.checkOut)
-                  const formatDate = (d) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+        <AnimatePresence>
+          {showCancelled && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="border-t border-gray-100 px-4 py-3">
+                {cancelledBookings.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">No cancelled bookings</p>
+                ) : (
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                    {cancelledBookings.map(booking => {
+                      const guest = booking.guestDetails || booking.user || {}
+                      const guestName = guest.name || guest.fullName || 'Guest'
+                      const guestEmail = guest.email || ''
+                      const guestPhone = guest.phone || guest.mobile || ''
+                      const checkIn = new Date(booking.checkIn)
+                      const checkOut = new Date(booking.checkOut)
+                      const formatDate = (d) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 
-                  return (
-                    <div key={booking._id} className="bg-red-50 border border-red-200 rounded-xl p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <p className="font-bold text-gray-800 text-sm flex items-center gap-1.5">
-                            <User size={14} className="text-gray-500" /> {guestName}
-                          </p>
-                          {guestEmail && <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5"><Mail size={11} /> {guestEmail}</p>}
-                          {guestPhone && <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5"><Phone size={11} /> {guestPhone}</p>}
+                      return (
+                        <div key={booking._id} className="bg-rose-50 border border-rose-200 rounded-2xl p-4 transition-all duration-300 hover:shadow-sm">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <p className="font-bold text-gray-800 text-sm flex items-center gap-1.5">
+                                <User size={14} className="text-gray-500" /> {guestName}
+                              </p>
+                              {guestEmail && <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5"><Mail size={11} /> {guestEmail}</p>}
+                              {guestPhone && <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5"><Phone size={11} /> {guestPhone}</p>}
+                            </div>
+                            <span className="px-2 py-1 bg-rose-200 text-rose-700 rounded-lg text-xs font-bold">CANCELLED</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                            <div className="flex items-center gap-1 text-gray-600">
+                              <CalendarDays size={12} /> {formatDate(checkIn)} → {formatDate(checkOut)}
+                            </div>
+                            <div className="flex items-center gap-1 text-gray-600">
+                              <IndianRupee size={12} /> ₹{(booking.totalAmount || booking.total || 0).toLocaleString()}
+                            </div>
+                          </div>
+                          {booking.items && booking.items.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {booking.items.map((item, idx) => (
+                                <span key={idx} className="px-2 py-0.5 bg-white border border-rose-200 rounded-lg text-xs text-gray-600">
+                                  {item.roomTypeTitle || item.roomTypeKey} × {item.quantity}
+                                  {item.allottedRooms && item.allottedRooms.length > 0 && (
+                                    <span className="text-gray-400 ml-1">(Room {item.allottedRooms.join(', ')})</span>
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <span className="px-2 py-1 bg-red-200 text-red-700 rounded-lg text-xs font-bold">CANCELLED</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                        <div className="flex items-center gap-1 text-gray-600">
-                          <CalendarDays size={12} /> {formatDate(checkIn)} → {formatDate(checkOut)}
-                        </div>
-                        <div className="flex items-center gap-1 text-gray-600">
-                          <IndianRupee size={12} /> ₹{(booking.totalAmount || booking.total || 0).toLocaleString()}
-                        </div>
-                      </div>
-                      {booking.items && booking.items.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {booking.items.map((item, idx) => (
-                            <span key={idx} className="px-2 py-0.5 bg-white border border-red-200 rounded text-xs text-gray-600">
-                              {item.roomTypeTitle || item.roomTypeKey} × {item.quantity}
-                              {item.allottedRooms && item.allottedRooms.length > 0 && (
-                                <span className="text-gray-400 ml-1">(Room {item.allottedRooms.join(', ')})</span>
-                              )}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+                      )
+                    })}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Date Details Modal */}
-      {dateModal && (
-        <DateDetailsModal
-          date={dateModal.date}
-          roomType={dateModal.roomType}
-          bookings={filteredBookings}
-          allRoomTypes={roomTypes}
-          onClose={() => setDateModal(null)}
-          onRoomClick={handleRoomClick}
-        />
-      )}
+      <AnimatePresence>
+        {dateModal && (
+          <DateDetailsModal
+            date={dateModal.date}
+            roomType={dateModal.roomType}
+            bookings={filteredBookings}
+            allRoomTypes={roomTypes}
+            onClose={() => setDateModal(null)}
+            onRoomClick={handleRoomClick}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Customer Details Modal */}
-      {customerModal && (
-        <CustomerDetailsModal
-          roomData={customerModal.roomData}
-          roomType={customerModal.roomType}
-          onClose={() => setCustomerModal(null)}
-          onCancelBooking={handleCancelBooking}
-        />
-      )}
+      <AnimatePresence>
+        {customerModal && (
+          <CustomerDetailsModal
+            roomData={customerModal.roomData}
+            roomType={customerModal.roomType}
+            onClose={() => setCustomerModal(null)}
+            onCancelBooking={handleCancelBooking}
+          />
+        )}
+      </AnimatePresence>
     </WorkerLayout>
   )
 }

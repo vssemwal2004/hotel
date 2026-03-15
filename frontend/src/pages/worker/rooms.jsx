@@ -87,6 +87,7 @@ export default function AvailableRoomsPage() {
   }
 
   const getStatusBadge = (room) => {
+    if (room.totalRooms === 0) return { label: 'Not Configured', cls: 'bg-gray-100 text-gray-500 border-gray-200' }
     if (room.available === 0) return { label: 'Fully Booked', cls: 'bg-red-100 text-red-700 border-red-200' }
     if (room.booked === 0) return { label: 'All Available', cls: 'bg-green-100 text-green-700 border-green-200' }
     return { label: 'Partially Available', cls: 'bg-amber-100 text-amber-700 border-amber-200' }

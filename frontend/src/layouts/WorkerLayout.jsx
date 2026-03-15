@@ -1,13 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import useAuth from '../hooks/useAuth'
 import { useRouter } from 'next/router'
-import Link from 'next/link'
-import { 
-  LayoutDashboard, 
-  CalendarCheck, 
-  UserCog, 
-  Menu, 
-  X, 
+import {
+  LayoutDashboard,
+  CalendarCheck,
+  Menu,
+  X,
   LogOut,
   ChevronRight,
   ChevronDown,
@@ -16,24 +14,29 @@ import {
   LogIn,
   LogOut as LogOutIcon,
   Users,
-  List
+  List,
+  Home,
+  UserCog
 } from 'lucide-react'
 
-// WorkerLayout provides a professional responsive worker layout with sidebar
-export default function WorkerLayout({ children }){
+const COLLAPSED_W = 72
+const EXPANDED_W = 260
+
+export default function WorkerLayout({ children }) {
   const { user, loading, logout } = useAuth()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [bookingsExpanded, setBookingsExpanded] = useState(false)
-  const [allotExpanded, setAllotExpanded] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const [expandedMenus, setExpandedMenus] = useState({})
+  const hoverTimer = useRef(null)
 
-  // Auto-expand menus based on current path
   useEffect(() => {
-    if (router.pathname.startsWith('/worker/bookings') && router.pathname !== '/worker/bookings/bulk-booking') {
-      setBookingsExpanded(true)
+    const p = router.pathname
+    if (p.startsWith('/worker/bookings') && p !== '/worker/bookings/bulk-booking') {
+      setExpandedMenus(prev => ({ ...prev, bookings: true }))
     }
-    if (router.pathname === '/worker/allot' || router.pathname === '/worker/bookings/bulk-booking') {
-      setAllotExpanded(true)
+    if (p === '/worker/allot' || p === '/worker/bookings/bulk-booking') {
+      setExpandedMenus(prev => ({ ...prev, allotment: true }))
     }
   }, [router.pathname])
 
@@ -46,257 +49,379 @@ export default function WorkerLayout({ children }){
 
   if (loading || !user || (user.role !== 'worker' && user.role !== 'admin')) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-900 via-teal-800 to-teal-900">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-950 via-slate-900 to-teal-950">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-teal-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-white text-lg">Loading Worker Panel...</p>
         </div>
       </div>
     )
   }
 
-  const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/worker', color: 'text-teal-500' },
-    {
-      icon: CalendarCheck,
-      label: 'Room Allotment',
-      color: 'text-emerald-500',
-      expandable: true,
-      id: 'allotment',
-      subItems: [
-        { icon: CalendarCheck, label: 'Single Booking', href: '/worker/allot', color: 'text-emerald-400' },
-        { icon: Users, label: 'Bulk Booking', href: '/worker/bookings/bulk-booking', color: 'text-pink-400' },
-      ]
-    },
-    { icon: DoorOpen, label: 'Available Rooms', href: '/worker/rooms', color: 'text-amber-500' },
-    { 
-      icon: History, 
-      label: 'Customer Bookings', 
-      color: 'text-purple-500',
-      expandable: true,
-      id: 'bookings',
-      subItems: [
-        { icon: LogIn, label: 'Check-In', href: '/worker/bookings/check-in', color: 'text-blue-400' },
-        { icon: LogOutIcon, label: 'Check-Out', href: '/worker/bookings/check-out', color: 'text-orange-400' },
-        { icon: History, label: 'History', href: '/worker/bookings/history', color: 'text-purple-400' },
-        { icon: List, label: 'View Bookings', href: '/worker/bookings/view', color: 'text-cyan-400' },
-      ]
-    },
-  ]
+  const expanded = hovered
 
-  const isActive = (href) => {
-    if (!href) return false
-    return router.pathname === href
+  const handleMouseEnter = () => {
+    clearTimeout(hoverTimer.current)
+    setHovered(true)
+  }
+  const handleMouseLeave = () => {
+    hoverTimer.current = setTimeout(() => setHovered(false), 200)
   }
 
-  const isBookingsActive = () => {
-    return router.pathname.startsWith('/worker/bookings') && router.pathname !== '/worker/bookings/bulk-booking'
-  }
+  const toggleMenu = (key) => setExpandedMenus(prev => ({ ...prev, [key]: !prev[key] }))
+  const isActive = (href) => router.pathname === href
+  const isGroupActive = (paths) => paths.some(p => router.pathname === p || router.pathname.startsWith(p))
 
   const handleLogout = async () => {
     await logout()
     router.push('/auth/login')
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-emerald-50 to-teal-100">
-      
-      {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-teal-800 via-teal-900 to-teal-800 text-white shadow-xl">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+  const navigation = [
+    { type: 'section', label: 'Main' },
+    { type: 'link', icon: LayoutDashboard, label: 'Dashboard', href: '/worker' },
+    { type: 'section', label: 'Bookings' },
+    {
+      type: 'group',
+      key: 'allotment',
+      icon: CalendarCheck,
+      label: 'Room Allotment',
+      paths: ['/worker/allot', '/worker/bookings/bulk-booking'],
+      items: [
+        { icon: CalendarCheck, label: 'Single Booking', href: '/worker/allot' },
+        { icon: Users, label: 'Bulk Booking', href: '/worker/bookings/bulk-booking' },
+      ]
+    },
+    { type: 'link', icon: DoorOpen, label: 'Available Rooms', href: '/worker/rooms' },
+    { type: 'section', label: 'Manage' },
+    {
+      type: 'group',
+      key: 'bookings',
+      icon: History,
+      label: 'Customer Bookings',
+      paths: ['/worker/bookings/check-in', '/worker/bookings/check-out', '/worker/bookings/history', '/worker/bookings/view'],
+      items: [
+        { icon: LogIn, label: 'Check-In', href: '/worker/bookings/check-in' },
+        { icon: LogOutIcon, label: 'Check-Out', href: '/worker/bookings/check-out' },
+        { icon: History, label: 'Booking Calendar', href: '/worker/bookings/history' },
+        { icon: List, label: 'View Bookings', href: '/worker/bookings/view' },
+      ]
+    },
+  ]
+
+  // Tooltip for collapsed icons
+  const Tooltip = ({ label, children }) => (
+    <div className="relative group/tip">
+      {children}
+      {!expanded && (
+        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg shadow-xl opacity-0 invisible group-hover/tip:opacity-100 group-hover/tip:visible transition-all duration-200 whitespace-nowrap z-[100] pointer-events-none">
+          {label}
+          <div className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-gray-900" />
+        </div>
+      )}
+    </div>
+  )
+
+  const renderNavItem = (item, idx) => {
+    if (item.type === 'section') {
+      if (!expanded) {
+        return <div key={`sep-${idx}`} className="mx-3 my-2 border-t border-white/[0.06]" />
+      }
+      return (
+        <div key={`section-${idx}`} className="px-4 pt-4 pb-1">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-teal-400/50">{item.label}</p>
+        </div>
+      )
+    }
+
+    if (item.type === 'group') {
+      const isExp = expandedMenus[item.key]
+      const isAnyActive = isGroupActive(item.paths)
+
+      if (!expanded) {
+        return (
+          <Tooltip key={item.key} label={item.label}>
+            <div
+              className={`flex items-center justify-center w-11 h-11 mx-auto rounded-xl cursor-pointer transition-all duration-200
+                ${isAnyActive
+                  ? 'bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/30'
+                  : 'text-teal-300/60 hover:bg-white/[0.08] hover:text-white'
+                }`}
             >
-              {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+              <item.icon size={20} />
+            </div>
+          </Tooltip>
+        )
+      }
+
+      return (
+        <div key={item.key}>
+          <button
+            onClick={() => toggleMenu(item.key)}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
+              ${isAnyActive
+                ? 'bg-gradient-to-r from-teal-500/90 to-emerald-600/90 text-white shadow-lg shadow-teal-500/25'
+                : 'hover:bg-white/[0.08] text-teal-200/70 hover:text-white'
+              }`}
+          >
+            <item.icon size={19} className={isAnyActive ? 'text-white' : 'text-teal-400/70'} />
+            <span className="flex-1 font-medium text-sm text-left">{item.label}</span>
+            <ChevronDown size={15} className={`transition-transform duration-200 ${isExp ? 'rotate-0' : '-rotate-90'} ${isAnyActive ? 'text-white/60' : 'text-teal-400/40'}`} />
+          </button>
+          {isExp && (
+            <div className="mt-1 ml-4 pl-3 border-l-2 border-teal-500/20 space-y-0.5">
+              {item.items.map(sub => {
+                const active = isActive(sub.href)
+                return (
+                  <a key={sub.href} href={sub.href} onClick={() => setSidebarOpen(false)}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-200
+                      ${active
+                        ? 'bg-white/[0.12] text-white font-semibold'
+                        : 'text-teal-300/50 hover:text-white hover:bg-white/[0.06]'
+                      }`}
+                  >
+                    <sub.icon size={15} className={active ? 'text-teal-300' : 'text-teal-400/30'} />
+                    <span>{sub.label}</span>
+                  </a>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    const active = isActive(item.href)
+
+    if (!expanded) {
+      return (
+        <Tooltip key={item.href} label={item.label}>
+          <a href={item.href} onClick={() => setSidebarOpen(false)}
+            className={`flex items-center justify-center w-11 h-11 mx-auto rounded-xl transition-all duration-200
+              ${active
+                ? 'bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/30'
+                : 'text-teal-300/60 hover:bg-white/[0.08] hover:text-white'
+              }`}
+          >
+            <item.icon size={20} />
+          </a>
+        </Tooltip>
+      )
+    }
+
+    return (
+      <a key={item.href} href={item.href} onClick={() => setSidebarOpen(false)}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
+          ${active
+            ? 'bg-gradient-to-r from-teal-500/90 to-emerald-600/90 text-white shadow-lg shadow-teal-500/25'
+            : 'hover:bg-white/[0.08] text-teal-200/70 hover:text-white'
+          }`}
+      >
+        <item.icon size={19} className={active ? 'text-white' : 'text-teal-400/50'} />
+        <span className="flex-1 font-medium text-sm">{item.label}</span>
+        {active && <ChevronRight size={15} className="text-white/50" />}
+      </a>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-teal-50/20 to-slate-100">
+
+      {/* ── Mobile Header ── */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-teal-950 to-slate-900 text-white shadow-xl">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+              {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-teal-400 to-teal-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg">
+              <div className="w-8 h-8 bg-gradient-to-br from-teal-400 to-emerald-600 rounded-lg flex items-center justify-center font-bold text-sm text-white shadow-lg">
                 HK
               </div>
               <div>
-                <h1 className="font-bold text-sm">Hotel Krishna</h1>
-                <p className="text-xs text-teal-400">Worker Panel</p>
+                <h1 className="font-bold text-sm leading-tight">Hotel Krishna</h1>
+                <p className="text-[10px] text-teal-300 flex items-center gap-1"><UserCog size={9} /> Worker</p>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-xs font-bold">
-              {user?.name?.[0]?.toUpperCase() || 'W'}
-            </div>
+          <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-full flex items-center justify-center text-xs font-bold">
+            {user?.name?.[0]?.toUpperCase() || 'W'}
           </div>
         </div>
       </div>
 
-      {/* Mobile Sidebar Overlay */}
+      {/* ── Mobile Overlay ── */}
       {sidebarOpen && (
-        <div 
-          className="lg:hidden fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
-          onClick={() => setSidebarOpen(false)}
-        />
+        <div className="lg:hidden fixed inset-0 bg-black/50 z-40 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar - Desktop & Mobile */}
-      <aside className={`
-        fixed top-0 left-0 h-full w-64 bg-gradient-to-b from-teal-900 via-teal-800 to-teal-900 text-white shadow-2xl z-50 
-        transform transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0
-      `}>
-        <div className="h-full flex flex-col">
-          {/* Logo Section */}
-          <div className="p-6 border-b border-white/10">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                <img 
-                  src="/images/logo-icon/logo.webp" 
-                  alt="Hotel Logo" 
-                  className="w-8 h-8 object-contain"
-                />
-              </div>
-              <div>
-                <h1 className="font-bold text-xl bg-gradient-to-r from-teal-400 to-teal-200 bg-clip-text text-transparent">
+      {/* ── Desktop Sidebar (hover-to-expand) ── */}
+      <aside
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        className="hidden lg:flex fixed top-0 left-0 h-full z-50 flex-col bg-gradient-to-b from-teal-950 via-[#0a1a1a] to-slate-950 text-white shadow-2xl shadow-teal-950/50"
+        style={{
+          width: expanded ? EXPANDED_W : COLLAPSED_W,
+          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+        }}
+      >
+        {/* Logo */}
+        <div className="shrink-0 border-b border-white/[0.06] p-3 flex items-center justify-center" style={{ minHeight: 68 }}>
+          <div className="flex items-center gap-3 overflow-hidden transition-all duration-300">
+            <div className="w-10 h-10 shrink-0 bg-gradient-to-br from-teal-400 to-emerald-600 rounded-xl flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-teal-500/30 ring-2 ring-teal-400/20">
+              HK
+            </div>
+            {expanded && (
+              <div className="min-w-0">
+                <h1 className="font-bold text-base bg-gradient-to-r from-teal-200 to-emerald-100 bg-clip-text text-transparent leading-tight whitespace-nowrap">
                   Hotel Krishna
                 </h1>
-                <p className="text-xs text-slate-400">Restaurant & Luxury Stays</p>
+                <p className="text-[10px] text-teal-400/50 uppercase tracking-wider whitespace-nowrap">Worker Panel</p>
               </div>
-            </div>
-            <div className="mt-3 p-3 bg-white/5 rounded-lg border border-white/10">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-sm font-bold">
-                  {user?.name?.[0]?.toUpperCase() || 'W'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{user?.name || 'Worker'}</p>
-                  <p className="text-xs text-slate-400 truncate">{user?.email}</p>
-                </div>
+            )}
+          </div>
+        </div>
+
+        {/* User card (expanded only) */}
+        {expanded && (
+          <div className="shrink-0 px-3 py-3 border-b border-white/[0.06]">
+            <div className="flex items-center gap-2.5 p-2.5 bg-white/[0.04] rounded-xl border border-white/[0.06]">
+              <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0 shadow-lg shadow-teal-500/20">
+                {user?.name?.[0]?.toUpperCase() || 'W'}
               </div>
-              <div className="mt-2 pt-2 border-t border-white/10">
-                <span className="inline-block px-2 py-0.5 bg-teal-500/30 text-teal-200 text-xs rounded-full font-medium">
-                  {user?.role === 'admin' ? 'Admin' : 'Worker'}
-                </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">{user?.name || 'Worker'}</p>
+                <p className="text-[10px] text-teal-300/50 flex items-center gap-1"><UserCog size={9} /> {user?.role === 'admin' ? 'Admin' : 'Worker'}</p>
               </div>
             </div>
           </div>
+        )}
 
-          {/* Navigation Menu */}
-          <nav className="flex-1 overflow-y-auto py-4 px-3">
-            <div className="space-y-1">
-              {menuItems.map((item) => {
-                const Icon = item.icon
+        {/* Navigation – scrollable */}
+        <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-2 ${expanded ? 'px-3' : 'px-2'} space-y-0.5 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent`}>
+          {navigation.map((item, idx) => renderNavItem(item, idx))}
+        </nav>
 
-                if (item.expandable) {
-                  const isExpanded = item.id === 'allotment' ? allotExpanded : bookingsExpanded
-                  const toggleFn = item.id === 'allotment'
-                    ? () => setAllotExpanded(v => !v)
-                    : () => setBookingsExpanded(v => !v)
-                  const isAnySubActive = item.id === 'allotment'
-                    ? (router.pathname === '/worker/allot' || router.pathname === '/worker/bookings/bulk-booking')
-                    : isBookingsActive()
-
-                  return (
-                    <div key={item.label}>
-                      <button
-                        onClick={toggleFn}
-                        className={`
-                          w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
-                          ${isAnySubActive 
-                            ? 'bg-white/10 text-white shadow-lg backdrop-blur-sm border border-white/20' 
-                            : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                          }
-                        `}
-                      >
-                        <Icon size={20} className={isAnySubActive ? item.color : 'text-slate-400'} />
-                        <span className={`flex-1 font-medium text-left ${isAnySubActive ? 'font-semibold' : ''}`}>{item.label}</span>
-                        {isExpanded ? (
-                          <ChevronDown size={18} className={isAnySubActive ? 'text-teal-300' : 'text-slate-400'} />
-                        ) : (
-                          <ChevronRight size={18} className={isAnySubActive ? 'text-teal-300' : 'text-slate-400'} />
-                        )}
-                      </button>
-                      
-                      {/* Submenu */}
-                      {isExpanded && (
-                        <div className="mt-1 ml-4 space-y-1">
-                          {item.subItems.map((subItem) => {
-                            const SubIcon = subItem.icon
-                            const subActive = isActive(subItem.href)
-                            return (
-                              <Link
-                                key={subItem.href}
-                                href={subItem.href}
-                                onClick={() => setSidebarOpen(false)}
-                                className={`
-                                  flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200
-                                  ${subActive 
-                                    ? 'bg-white/10 text-white border-l-2 border-teal-400' 
-                                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                                  }
-                                `}
-                              >
-                                <SubIcon size={16} className={subActive ? 'text-teal-400' : subItem.color} />
-                                <span className="text-sm font-medium">{subItem.label}</span>
-                                {subActive && <ChevronRight size={14} className="ml-auto text-teal-300" />}
-                              </Link>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )
-                }
-                
-                // Regular menu item
-                const active = isActive(item.href)
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`
-                      group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
-                      ${active 
-                        ? 'bg-white/10 text-white shadow-lg backdrop-blur-sm border border-white/20' 
-                        : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                      }
-                    `}
-                  >
-                    <Icon 
-                      size={20} 
-                      className={`${active ? item.color : 'text-slate-400'} transition-colors`}
-                    />
-                    <span className={`font-medium ${active ? 'font-semibold' : ''}`}>
-                      {item.label}
-                    </span>
-                    {active && (
-                      <ChevronRight size={16} className="ml-auto text-teal-300" />
-                    )}
-                  </Link>
-                )
-              })}
-            </div>
-          </nav>
-
-          {/* Logout Button */}
-          <div className="p-4 border-t border-white/10">
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600/20 hover:bg-red-600/30 text-red-200 rounded-xl transition-all duration-200 group border border-red-500/30"
-            >
-              <LogOut size={18} className="group-hover:scale-110 transition-transform" />
-              <span className="font-medium">Logout</span>
-            </button>
-          </div>
+        {/* Bottom actions */}
+        <div className="shrink-0 border-t border-white/[0.06] p-2 space-y-1">
+          {expanded ? (
+            <>
+              <a href="/home" className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-teal-300/50 hover:text-white hover:bg-white/[0.08] transition-all duration-200 text-sm">
+                <Home size={18} className="text-teal-400/40" />
+                <span className="font-medium">Back to Website</span>
+              </a>
+              <button onClick={handleLogout} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-rose-400/80 hover:text-white hover:bg-rose-500/15 transition-all duration-200 text-sm">
+                <LogOut size={18} />
+                <span className="font-medium">Logout</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <Tooltip label="Back to Website">
+                <a href="/home" className="flex items-center justify-center w-11 h-11 mx-auto rounded-xl text-teal-300/50 hover:bg-white/[0.08] hover:text-white transition-all duration-200">
+                  <Home size={20} />
+                </a>
+              </Tooltip>
+              <Tooltip label="Logout">
+                <button onClick={handleLogout} className="flex items-center justify-center w-11 h-11 mx-auto rounded-xl text-rose-400/70 hover:bg-rose-500/15 hover:text-rose-300 transition-all duration-200">
+                  <LogOut size={20} />
+                </button>
+              </Tooltip>
+            </>
+          )}
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="lg:ml-64 min-h-screen pt-20 lg:pt-0">
-        <div className="p-4 md:p-6 lg:p-8">
+      {/* ── Mobile Sidebar (full width drawer) ── */}
+      <aside className={`lg:hidden fixed top-0 left-0 h-full z-50 w-72 bg-gradient-to-b from-teal-950 via-[#0a1a1a] to-slate-950 text-white shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="shrink-0 p-4 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-emerald-600 rounded-xl flex items-center justify-center font-bold text-lg text-white shadow-lg">
+              HK
+            </div>
+            <div>
+              <h1 className="font-bold text-base bg-gradient-to-r from-teal-200 to-emerald-100 bg-clip-text text-transparent">Hotel Krishna</h1>
+              <p className="text-[10px] text-teal-400/50 uppercase tracking-wider">Worker Panel</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 p-2.5 bg-white/[0.04] rounded-xl border border-white/[0.06]">
+            <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
+              {user?.name?.[0]?.toUpperCase() || 'W'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white truncate">{user?.name || 'Worker'}</p>
+              <p className="text-[10px] text-teal-300/50 flex items-center gap-1"><UserCog size={9} /> {user?.role === 'admin' ? 'Admin' : 'Worker'}</p>
+            </div>
+          </div>
+        </div>
+        <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5">
+          {navigation.map((item, idx) => {
+            if (item.type === 'section') {
+              return (
+                <div key={`section-${idx}`} className="px-4 pt-4 pb-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-teal-400/50">{item.label}</p>
+                </div>
+              )
+            }
+            if (item.type === 'group') {
+              const isExp = expandedMenus[item.key]
+              const isAnyAct = isGroupActive(item.paths)
+              return (
+                <div key={item.key}>
+                  <button onClick={() => toggleMenu(item.key)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
+                      ${isAnyAct ? 'bg-gradient-to-r from-teal-500/90 to-emerald-600/90 text-white shadow-lg shadow-teal-500/25' : 'hover:bg-white/[0.08] text-teal-200/70 hover:text-white'}`}
+                  >
+                    <item.icon size={19} className={isAnyAct ? 'text-white' : 'text-teal-400/70'} />
+                    <span className="flex-1 font-medium text-sm text-left">{item.label}</span>
+                    <ChevronDown size={15} className={`transition-transform duration-200 ${isExp ? 'rotate-0' : '-rotate-90'} ${isAnyAct ? 'text-white/60' : 'text-teal-400/40'}`} />
+                  </button>
+                  {isExp && (
+                    <div className="mt-1 ml-4 pl-3 border-l-2 border-teal-500/20 space-y-0.5">
+                      {item.items.map(sub => {
+                        const act = isActive(sub.href)
+                        return (
+                          <a key={sub.href} href={sub.href} onClick={() => setSidebarOpen(false)}
+                            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-200
+                              ${act ? 'bg-white/[0.12] text-white font-semibold' : 'text-teal-300/50 hover:text-white hover:bg-white/[0.06]'}`}>
+                            <sub.icon size={15} className={act ? 'text-teal-300' : 'text-teal-400/30'} />
+                            <span>{sub.label}</span>
+                          </a>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+            const act = isActive(item.href)
+            return (
+              <a key={item.href} href={item.href} onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
+                  ${act ? 'bg-gradient-to-r from-teal-500/90 to-emerald-600/90 text-white shadow-lg shadow-teal-500/25' : 'hover:bg-white/[0.08] text-teal-200/70 hover:text-white'}`}>
+                <item.icon size={19} className={act ? 'text-white' : 'text-teal-400/50'} />
+                <span className="flex-1 font-medium text-sm">{item.label}</span>
+                {act && <ChevronRight size={15} className="text-white/50" />}
+              </a>
+            )
+          })}
+        </nav>
+        <div className="shrink-0 border-t border-white/[0.06] p-3 space-y-1">
+          <a href="/home" className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-teal-300/50 hover:text-white hover:bg-white/[0.08] transition-all text-sm">
+            <Home size={18} className="text-teal-400/40" /> <span className="font-medium">Back to Website</span>
+          </a>
+          <button onClick={handleLogout} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-rose-400/80 hover:text-white hover:bg-rose-500/15 transition-all text-sm">
+            <LogOut size={18} /> <span className="font-medium">Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Main Content ── */}
+      <div className="pt-16 lg:pt-0 transition-all duration-300 lg:ml-[72px]">
+        <div className="p-4 sm:p-6 lg:p-8">
           {children}
         </div>
-      </main>
+      </div>
     </div>
   )
 }
