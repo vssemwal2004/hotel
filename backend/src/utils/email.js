@@ -79,9 +79,9 @@ export async function sendBookingConfirmationToUser(booking, user) {
   ` : `
           <h3>💳 Payment Details</h3>
           <div style="background: #fff3e0; border: 2px solid #ff9800; padding: 20px; border-radius: 10px; text-align: center;">
-            <p style="margin: 0 0 5px 0; font-size: 18px; font-weight: bold; color: #e65100;">⚠️ Payment Pending</p>
-            <p style="margin: 0; color: #bf360c; font-size: 14px;">Your booking is confirmed but payment is still pending.</p>
-            <p style="margin: 10px 0 0 0; color: #e65100; font-weight: bold; font-size: 15px;">Please complete your payment at the earliest to secure your reservation.</p>
+            <p style="margin: 0 0 5px 0; font-size: 18px; font-weight: bold; color: #e65100;">⚠️ Payment Required</p>
+            <p style="margin: 0; color: #bf360c; font-size: 14px;">Your room is <strong>NOT reserved</strong> yet. Room will only be reserved after payment is received.</p>
+            <p style="margin: 10px 0 0 0; color: #e65100; font-weight: bold; font-size: 15px;">Please confirm your payment to reserve your room.</p>
           </div>
           <table style="width: 100%; margin-top: 10px;">
             <tr>
@@ -112,15 +112,16 @@ export async function sendBookingConfirmationToUser(booking, user) {
       <div class="container">
         <div class="header">
           <h1>🏨 Hotel Krishna</h1>
-          <p>${isPaid ? 'Booking Confirmation' : 'Booking Received'}</p>
+          <p>${isPaid ? 'Booking Confirmation' : 'Action Required: Confirm Payment to Reserve Room'}</p>
         </div>
         <div class="content">
           <p>Dear <strong>${user.name}</strong>,</p>
-          <p>Thank you for choosing Hotel Krishna! Your booking has been 
+          <p>Thank you for choosing Hotel Krishna! Your booking request has been 
             <span class="status-badge" style="background: ${isPaid ? '#4caf50' : '#ff9800'}; color: white;">
-              ${isPaid ? 'CONFIRMED & PAID' : 'CONFIRMED — PAYMENT PENDING'}
+              ${isPaid ? 'CONFIRMED & PAID ✓' : 'RECEIVED — AWAITING PAYMENT'}
             </span>
           </p>
+          ${!isPaid ? `<p style="color: #e65100; font-weight: bold;">⚠️ Your room is <u>NOT reserved</u> yet. Please confirm your payment to reserve your room.</p>` : ''}
           
           <div class="booking-id">
             <p style="margin: 0; color: #666;">Booking Reference</p>
@@ -197,7 +198,7 @@ export async function sendBookingConfirmationToUser(booking, user) {
   const mailOptions = {
     from: `"Hotel Krishna" <${process.env.SMTP_USER || process.env.ADMIN_EMAIL}>`,
     to: user.email,
-    subject: `${isPaid ? '✅' : '🕐'} Booking ${isPaid ? 'Confirmed' : 'Received — Payment Pending'} - ${booking._id}`,
+    subject: `${isPaid ? '✅' : '⚠️'} ${isPaid ? 'Booking Confirmed' : 'Action Required: Confirm Payment to Reserve Your Room'} - ${booking._id}`,
     html
   }
 
@@ -264,8 +265,8 @@ export async function sendBookingNotificationToAdmin(booking, user) {
     <body>
       <div class="container">
         <div class="header">
-          <h2>${isPaid ? '🔔 New Booking Alert' : '🕐 New Booking — Payment Pending'}</h2>
-          <p>A new room booking has been ${isPaid ? 'confirmed & paid' : 'received (payment pending)'}</p>
+          <h2>${isPaid ? '🔔 New Booking Alert' : '🕐 New Booking Request — Payment Pending'}</h2>
+          <p>A new room booking has been ${isPaid ? 'confirmed & paid' : 'received — <strong>room is NOT reserved until payment is confirmed</strong>'}</p>
         </div>
         <div class="content">
           <div class="highlight">
@@ -365,6 +366,7 @@ export async function sendBookingNotificationToAdmin(booking, user) {
               ${booking.payment?.paymentId ? `<tr><td><strong>Payment ID:</strong></td><td>${booking.payment.paymentId}</td></tr>` : ''}
               ` : `
               <tr><td><strong>Amount Due:</strong></td><td style="color: #e65100; font-weight: bold;">${formatCurrency(booking.total)}</td></tr>
+              <tr><td colspan="2" style="padding-top: 8px;"><span style="background: #ffebee; color: #c62828; padding: 6px 12px; border-radius: 4px; font-weight: bold;">⛔ Room NOT reserved — awaiting customer payment</span></td></tr>
               `}
             </table>
           </div>
@@ -377,7 +379,7 @@ export async function sendBookingNotificationToAdmin(booking, user) {
   const mailOptions = {
     from: `"Hotel Krishna System" <${process.env.SMTP_USER || process.env.ADMIN_EMAIL}>`,
     to: adminEmail,
-    subject: `${isPaid ? '🔔' : '🕐'} ${isPaid ? 'New Booking' : 'New Booking (Unpaid)'}: ${user.name} - ${formatCurrency(booking.total)}`,
+    subject: `${isPaid ? '🔔' : '⚠️'} ${isPaid ? 'New Booking' : 'New Booking Request (Room NOT Reserved — Awaiting Payment)'}: ${user.name} - ${formatCurrency(booking.total)}`,
     html
   }
 

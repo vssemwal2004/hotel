@@ -79,7 +79,7 @@ export default function BookingIndex(){
     const total = adults + children
     const next = []
     for (let i=0;i<total;i++){
-      next.push({ name: guests[i]?.name || '', age: guests[i]?.age || '', type: i < adults ? 'adult' : 'child' })
+      next.push({ name: guests[i]?.name || '', phone: guests[i]?.phone || '', age: guests[i]?.age || '', type: i < adults ? 'adult' : 'child' })
     }
     setGuests(next)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -109,12 +109,13 @@ export default function BookingIndex(){
     setExtraBeds(0)
     setExtraPersons(0)
     
-    // Build guest array automatically
+    // Build guest array with empty fields (user must fill)
     const totalGuests = adultsCount + childrenCount
     const guestList = []
     for (let i = 0; i < totalGuests; i++) {
       guestList.push({
-        name: `Guest ${i + 1}`,
+        name: '',
+        phone: '',
         age: i < adultsCount ? 25 : 10,
         type: i < adultsCount ? 'adult' : 'child'
       })
@@ -127,6 +128,11 @@ export default function BookingIndex(){
     if (quantity < 1) { toast.show({ type: 'warning', message: 'Select at least 1 room' }); return }
     if (selecting.count === 0) { toast.show({ type: 'warning', message: 'Rooms full' }); return }
     if (quantity > selecting.count) { toast.show({ type: 'warning', message: `Only ${selecting.count} rooms available` }); return }
+    // Validate guest info: at least 1 adult with name and phone
+    const adultGuests = guests.filter(g => g.type === 'adult')
+    if (adultGuests.length === 0) { toast.show({ type: 'warning', message: 'At least one adult guest is required' }); return }
+    if (!adultGuests[0].name || adultGuests[0].name.trim() === '') { toast.show({ type: 'warning', message: 'Please enter the primary guest\'s name' }); return }
+    if (!adultGuests[0].phone || adultGuests[0].phone.trim() === '') { toast.show({ type: 'warning', message: 'Please enter the primary guest\'s mobile number' }); return }
     // Capacity validation
     const maxA = (selecting.maxAdults || 0) * quantity
     const maxC = (selecting.maxChildren || 0) * quantity
@@ -145,7 +151,7 @@ export default function BookingIndex(){
       packageType,
       extraBeds,
       extraPersons,
-      guests: guests.map(g => ({ name: g.name || 'Guest', age: Number(g.age||0), type: g.type }))
+      guests: guests.map(g => ({ name: g.name || 'Guest', phone: g.phone || '', age: Number(g.age||0), type: g.type }))
     }
     setCart(prev => [...prev, item])
     setSelecting(null)
@@ -179,6 +185,16 @@ export default function BookingIndex(){
   const createAndPay = async () => {
     if (!checkIn || (!fullDay && !checkOut)) { toast.show({ type: 'warning', message: 'Missing dates' }); return }
     if (cart.length === 0) { toast.show({ type: 'warning', message: 'Add at least one room' }); return }
+    // Validate all cart items have primary guest name and phone
+    for (const c of cart) {
+      const adultGuests = (c.guests || []).filter(g => g.type === 'adult')
+      if (adultGuests.length === 0 || !adultGuests[0].name || adultGuests[0].name.trim() === '') {
+        toast.show({ type: 'warning', message: `Please provide guest name for ${c.title}` }); return
+      }
+      if (!adultGuests[0].phone || adultGuests[0].phone.trim() === '') {
+        toast.show({ type: 'warning', message: `Please provide mobile number for ${c.title}` }); return
+      }
+    }
     // Global capacity validation across cart items
     for (const c of cart) {
       const t = types.find(x => x.key === c.key)
@@ -970,20 +986,34 @@ export default function BookingIndex(){
 
                   {/* Guest Details */}
                   <div className="mb-6">
-                    <h4 className="font-semibold text-gray-900 mb-3">Guest Information</h4>
-                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                    <h4 className="font-semibold text-gray-900 mb-1">Guest Information</h4>
+                    <p className="text-xs text-red-600 mb-3">* Name and mobile number are required for the primary guest</p>
+                    <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
                       {guests.map((g, idx) => (
-                        <div key={idx} className="bg-gray-50 rounded-lg p-3 grid grid-cols-3 gap-3">
-                          <div className="col-span-2">
-                            <label className="block text-xs text-gray-600 mb-1">Guest {idx + 1} Name ({g.type})</label>
-                            <input
-                              value={g.name}
-                              onChange={e => setGuests(prev => prev.map((x, i) => i === idx ? {...x, name: e.target.value} : x))}
-                              className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                              placeholder="Enter name"
-                            />
+                        <div key={idx} className="bg-gray-50 rounded-lg p-3 space-y-2">
+                          <div className="text-xs font-semibold text-gray-700 mb-1">Guest {idx + 1} ({g.type}){idx === 0 && g.type === 'adult' ? ' *' : ''}</div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Name {idx === 0 && g.type === 'adult' ? <span className="text-red-500">*</span> : ''}</label>
+                              <input
+                                value={g.name}
+                                onChange={e => setGuests(prev => prev.map((x, i) => i === idx ? {...x, name: e.target.value} : x))}
+                                className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                                placeholder="Full name"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Mobile {idx === 0 && g.type === 'adult' ? <span className="text-red-500">*</span> : ''}</label>
+                              <input
+                                type="tel"
+                                value={g.phone || ''}
+                                onChange={e => setGuests(prev => prev.map((x, i) => i === idx ? {...x, phone: e.target.value} : x))}
+                                className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                                placeholder="Mobile number"
+                              />
+                            </div>
                           </div>
-                          <div>
+                          <div className="w-24">
                             <label className="block text-xs text-gray-600 mb-1">Age</label>
                             <input
                               type="number"

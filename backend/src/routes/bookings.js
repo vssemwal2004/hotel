@@ -12,7 +12,7 @@ import { logActivity } from '../utils/activityLogger.js'
 const router = Router()
 
 const guestSchema = z.object({ 
-  name: z.string().min(1), 
+  name: z.string().min(1, 'Guest name is required'), 
   email: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
   age: z.number().int().min(0), 
@@ -24,7 +24,7 @@ const itemSchema = z.object({
   packageType: z.enum(['roomOnly', 'roomBreakfast', 'roomBreakfastDinner']).default('roomOnly'),
   extraBeds: z.number().int().min(0).optional().default(0),
   extraPersons: z.number().int().min(0).optional().default(0),
-  guests: z.array(guestSchema).optional().default([]),
+  guests: z.array(guestSchema).min(1, 'At least one guest is required'),
   allottedRoomNumbers: z.array(z.string()).optional().default([])
 })
 
@@ -85,6 +85,21 @@ router.post('/', authRequired, async (req, res, next) => {
       checkOut = new Date(data.checkOut)
       if (!(checkOut > checkIn)) return res.status(400).json({ message: 'checkOut must be after checkIn' })
   nights = nightsBetween(checkIn, checkOut)
+    }
+
+    // Validate that each item has at least 1 adult guest with name and phone
+    for (const it of data.items) {
+      const adults = (it.guests || []).filter(g => g.type === 'adult')
+      if (adults.length === 0) {
+        return res.status(400).json({ message: 'At least one adult guest is required per room. Please provide guest details (name and mobile number).' })
+      }
+      const firstAdult = adults[0]
+      if (!firstAdult.name || firstAdult.name.trim() === '') {
+        return res.status(400).json({ message: 'Guest name is required. Please provide your name to proceed with booking.' })
+      }
+      if (!firstAdult.phone || firstAdult.phone.trim() === '') {
+        return res.status(400).json({ message: 'Mobile number is required. Please provide a contact number to proceed with booking.' })
+      }
     }
 
     // Validate availability and capacity
