@@ -40,11 +40,56 @@ export default function EditBookingPage() {
   const [selectedRooms, setSelectedRooms] = useState({}) // { roomTypeKey: [selectedRoomNumbers] }
   const [fetchingRooms, setFetchingRooms] = useState(false)
 
+  const getPricingNights = () => {
+    if (newCheckIn && newCheckOut) {
+      const inD = new Date(newCheckIn)
+      const outD = new Date(newCheckOut)
+      if (!Number.isNaN(inD.getTime()) && !Number.isNaN(outD.getTime()) && outD > inD) {
+        const ms = 24 * 60 * 60 * 1000
+        return Math.max(1, Math.ceil((outD - inD) / ms))
+      }
+    }
+    return Math.max(1, Number(booking?.nights || 1))
+  }
+
+  const calcSubtotalFromItems = (items, nights) => {
+    const n = Math.max(1, Number(nights || 1))
+    return (items || []).reduce((sum, it) => {
+      const qty = Math.max(0, Number(it?.quantity || 0))
+      const price = Math.max(0, Number(it?.basePrice || 0))
+      return sum + (qty * price * n)
+    }, 0)
+  }
+
+  const calcPricing = (subtotal, gstPercentage) => {
+    const s = Math.max(0, Number(subtotal || 0))
+    const p = Math.max(0, Number(gstPercentage || 0))
+    const gstAmount = Math.round((s * p) / 100)
+    return { subtotal: s, gstPercentage: p, gstAmount, total: s + gstAmount }
+  }
+
   useEffect(() => {
     if (id) {
       fetchBooking()
     }
   }, [id])
+
+  useEffect(() => {
+    if (!booking) return
+    const nights = getPricingNights()
+    const subtotal = calcSubtotalFromItems(editableItems, nights)
+    setPricing(prev => {
+      const next = calcPricing(subtotal, prev.gstPercentage)
+      if (
+        Number(prev.subtotal || 0) === Number(next.subtotal || 0) &&
+        Number(prev.gstAmount || 0) === Number(next.gstAmount || 0) &&
+        Number(prev.total || 0) === Number(next.total || 0)
+      ) {
+        return prev
+      }
+      return { ...prev, ...next }
+    })
+  }, [booking, editableItems, newCheckIn, newCheckOut])
 
   const fetchBooking = async () => {
     setLoading(true)
@@ -329,17 +374,9 @@ export default function EditBookingPage() {
       }
 
       // Manual pricing changes
-      if (
-        Number(pricing.subtotal || 0) !== Number(booking.subtotal || 0) ||
-        Number(pricing.gstPercentage || 0) !== Number(booking.gstPercentage || 0) ||
-        Number(pricing.gstAmount || 0) !== Number(booking.gstAmount || 0) ||
-        Number(pricing.total || 0) !== Number(booking.total || 0)
-      ) {
+      if (Number(pricing.gstPercentage || 0) !== Number(booking.gstPercentage || 0)) {
         updates.pricing = {
-          subtotal: Math.max(0, Number(pricing.subtotal || 0)),
-          gstPercentage: Math.max(0, Number(pricing.gstPercentage || 0)),
-          gstAmount: Math.max(0, Number(pricing.gstAmount || 0)),
-          total: Math.max(0, Number(pricing.total || 0))
+          gstPercentage: Math.max(0, Number(pricing.gstPercentage || 0))
         }
       }
       
@@ -608,19 +645,31 @@ export default function EditBookingPage() {
         <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-4 gap-3">
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Subtotal</label>
-            <input type="number" min="0" step="0.01" value={pricing.subtotal} onChange={(e) => setPricing(prev => ({ ...prev, subtotal: Number(e.target.value || 0) }))} className="w-full border border-gray-300 rounded-lg p-2" />
+            <input type="number" min="0" step="1" value={pricing.subtotal} readOnly className="w-full border border-gray-300 rounded-lg p-2 bg-gray-100" />
           </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">GST %</label>
-            <input type="number" min="0" step="0.01" value={pricing.gstPercentage} onChange={(e) => setPricing(prev => ({ ...prev, gstPercentage: Number(e.target.value || 0) }))} className="w-full border border-gray-300 rounded-lg p-2" />
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={pricing.gstPercentage}
+              onChange={(e) => {
+                const nextPct = Number(e.target.value || 0)
+                const nights = getPricingNights()
+                const subtotal = calcSubtotalFromItems(editableItems, nights)
+                setPricing(prev => ({ ...prev, ...calcPricing(subtotal, nextPct) }))
+              }}
+              className="w-full border border-gray-300 rounded-lg p-2"
+            />
           </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">GST Amount</label>
-            <input type="number" min="0" step="0.01" value={pricing.gstAmount} onChange={(e) => setPricing(prev => ({ ...prev, gstAmount: Number(e.target.value || 0) }))} className="w-full border border-gray-300 rounded-lg p-2" />
+            <input type="number" min="0" step="1" value={pricing.gstAmount} readOnly className="w-full border border-gray-300 rounded-lg p-2 bg-gray-100" />
           </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Total</label>
-            <input type="number" min="0" step="0.01" value={pricing.total} onChange={(e) => setPricing(prev => ({ ...prev, total: Number(e.target.value || 0) }))} className="w-full border border-gray-300 rounded-lg p-2" />
+            <input type="number" min="0" step="1" value={pricing.total} readOnly className="w-full border border-gray-300 rounded-lg p-2 bg-gray-100" />
           </div>
         </div>
       </div>

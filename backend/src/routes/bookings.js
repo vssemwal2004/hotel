@@ -335,10 +335,15 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
 
     const changedFields = []
     let recalculate = false
-    const bookingUser = await User.findById(booking.user)
+    let bookingUser = await User.findById(booking.user)
 
     // Allow editing guest/user details tied to the booking owner
     if (userInfo && bookingUser) {
+      const prevName = bookingUser.name
+      const prevEmail = bookingUser.email
+      const prevPhone = bookingUser.phone || ''
+      let reassignedUser = false
+
       const nextName = userInfo.name !== undefined ? String(userInfo.name || '').trim() : bookingUser.name
       const nextEmail = userInfo.email !== undefined ? String(userInfo.email || '').trim().toLowerCase() : bookingUser.email
       const nextPhone = userInfo.phone !== undefined ? String(userInfo.phone || '').trim() : (bookingUser.phone || '')
@@ -351,12 +356,18 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
       }
       if (userInfo.email !== undefined && nextEmail !== bookingUser.email) {
         const existing = await User.findOne({ email: nextEmail, _id: { $ne: bookingUser._id } })
-        if (existing) return res.status(409).json({ message: 'Email already in use by another user' })
+        if (existing) {
+          // If the email belongs to an existing user, reuse that user for this booking
+          booking.user = existing._id
+          bookingUser = existing
+          reassignedUser = true
+        }
       }
 
-      if (nextName !== bookingUser.name) changedFields.push('guest_name')
-      if (nextEmail !== bookingUser.email) changedFields.push('guest_email')
-      if (nextPhone !== (bookingUser.phone || '')) changedFields.push('guest_phone')
+      if (nextName !== prevName) changedFields.push('guest_name')
+      if (nextEmail !== prevEmail) changedFields.push('guest_email')
+      if (nextPhone !== prevPhone) changedFields.push('guest_phone')
+      if (reassignedUser) changedFields.push('booking_user')
 
       bookingUser.name = nextName
       bookingUser.email = nextEmail
@@ -607,14 +618,27 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
     // Manual pricing override (admin/worker can directly edit price fields)
     if (pricing && typeof pricing === 'object') {
       const nextSubtotal = Number(pricing.subtotal)
-      const nextGstPercentage = Number(pricing.gstPercentage)
-      const nextGstAmount = Number(pricing.gstAmount)
-      const nextTotal = Number(pricing.total)
+      const hasSubtotal = Number.isFinite(nextSubtotal) && nextSubtotal >= 0
 
-      if (Number.isFinite(nextSubtotal) && nextSubtotal >= 0) booking.subtotal = nextSubtotal
-      if (Number.isFinite(nextGstPercentage) && nextGstPercentage >= 0) booking.gstPercentage = nextGstPercentage
-      if (Number.isFinite(nextGstAmount) && nextGstAmount >= 0) booking.gstAmount = nextGstAmount
-      if (Number.isFinite(nextTotal) && nextTotal >= 0) booking.total = nextTotal
+      const nextGstPercentage = Number(pricing.gstPercentage)
+      const hasGstPercentage = Number.isFinite(nextGstPercentage) && nextGstPercentage >= 0
+
+      // If GST% is provided, compute GST Amount + Total automatically.
+      // This avoids requiring admins to manually adjust totals when changing GST%.
+      if (hasSubtotal) booking.subtotal = nextSubtotal
+
+      if (hasGstPercentage) {
+        const effectiveSubtotal = Number(booking.subtotal || 0)
+        booking.gstPercentage = nextGstPercentage
+        booking.gstAmount = Math.round((effectiveSubtotal * nextGstPercentage) / 100)
+        booking.total = effectiveSubtotal + booking.gstAmount
+      } else {
+        // Legacy manual override behavior (kept for compatibility)
+        const nextGstAmount = Number(pricing.gstAmount)
+        const nextTotal = Number(pricing.total)
+        if (Number.isFinite(nextGstAmount) && nextGstAmount >= 0) booking.gstAmount = nextGstAmount
+        if (Number.isFinite(nextTotal) && nextTotal >= 0) booking.total = nextTotal
+      }
       changedFields.push('pricing')
     }
 

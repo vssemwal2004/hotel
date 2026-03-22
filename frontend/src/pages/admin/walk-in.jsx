@@ -82,8 +82,8 @@ export default function AdminWalkIn(){
   }, [fullDay, checkIn, nights])
 
   // Fetch available room numbers for a specific entry
-  const fetchAvailableForEntry = async (entryId) => {
-    const entry = roomEntries.find(e => e.id === entryId)
+  const fetchAvailableForEntry = async (entryId, entryOverride = null) => {
+    const entry = entryOverride || roomEntries.find(e => e.id === entryId)
     if (!entry?.roomTypeKey || !checkIn || !checkOut) {
       updateRoomEntry(entryId, { availableRoomNumbers: [], selectedRoomNumbers: [] })
       return
@@ -132,8 +132,10 @@ export default function AdminWalkIn(){
 
   const handleEntryRoomTypeChange = (id, key) => {
     updateRoomEntry(id, { roomTypeKey: key, selectedRoomNumbers: [], availableRoomNumbers: [] })
-    // Fetch available rooms after state update
-    setTimeout(() => fetchAvailableForEntry(id), 50)
+    // Fetch available rooms using the newly selected key (avoid stale state)
+    const existing = roomEntries.find(e => e.id === id)
+    const qty = Number(existing?.quantity || 1)
+    fetchAvailableForEntry(id, { id, roomTypeKey: key, quantity: qty, selectedRoomNumbers: [] })
   }
 
   const handleEntryQuantityChange = (id, qty) => {
