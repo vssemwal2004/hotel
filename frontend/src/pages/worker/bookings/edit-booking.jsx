@@ -28,6 +28,10 @@ export default function EditBookingPage() {
   
   // Form state
   const [newCheckOut, setNewCheckOut] = useState('')
+  const [newCheckIn, setNewCheckIn] = useState('')
+  const [guestInfo, setGuestInfo] = useState({ name: '', email: '', phone: '' })
+  const [editableItems, setEditableItems] = useState([])
+  const [pricing, setPricing] = useState({ subtotal: 0, gstPercentage: 0, gstAmount: 0, total: 0 })
   const [additionalGuests, setAdditionalGuests] = useState({}) // { roomTypeKey: [guests] }
   const [newGuestName, setNewGuestName] = useState({}) // { roomTypeKey: string }
   const [newGuestAge, setNewGuestAge] = useState({}) // { roomTypeKey: number }
@@ -50,7 +54,33 @@ export default function EditBookingPage() {
       
       if (bookingData) {
         setBooking(bookingData)
+        setNewCheckIn(bookingData.checkIn ? new Date(bookingData.checkIn).toISOString().split('T')[0] : '')
         setNewCheckOut(bookingData.checkOut ? new Date(bookingData.checkOut).toISOString().split('T')[0] : '')
+        setGuestInfo({
+          name: bookingData.user?.name || '',
+          email: bookingData.user?.email || '',
+          phone: bookingData.user?.phone || ''
+        })
+        setEditableItems((bookingData.items || []).map(it => ({
+          roomTypeKey: it.roomTypeKey,
+          title: it.title,
+          quantity: Number(it.quantity || 1),
+          basePrice: Number(it.basePrice || 0),
+          guests: (it.guests || []).map(g => ({
+            name: g.name || '',
+            email: g.email || '',
+            phone: g.phone || '',
+            age: Number(g.age || 0),
+            type: g.type === 'child' ? 'child' : 'adult'
+          })),
+          allottedRoomNumbers: it.allottedRoomNumbers || []
+        })))
+        setPricing({
+          subtotal: Number(bookingData.subtotal || 0),
+          gstPercentage: Number(bookingData.gstPercentage || 0),
+          gstAmount: Number(bookingData.gstAmount || 0),
+          total: Number(bookingData.total || 0)
+        })
         
         // Initialize additional guests state
         const initialGuests = {}
@@ -156,14 +186,109 @@ export default function EditBookingPage() {
     })
   }
 
+  const updateItemField = (index, field, value) => {
+    setEditableItems(prev => prev.map((it, i) => (
+      i === index
+        ? {
+            ...it,
+            [field]: field === 'quantity' || field === 'basePrice'
+              ? Math.max(0, Number(value || 0))
+              : value
+          }
+        : it
+    )))
+  }
+
+  const updateGuestField = (itemIndex, guestIndex, field, value) => {
+    setEditableItems(prev => prev.map((it, i) => {
+      if (i !== itemIndex) return it
+      const nextGuests = (it.guests || []).map((g, gi) => (
+        gi === guestIndex
+          ? {
+              ...g,
+              [field]: field === 'age' ? Math.max(0, Number(value || 0)) : value
+            }
+          : g
+      ))
+      return { ...it, guests: nextGuests }
+    }))
+  }
+
+  const addGuestRow = (itemIndex) => {
+    setEditableItems(prev => prev.map((it, i) => (
+      i === itemIndex
+        ? { ...it, guests: [...(it.guests || []), { name: '', email: '', phone: '', age: 18, type: 'adult' }] }
+        : it
+    )))
+  }
+
+  const removeGuestRow = (itemIndex, guestIndex) => {
+    setEditableItems(prev => prev.map((it, i) => (
+      i === itemIndex
+        ? { ...it, guests: (it.guests || []).filter((_, gi) => gi !== guestIndex) }
+        : it
+    )))
+  }
+
   const saveChanges = async () => {
     setSaving(true)
     try {
       const updates = {}
+      const currentCheckIn = booking.checkIn ? new Date(booking.checkIn).toISOString().split('T')[0] : ''
+      const currentCheckOut = booking.checkOut ? new Date(booking.checkOut).toISOString().split('T')[0] : ''
       
-      // Check if checkout date changed
-      if (newCheckOut && newCheckOut !== new Date(booking.checkOut).toISOString().split('T')[0]) {
+      // Guest user info changes
+      if (
+        guestInfo.name !== (booking.user?.name || '') ||
+        guestInfo.email !== (booking.user?.email || '') ||
+        guestInfo.phone !== (booking.user?.phone || '')
+      ) {
+        updates.userInfo = {
+          name: guestInfo.name,
+          email: guestInfo.email,
+          phone: guestInfo.phone
+        }
+      }
+
+      // Date changes
+      if (newCheckIn && newCheckIn !== currentCheckIn) {
+        updates.checkIn = newCheckIn
+      }
+      if (newCheckOut && newCheckOut !== currentCheckOut) {
         updates.checkOut = newCheckOut
+      }
+
+      // Full item edits (quantity / base price / guests)
+      const originalItems = (booking.items || []).map(it => ({
+        roomTypeKey: it.roomTypeKey,
+        quantity: Number(it.quantity || 1),
+        basePrice: Number(it.basePrice || 0),
+        guests: (it.guests || []).map(g => ({
+          name: g.name || '',
+          email: g.email || '',
+          phone: g.phone || '',
+          age: Number(g.age || 0),
+          type: g.type === 'child' ? 'child' : 'adult'
+        }))
+      }))
+
+      const normalizedEditedItems = (editableItems || []).map(it => ({
+        roomTypeKey: it.roomTypeKey,
+        quantity: Math.max(1, Number(it.quantity || 1)),
+        basePrice: Math.max(0, Number(it.basePrice || 0)),
+        guests: (it.guests || []).map(g => ({
+          name: g.name || 'Guest',
+          email: g.email || undefined,
+          phone: g.phone || undefined,
+          age: Math.max(0, Number(g.age || 0)),
+          type: g.type === 'child' ? 'child' : 'adult'
+        })),
+        allottedRoomNumbers: selectedRooms[it.roomTypeKey] || []
+      }))
+
+      if (JSON.stringify(normalizedEditedItems.map(({ allottedRoomNumbers, ...rest }) => rest)) !== JSON.stringify(originalItems)) {
+        updates.replaceItems = true
+        updates.items = normalizedEditedItems
       }
       
       // Check if there are additional guests
@@ -183,12 +308,12 @@ export default function EditBookingPage() {
       
       // Check if room allotments changed
       const allotments = []
-      for (const item of booking.items) {
+      for (const item of (editableItems.length > 0 ? editableItems : booking.items)) {
         const selected = selectedRooms[item.roomTypeKey] || []
-        const current = item.allottedRoomNumbers || []
+        const current = booking.items.find(x => x.roomTypeKey === item.roomTypeKey)?.allottedRoomNumbers || []
         
         if (JSON.stringify(selected.sort()) !== JSON.stringify(current.sort())) {
-          if (selected.length > 0 && selected.length !== item.quantity) {
+          if (selected.length > 0 && selected.length !== Number(item.quantity || 1)) {
             toast.show({ type: 'warning', message: `Please select exactly ${item.quantity} room(s) for ${item.title}` })
             return
           }
@@ -201,6 +326,21 @@ export default function EditBookingPage() {
       
       if (allotments.length > 0) {
         updates.allotments = allotments
+      }
+
+      // Manual pricing changes
+      if (
+        Number(pricing.subtotal || 0) !== Number(booking.subtotal || 0) ||
+        Number(pricing.gstPercentage || 0) !== Number(booking.gstPercentage || 0) ||
+        Number(pricing.gstAmount || 0) !== Number(booking.gstAmount || 0) ||
+        Number(pricing.total || 0) !== Number(booking.total || 0)
+      ) {
+        updates.pricing = {
+          subtotal: Math.max(0, Number(pricing.subtotal || 0)),
+          gstPercentage: Math.max(0, Number(pricing.gstPercentage || 0)),
+          gstAmount: Math.max(0, Number(pricing.gstAmount || 0)),
+          total: Math.max(0, Number(pricing.total || 0))
+        }
       }
       
       if (Object.keys(updates).length === 0) {
@@ -313,17 +453,174 @@ export default function EditBookingPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <p className="text-sm text-gray-600 mb-1">Guest Name</p>
-            <p className="text-lg font-bold text-gray-900">{booking.user?.name || 'N/A'}</p>
+            <input
+              type="text"
+              value={guestInfo.name}
+              onChange={(e) => setGuestInfo(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full border-2 border-blue-300 rounded-lg p-2.5"
+            />
           </div>
+          <div>
+            <p className="text-sm text-gray-600 mb-1">Guest Email</p>
+            <input
+              type="email"
+              value={guestInfo.email}
+              onChange={(e) => setGuestInfo(prev => ({ ...prev, email: e.target.value }))}
+              className="w-full border-2 border-blue-300 rounded-lg p-2.5"
+            />
+          </div>
+          <div>
+            <p className="text-sm text-gray-600 mb-1">Guest Phone</p>
+            <input
+              type="text"
+              value={guestInfo.phone}
+              onChange={(e) => setGuestInfo(prev => ({ ...prev, phone: e.target.value }))}
+              className="w-full border-2 border-blue-300 rounded-lg p-2.5"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           <div>
             <p className="text-sm text-gray-600 mb-1">Check-In Date</p>
-            <p className="text-lg font-bold text-gray-900">
-              {new Date(booking.checkIn).toLocaleDateString('en-IN')}
-            </p>
+            <input
+              type="date"
+              value={newCheckIn}
+              onChange={(e) => setNewCheckIn(e.target.value)}
+              className="w-full border-2 border-blue-300 rounded-lg p-2.5"
+            />
           </div>
           <div>
-            <p className="text-sm text-gray-600 mb-1">Current Nights</p>
-            <p className="text-lg font-bold text-gray-900">{booking.nights || 1} Nights</p>
+            <p className="text-sm text-gray-600 mb-1">Check-Out Date</p>
+            <input
+              type="date"
+              value={newCheckOut}
+              onChange={(e) => setNewCheckOut(e.target.value)}
+              min={newCheckIn || undefined}
+              className="w-full border-2 border-blue-300 rounded-lg p-2.5"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Editable Room Items & Guests */}
+      <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden mb-6">
+        <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white p-4">
+          <h3 className="text-xl font-bold flex items-center gap-2">
+            <Bed size={24} />
+            Edit Rooms, Quantity, Price, Guests
+          </h3>
+        </div>
+        <div className="p-4 md:p-6 space-y-5">
+          {editableItems.map((item, itemIndex) => (
+            <div key={`${item.roomTypeKey}-${itemIndex}`} className="border border-gray-200 rounded-xl p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Room Type</p>
+                  <p className="font-semibold text-gray-900">{item.title}</p>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Quantity</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={item.quantity}
+                    onChange={(e) => updateItemField(itemIndex, 'quantity', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg p-2"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Price Per Night</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={item.basePrice}
+                    onChange={(e) => updateItemField(itemIndex, 'basePrice', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg p-2"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-800">Guests</p>
+                  <button
+                    type="button"
+                    onClick={() => addGuestRow(itemIndex)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs bg-indigo-100 text-indigo-700 rounded"
+                  >
+                    <Plus size={14} /> Add Guest
+                  </button>
+                </div>
+
+                {(item.guests || []).map((guest, guestIndex) => (
+                  <div key={guestIndex} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center bg-gray-50 p-2 rounded-lg">
+                    <input
+                      type="text"
+                      placeholder="Name"
+                      value={guest.name}
+                      onChange={(e) => updateGuestField(itemIndex, guestIndex, 'name', e.target.value)}
+                      className="border border-gray-300 rounded p-2 text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Phone"
+                      value={guest.phone || ''}
+                      onChange={(e) => updateGuestField(itemIndex, guestIndex, 'phone', e.target.value)}
+                      className="border border-gray-300 rounded p-2 text-sm"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Age"
+                      value={guest.age}
+                      onChange={(e) => updateGuestField(itemIndex, guestIndex, 'age', e.target.value)}
+                      className="border border-gray-300 rounded p-2 text-sm"
+                    />
+                    <select
+                      value={guest.type}
+                      onChange={(e) => updateGuestField(itemIndex, guestIndex, 'type', e.target.value)}
+                      className="border border-gray-300 rounded p-2 text-sm"
+                    >
+                      <option value="adult">Adult</option>
+                      <option value="child">Child</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => removeGuestRow(itemIndex, guestIndex)}
+                      className="inline-flex items-center justify-center gap-1 px-2 py-2 text-xs bg-red-100 text-red-700 rounded"
+                    >
+                      <Minus size={14} /> Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Manual Pricing */}
+      <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden mb-6">
+        <div className="bg-gradient-to-r from-amber-600 to-amber-700 text-white p-4">
+          <h3 className="text-xl font-bold">Edit Pricing</h3>
+        </div>
+        <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Subtotal</label>
+            <input type="number" min="0" step="0.01" value={pricing.subtotal} onChange={(e) => setPricing(prev => ({ ...prev, subtotal: Number(e.target.value || 0) }))} className="w-full border border-gray-300 rounded-lg p-2" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">GST %</label>
+            <input type="number" min="0" step="0.01" value={pricing.gstPercentage} onChange={(e) => setPricing(prev => ({ ...prev, gstPercentage: Number(e.target.value || 0) }))} className="w-full border border-gray-300 rounded-lg p-2" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">GST Amount</label>
+            <input type="number" min="0" step="0.01" value={pricing.gstAmount} onChange={(e) => setPricing(prev => ({ ...prev, gstAmount: Number(e.target.value || 0) }))} className="w-full border border-gray-300 rounded-lg p-2" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Total</label>
+            <input type="number" min="0" step="0.01" value={pricing.total} onChange={(e) => setPricing(prev => ({ ...prev, total: Number(e.target.value || 0) }))} className="w-full border border-gray-300 rounded-lg p-2" />
           </div>
         </div>
       </div>
@@ -483,7 +780,7 @@ export default function EditBookingPage() {
               </div>
             ) : (
               <div className="space-y-6">
-                {booking.items?.map((item, idx) => {
+                {(editableItems.length > 0 ? editableItems : booking.items)?.map((item, idx) => {
                   const available = availableRooms[item.roomTypeKey] || []
                   const selected = selectedRooms[item.roomTypeKey] || []
                   

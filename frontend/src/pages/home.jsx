@@ -538,10 +538,7 @@ export default function HomePage() {
             </FadeIn>
 
             <div className="grid grid-cols-3 lg:grid-cols-3 gap-3 md:gap-8">
-              {([...types]
-                .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt))
-                .slice(0,3)
-              ).map((t, index) => {
+              {types.slice(0, 3).map((t, index) => {
                 const k = t.key
                 const title = t.title || 'Room'
                 const img = (t.coverPhotos && t.coverPhotos[0]?.url) || (t.photos && t.photos[0]?.url) || `/images/landing page/hotel.webp`

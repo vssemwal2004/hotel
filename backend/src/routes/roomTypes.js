@@ -25,6 +25,7 @@ function normalizePhotos(arr) {
 const upsertSchema = z.object({
   key: z.string().min(1), // Allow any room type key dynamically
   title: z.string().min(1),
+  displayOrder: z.number().int().min(0).optional(),
   basePrice: z.number().min(0),
   prices: z.object({
     roomOnly: z.number().min(0).optional(),
@@ -47,7 +48,7 @@ const upsertSchema = z.object({
 // Public list
 router.get('/', async (req, res, next) => {
   try {
-    const types = await RoomType.find({}).sort({ title: 1 })
+    const types = await RoomType.find({}).sort({ displayOrder: 1, title: 1 })
     const out = types.map(t => ({
       ...t.toObject(),
       photos: normalizePhotos(t.photos),
@@ -82,7 +83,10 @@ router.post('/', authRequired, adminRequired, memoryUploadFields(), async (req, 
     const toUploadCovers = (filesObj.covers || [])
     let doc = await RoomType.findOne({ key: parsed.key })
     if (!doc) {
+      const maxOrderDoc = await RoomType.findOne({}).sort({ displayOrder: -1 }).select('displayOrder').lean()
+      const nextDisplayOrder = Number.isFinite(maxOrderDoc?.displayOrder) ? (maxOrderDoc.displayOrder + 1) : 1
       const payload = { ...parsed, photos: [], coverPhotos: [] }
+      if (!Number.isFinite(payload.displayOrder)) payload.displayOrder = nextDisplayOrder
       // defaults for prices
       payload.prices = {
         roomOnly: parsed.prices?.roomOnly ?? parsed.basePrice,
@@ -173,7 +177,7 @@ router.delete('/:id/photo', authRequired, adminRequired, async (req, res, next) 
 // Worker/Admin: Room availability stats
 router.get('/availability/stats', authRequired, rolesRequired('admin','worker'), async (req, res, next) => {
   try {
-    const types = await RoomType.find({}).sort({ title: 1 })
+    const types = await RoomType.find({}).sort({ displayOrder: 1, title: 1 })
     
     // Get active bookings (paid status = rooms currently occupied)
     const activeBookings = await Booking.find({ status: 'paid' })

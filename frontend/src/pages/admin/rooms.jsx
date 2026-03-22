@@ -26,6 +26,7 @@ export default function AdminRooms(){
     defaultValues: {
       key: '',
       title: '',
+      displayOrder: 0,
       basePrice: 0,
       prices: { roomOnly: 0, roomBreakfast: 0, roomBreakfastDinner: 0 },
       discount: 0,
@@ -82,6 +83,7 @@ export default function AdminRooms(){
       const payload = {
         key: (form.key || '').trim(),
         title: (form.title || '').trim(),
+        displayOrder: Number(form.displayOrder || 0),
         basePrice: Number(form.prices?.roomOnly || 0), // Use roomOnly as basePrice
         prices: {
           roomOnly: Number(form.prices?.roomOnly || 0),
@@ -130,6 +132,7 @@ export default function AdminRooms(){
     setShowForm(true)
     setValue('key', t.key)
     setValue('title', t.title)
+    setValue('displayOrder', Number(t.displayOrder || 0))
     setValue('basePrice', t.basePrice)
     setValue('prices.roomOnly', t.prices?.roomOnly ?? t.basePrice)
     setValue('prices.roomBreakfast', t.prices?.roomBreakfast ?? t.basePrice)
@@ -277,6 +280,16 @@ export default function AdminRooms(){
                     className="w-full border-2 border-gray-300 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     required
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Display Order</label>
+                  <input
+                    type="number"
+                    min="0"
+                    {...register('displayOrder')}
+                    className="w-full border-2 border-gray-300 rounded-xl p-2.5 md:p-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Lower number appears first on user pages</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Number of Rooms *</label>
@@ -709,6 +722,7 @@ export default function AdminRooms(){
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <h3 className="text-base md:text-lg font-bold text-gray-900 mb-1">{t.title}</h3>
+                      <p className="text-xs text-gray-500 mb-1">Display Order: {Number(t.displayOrder || 0)}</p>
                       {getStatusBadge(t.status)}
                     </div>
                   </div>

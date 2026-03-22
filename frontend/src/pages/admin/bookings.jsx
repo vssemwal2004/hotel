@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/router'
 import AdminLayout from '../../layouts/AdminLayout'
 import api from '../../utils/api'
 import { useToast } from '../../components/ToastProvider'
@@ -19,7 +20,8 @@ import {
   RefreshCw,
   Download,
   XCircle,
-  Ban
+  Ban,
+  Pencil
 } from 'lucide-react'
 import { 
   CalendarCheck,
@@ -28,6 +30,7 @@ import {
 } from 'lucide-react'
 
 export default function AdminBookings(){
+  const router = useRouter()
   const toast = useToast()
   const [bookings, setBookings] = useState([])
   const [filteredBookings, setFilteredBookings] = useState([])
@@ -669,6 +672,13 @@ export default function AdminBookings(){
                               Cancel
                             </button>
                           )}
+                          <button
+                            onClick={() => router.push(`/admin/bookings/edit-booking?id=${booking._id}`)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg transition-all shadow-sm hover:shadow-md text-xs font-medium"
+                          >
+                            <Pencil size={14} />
+                            Edit
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -735,6 +745,13 @@ export default function AdminBookings(){
                           Cancel
                         </button>
                       )}
+                      <button
+                        onClick={() => router.push(`/admin/bookings/edit-booking?id=${booking._id}`)}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-medium text-sm transition-all shadow-sm"
+                      >
+                        <Pencil size={16} />
+                        Edit
+                      </button>
                     </div>
                   </div>
                 </div>
