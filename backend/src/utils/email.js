@@ -57,6 +57,10 @@ export async function sendBookingConfirmationToUser(booking, user) {
   ).join(', ') || 'Not specified'
 
   const isPaid = booking.status === 'paid'
+  const amountPaid = Math.max(0, Number(booking.amountPaid || 0))
+  const remainingAmount = Math.max(0, Number(booking.total || 0) - amountPaid)
+  const hasAdvance = !isPaid && amountPaid > 0
+  const isReserved = isPaid || !!booking.inventoryCommitted || hasAdvance
   const paymentProvider = booking.payment?.provider || 'N/A'
   const paymentMethod = paymentProvider === 'razorpay' ? 'Razorpay (Online)' : paymentProvider === 'offline' ? 'Offline (At Hotel)' : paymentProvider
 
@@ -67,6 +71,14 @@ export async function sendBookingConfirmationToUser(booking, user) {
               <td><strong>Payment Status:</strong></td>
               <td style="color: #4caf50; font-weight: bold;">PAID ✓</td>
             </tr>
+            <tr>
+              <td><strong>Amount Paid:</strong></td>
+              <td style="font-weight: bold;">${formatCurrency(amountPaid)}</td>
+            </tr>
+            <tr>
+              <td><strong>Remaining:</strong></td>
+              <td style="font-weight: bold;">${formatCurrency(remainingAmount)}</td>
+            </tr>
             ${booking.payment?.paymentId ? `<tr>
               <td><strong>Payment ID:</strong></td>
               <td>${booking.payment.paymentId}</td>
@@ -74,6 +86,22 @@ export async function sendBookingConfirmationToUser(booking, user) {
             <tr>
               <td><strong>Payment Method:</strong></td>
               <td>${paymentMethod}</td>
+            </tr>
+          </table>
+  ` : hasAdvance ? `
+          <h3>💳 Payment Details</h3>
+          <div style="background: #e8f5e9; border: 2px solid #4caf50; padding: 20px; border-radius: 10px; text-align: center;">
+            <p style="margin: 0 0 5px 0; font-size: 18px; font-weight: bold; color: #1b5e20;">✅ Advance Payment Received</p>
+            <p style="margin: 0; color: #2e7d32; font-size: 14px;">Your room is <strong>reserved</strong>. Remaining balance can be paid at the hotel.</p>
+          </div>
+          <table style="width: 100%; margin-top: 10px;">
+            <tr>
+              <td><strong>Amount Paid:</strong></td>
+              <td style="font-weight: bold;">${formatCurrency(amountPaid)}</td>
+            </tr>
+            <tr>
+              <td><strong>Remaining Due:</strong></td>
+              <td style="color: #e65100; font-weight: bold; font-size: 16px;">${formatCurrency(remainingAmount)}</td>
             </tr>
           </table>
   ` : `
@@ -118,10 +146,10 @@ export async function sendBookingConfirmationToUser(booking, user) {
           <p>Dear <strong>${user.name}</strong>,</p>
           <p>Thank you for choosing Hotel Krishna! Your booking request has been 
             <span class="status-badge" style="background: ${isPaid ? '#4caf50' : '#ff9800'}; color: white;">
-              ${isPaid ? 'CONFIRMED & PAID ✓' : 'RECEIVED — AWAITING PAYMENT'}
+              ${isPaid ? 'CONFIRMED & PAID ✓' : (isReserved ? 'RESERVED — ADVANCE RECEIVED' : 'RECEIVED — AWAITING PAYMENT')}
             </span>
           </p>
-          ${!isPaid ? `<p style="color: #e65100; font-weight: bold;">⚠️ Your room is <u>NOT reserved</u> yet. Please confirm your payment to reserve your room.</p>` : ''}
+          ${(!isPaid && !isReserved) ? `<p style="color: #e65100; font-weight: bold;">⚠️ Your room is <u>NOT reserved</u> yet. Please confirm your payment to reserve your room.</p>` : ''}
           
           <div class="booking-id">
             <p style="margin: 0; color: #666;">Booking Reference</p>
@@ -212,6 +240,145 @@ export async function sendBookingConfirmationToUser(booking, user) {
   }
 }
 
+// Send booking update email to user
+export async function sendBookingUpdateToUser(booking, user, options = {}) {
+  const transporter = getTransporter()
+
+  const changedFields = Array.isArray(options.changedFields) ? options.changedFields : []
+  const actorName = options.actor?.name ? String(options.actor.name) : ''
+  const actorRole = options.actor?.role ? String(options.actor.role) : ''
+
+  const roomDetails = booking.items.map(item => `
+    <tr>
+      <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.title}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">${formatCurrency(item.subtotal)}</td>
+    </tr>
+  `).join('')
+
+  const amountPaid = Math.max(0, Number(booking.amountPaid || 0))
+  const remainingAmount = Math.max(0, Number(booking.total || 0) - amountPaid)
+  const paymentSummary = (amountPaid > 0 || remainingAmount > 0) ? `
+    <div style="background:#fff;padding:14px;border-radius:8px;border:1px solid #eee;margin:16px 0;">
+      <p style="margin:0 0 6px 0;font-weight:bold;">💳 Payment Summary</p>
+      <table style="width:100%;">
+        <tr><td><strong>Amount Paid:</strong></td><td style="text-align:right;">${formatCurrency(amountPaid)}</td></tr>
+        <tr><td><strong>Remaining Due:</strong></td><td style="text-align:right;">${formatCurrency(remainingAmount)}</td></tr>
+      </table>
+    </div>
+  ` : ''
+
+  const changedSummary = changedFields.length > 0
+    ? `<div style="background:#e3f2fd;border:1px solid #bbdefb;padding:12px;border-radius:8px;margin:16px 0;">
+        <p style="margin:0 0 6px 0;font-weight:bold;color:#0d47a1;">Updated Details</p>
+        <p style="margin:0;color:#0d47a1;font-size:13px;">${changedFields.map(f => String(f).replace(/_/g, ' ')).join(', ')}</p>
+      </div>`
+    : ''
+
+  const editedBy = actorName || actorRole
+    ? `<p style="margin:0 0 12px 0;color:#666;font-size:13px;">Edited by: <strong>${actorName || 'Staff'}</strong>${actorRole ? ` (${actorRole})` : ''}</p>`
+    : ''
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #1565c0 0%, #283593 100%); color: white; padding: 28px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 28px; border-radius: 0 0 10px 10px; }
+        .details-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+        .details-table th { background: #1565c0; color: white; padding: 12px; text-align: left; }
+        .total-row { background: #f0f0f0; font-weight: bold; }
+        .footer { text-align: center; margin-top: 26px; color: #666; font-size: 13px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1 style="margin:0;">🏨 Hotel Krishna</h1>
+          <p style="margin:6px 0 0 0;">Booking Updated</p>
+        </div>
+        <div class="content">
+          <p>Dear <strong>${user.name}</strong>,</p>
+          <p>Your booking has been updated. Please find the latest details below.</p>
+          ${editedBy}
+
+          <div style="background:#fff;padding:14px;border-radius:8px;border:1px solid #eee;margin:16px 0;">
+            <p style="margin:0;color:#666;">Booking Reference</p>
+            <p style="margin:4px 0 0 0;font-weight:bold;">${booking._id}</p>
+          </div>
+
+          ${changedSummary}
+
+          <h3 style="margin:18px 0 8px 0;">📅 Stay Details</h3>
+          <table style="width:100%;">
+            <tr><td><strong>Check-in:</strong></td><td>${formatDate(booking.checkIn)}</td></tr>
+            <tr><td><strong>Check-out:</strong></td><td>${booking.checkOut ? formatDate(booking.checkOut) : 'Full Day Booking'}</td></tr>
+            <tr><td><strong>Duration:</strong></td><td>${booking.nights} ${booking.fullDay ? 'Day(s)' : 'Night(s)'}</td></tr>
+          </table>
+
+          <h3 style="margin:18px 0 8px 0;">🛏️ Room Details</h3>
+          <table class="details-table">
+            <thead>
+              <tr>
+                <th>Room Type</th>
+                <th style="text-align:center;">Qty</th>
+                <th style="text-align:right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${roomDetails}
+              ${booking.gstAmount > 0 ? `
+              <tr>
+                <td colspan="2" style="padding: 10px; border-bottom: 1px solid #eee;">Subtotal</td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">${formatCurrency(booking.subtotal)}</td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding: 10px; border-bottom: 1px solid #eee;">GST (${booking.gstPercentage}%)</td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">${formatCurrency(booking.gstAmount)}</td>
+              </tr>` : ''}
+              <tr class="total-row">
+                <td colspan="2" style="padding: 12px;"><strong>Total Amount</strong></td>
+                <td style="padding: 12px; text-align: right;"><strong>${formatCurrency(booking.total)}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+
+          ${paymentSummary}
+
+          <div style="background:#fff3e0;padding:14px;border-radius:8px;margin-top:18px;border-left:4px solid #ff9800;">
+            <p style="margin:0;"><strong>Need help?</strong> Contact us at: ${process.env.ADMIN_EMAIL || 'krishnahotelandrestaurants@gmail.com'}</p>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>This is an automated email. Please do not reply directly.</p>
+          <p>© ${new Date().getFullYear()} Hotel Krishna. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  const mailOptions = {
+    from: `"Hotel Krishna" <${process.env.SMTP_USER || process.env.ADMIN_EMAIL}>`,
+    to: user.email,
+    subject: `✏️ Booking Updated - ${booking._id}`,
+    html
+  }
+
+  try {
+    await transporter.sendMail(mailOptions)
+    console.log(`Booking update email sent to ${user.email}`)
+    return true
+  } catch (error) {
+    console.error('Error sending booking update email:', error)
+    return false
+  }
+}
+
 // Send booking notification to admin
 export async function sendBookingNotificationToAdmin(booking, user) {
   const transporter = getTransporter()
@@ -243,6 +410,10 @@ export async function sendBookingNotificationToAdmin(booking, user) {
   ).join('') || '<tr><td colspan="5" style="padding: 10px; text-align: center;">No guest details provided</td></tr>'
 
   const isPaid = booking.status === 'paid'
+  const amountPaid = Math.max(0, Number(booking.amountPaid || 0))
+  const remainingAmount = Math.max(0, Number(booking.total || 0) - amountPaid)
+  const hasAdvance = !isPaid && amountPaid > 0
+  const isReserved = isPaid || !!booking.inventoryCommitted || hasAdvance
   const paymentProvider = booking.payment?.provider || 'N/A'
   const paymentMethod = paymentProvider === 'razorpay' ? 'Razorpay (Online)' : paymentProvider === 'offline' ? 'Offline (At Hotel)' : paymentProvider
 
@@ -266,7 +437,7 @@ export async function sendBookingNotificationToAdmin(booking, user) {
       <div class="container">
         <div class="header">
           <h2>${isPaid ? '🔔 New Booking Alert' : '🕐 New Booking Request — Payment Pending'}</h2>
-          <p>A new room booking has been ${isPaid ? 'confirmed & paid' : 'received — <strong>room is NOT reserved until payment is confirmed</strong>'}</p>
+          <p>A new room booking has been ${isPaid ? 'confirmed & paid' : (isReserved ? 'received — <strong>advance received (room reserved)</strong>' : 'received — <strong>room is NOT reserved until payment is confirmed</strong>')}</p>
         </div>
         <div class="content">
           <div class="highlight">
@@ -279,7 +450,7 @@ export async function sendBookingNotificationToAdmin(booking, user) {
                 <td colspan="2" style="padding-top: 8px;">
                   <strong>Status:</strong> 
                   <span style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; color: white; background: ${isPaid ? '#4caf50' : '#ff9800'};">
-                    ${isPaid ? 'PAID ✓' : 'PAYMENT PENDING'}
+                    ${isPaid ? 'PAID ✓' : (isReserved ? 'RESERVED (ADVANCE)' : 'PAYMENT PENDING')}
                   </span>
                 </td>
               </tr>
@@ -358,15 +529,17 @@ export async function sendBookingNotificationToAdmin(booking, user) {
             <table style="width: 100%;">
               <tr>
                 <td><strong>Status:</strong></td>
-                <td style="color: ${isPaid ? '#4caf50' : '#e65100'}; font-weight: bold;">${isPaid ? 'PAID ✓' : 'UNPAID — PENDING'}</td>
+                <td style="color: ${isPaid ? '#4caf50' : '#e65100'}; font-weight: bold;">${isPaid ? 'PAID ✓' : (isReserved ? 'ADVANCE RECEIVED' : 'UNPAID — PENDING')}</td>
               </tr>
+              <tr><td><strong>Amount Paid:</strong></td><td style="text-align:right;">${formatCurrency(amountPaid)}</td></tr>
+              <tr><td><strong>Remaining Due:</strong></td><td style="text-align:right;">${formatCurrency(remainingAmount)}</td></tr>
               ${isPaid ? `
               <tr><td><strong>Provider:</strong></td><td>${paymentMethod}</td></tr>
               ${booking.payment?.orderId ? `<tr><td><strong>Order ID:</strong></td><td>${booking.payment.orderId}</td></tr>` : ''}
               ${booking.payment?.paymentId ? `<tr><td><strong>Payment ID:</strong></td><td>${booking.payment.paymentId}</td></tr>` : ''}
               ` : `
-              <tr><td><strong>Amount Due:</strong></td><td style="color: #e65100; font-weight: bold;">${formatCurrency(booking.total)}</td></tr>
-              <tr><td colspan="2" style="padding-top: 8px;"><span style="background: #ffebee; color: #c62828; padding: 6px 12px; border-radius: 4px; font-weight: bold;">⛔ Room NOT reserved — awaiting customer payment</span></td></tr>
+              ${!isReserved ? `<tr><td><strong>Amount Due:</strong></td><td style="color: #e65100; font-weight: bold;">${formatCurrency(booking.total)}</td></tr>
+              <tr><td colspan="2" style="padding-top: 8px;"><span style="background: #ffebee; color: #c62828; padding: 6px 12px; border-radius: 4px; font-weight: bold;">⛔ Room NOT reserved — awaiting customer payment</span></td></tr>` : ''}
               `}
             </table>
           </div>
@@ -389,6 +562,151 @@ export async function sendBookingNotificationToAdmin(booking, user) {
     return true
   } catch (error) {
     console.error('Error sending admin notification:', error)
+    return false
+  }
+}
+
+// Send booking update notification to admin
+export async function sendBookingUpdateNotificationToAdmin(booking, user, options = {}) {
+  const transporter = getTransporter()
+  const adminEmail = process.env.ADMIN_EMAIL
+
+  if (!adminEmail) {
+    console.error('Admin email not configured')
+    return false
+  }
+
+  const changedFields = Array.isArray(options.changedFields) ? options.changedFields : []
+  const actorName = options.actor?.name ? String(options.actor.name) : ''
+  const actorRole = options.actor?.role ? String(options.actor.role) : ''
+
+  const roomDetails = booking.items.map(item => `
+    <tr>
+      <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.title}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">${formatCurrency(item.subtotal)}</td>
+    </tr>
+  `).join('')
+
+  const amountPaid = Math.max(0, Number(booking.amountPaid || 0))
+  const remainingAmount = Math.max(0, Number(booking.total || 0) - amountPaid)
+  const paymentSummary = (amountPaid > 0 || remainingAmount > 0) ? `
+    <div class="section">
+      <h3>💳 Payment Summary</h3>
+      <table style="width:100%;">
+        <tr><td><strong>Amount Paid:</strong></td><td style="text-align:right;">${formatCurrency(amountPaid)}</td></tr>
+        <tr><td><strong>Remaining Due:</strong></td><td style="text-align:right;">${formatCurrency(remainingAmount)}</td></tr>
+      </table>
+    </div>
+  ` : ''
+
+  const changedList = changedFields.length > 0
+    ? `<p style="margin:6px 0 0 0;color:#0d47a1;font-size:13px;"><strong>Changed:</strong> ${changedFields.map(f => String(f).replace(/_/g, ' ')).join(', ')}</p>`
+    : ''
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 700px; margin: 0 auto; padding: 20px; }
+        .header { background: #1e88e5; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f5f5f5; padding: 25px; }
+        .section { background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px; }
+        .details-table { width: 100%; border-collapse: collapse; }
+        .details-table th { background: #1e88e5; color: white; padding: 10px; text-align: left; }
+        .highlight { background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #1e88e5; }
+        .amount { font-size: 22px; color: #2e7d32; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h2 style="margin:0;">✏️ Booking Updated</h2>
+          <p style="margin:6px 0 0 0;">A booking was edited by staff</p>
+        </div>
+        <div class="content">
+          <div class="highlight">
+            <table style="width:100%;">
+              <tr>
+                <td><strong>Booking ID:</strong> ${booking._id}</td>
+                <td style="text-align:right;"><strong>Total:</strong> <span class="amount">${formatCurrency(booking.total)}</span></td>
+              </tr>
+            </table>
+            <p style="margin:8px 0 0 0;color:#555;font-size:13px;">Edited by: <strong>${actorName || 'Staff'}</strong>${actorRole ? ` (${actorRole})` : ''}</p>
+            ${changedList}
+          </div>
+
+          <div class="section">
+            <h3>👤 Customer</h3>
+            <table style="width:100%;">
+              <tr><td><strong>Name:</strong></td><td>${user.name}</td></tr>
+              <tr><td><strong>Email:</strong></td><td>${user.email}</td></tr>
+              <tr><td><strong>Phone:</strong></td><td>${user.phone || 'Not provided'}</td></tr>
+              <tr><td><strong>User ID:</strong></td><td>${user._id}</td></tr>
+            </table>
+          </div>
+
+          <div class="section">
+            <h3>📅 Stay</h3>
+            <table style="width:100%;">
+              <tr><td><strong>Check-in:</strong></td><td>${formatDate(booking.checkIn)}</td></tr>
+              <tr><td><strong>Check-out:</strong></td><td>${booking.checkOut ? formatDate(booking.checkOut) : 'Full Day'}</td></tr>
+              <tr><td><strong>Duration:</strong></td><td>${booking.nights} ${booking.fullDay ? 'Day(s)' : 'Night(s)'}</td></tr>
+              <tr><td><strong>Status:</strong></td><td>${booking.status}</td></tr>
+            </table>
+          </div>
+
+          <div class="section">
+            <h3>🛏️ Rooms</h3>
+            <table class="details-table">
+              <thead>
+                <tr>
+                  <th>Room Type</th>
+                  <th style="text-align:center;">Qty</th>
+                  <th style="text-align:right;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${roomDetails}
+                ${booking.gstAmount > 0 ? `
+                <tr>
+                  <td colspan="2" style="padding: 10px; border-bottom: 1px solid #eee;">Subtotal</td>
+                  <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">${formatCurrency(booking.subtotal)}</td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding: 10px; border-bottom: 1px solid #eee;">GST (${booking.gstPercentage}%)</td>
+                  <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">${formatCurrency(booking.gstAmount)}</td>
+                </tr>` : ''}
+                <tr style="background:#f0f0f0;font-weight:bold;">
+                  <td colspan="2" style="padding: 12px;"><strong>Total</strong></td>
+                  <td style="padding: 12px; text-align: right;"><strong>${formatCurrency(booking.total)}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          ${paymentSummary}
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  const mailOptions = {
+    from: `"Hotel Krishna System" <${process.env.SMTP_USER || process.env.ADMIN_EMAIL}>`,
+    to: adminEmail,
+    subject: `✏️ Booking Updated: ${user.name} - ${formatCurrency(booking.total)}`,
+    html
+  }
+
+  try {
+    await transporter.sendMail(mailOptions)
+    console.log(`Booking update notification sent to admin: ${adminEmail}`)
+    return true
+  } catch (error) {
+    console.error('Error sending admin booking update notification:', error)
     return false
   }
 }

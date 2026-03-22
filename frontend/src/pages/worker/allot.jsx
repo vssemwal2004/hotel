@@ -18,6 +18,7 @@ export default function WorkerAllot(){
   const [checkOut, setCheckOut] = useState('')
   const [roomTypes, setRoomTypes] = useState([])
   const [markPaid, setMarkPaid] = useState(true)
+  const [advancePaid, setAdvancePaid] = useState(0)
   
   // Multiple room type entries - each entry has its own type, quantity, available/selected rooms
   const [roomEntries, setRoomEntries] = useState([
@@ -326,6 +327,10 @@ export default function WorkerAllot(){
       })
     }
 
+    const paidNow = markPaid
+      ? totalAmount
+      : Math.min(Math.max(0, Number(advancePaid || 0)), totalAmount)
+
     const bookingPayload = {
       user: {
         name: mainGuest.name.trim(),
@@ -337,6 +342,7 @@ export default function WorkerAllot(){
       fullDay,
       items,
       paid: markPaid,
+      amountPaid: paidNow,
       guestIdInfo: {
         type: mainGuest.idType,
         number: mainGuest.idNumber.trim()
@@ -355,7 +361,9 @@ export default function WorkerAllot(){
         subtotal: totalSubtotal,
         gstAmount: totalGST,
         gstPercentage: entryDetails[0]?.gstPercentage || 0,
-        totalAmount
+        totalAmount,
+        amountPaid: paidNow,
+        remainingAmount: Math.max(0, totalAmount - paidNow)
       },
       totalGuests: getTotalGuests()
     })
@@ -395,6 +403,7 @@ export default function WorkerAllot(){
         setNights(1)
         setFullDay(false)
         setRoomEntries([{ id: 1, roomTypeKey: roomTypes[0]?.key || '', quantity: 1, availableRoomNumbers: [], selectedRoomNumbers: [], fetchingRooms: false }])
+        setAdvancePaid(0)
         setResult(null)
         setBookingData(null)
       }, 3000)
@@ -957,7 +966,7 @@ export default function WorkerAllot(){
           })()}
 
           {/* Payment Status */}
-          <div className="bg-gradient-to-r from-teal-50 to-emerald-50 p-4 rounded-xl border-2 border-teal-200">
+          <div className="bg-gradient-to-r from-teal-50 to-emerald-50 p-4 rounded-xl border-2 border-teal-200 space-y-3">
             <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -967,9 +976,26 @@ export default function WorkerAllot(){
               />
               <div>
                 <span className="text-xs md:text-sm font-semibold text-gray-900 block">Mark as Paid</span>
-                <span className="text-xs text-gray-600">Room availability will be decremented immediately</span>
+                <span className="text-xs text-gray-600">Room availability will be reserved when advance is received</span>
               </div>
             </label>
+
+            <div>
+              <label className="text-xs font-semibold text-gray-700 block mb-1">Advance Paid (₹)</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={markPaid ? '' : advancePaid}
+                onChange={e => setAdvancePaid(Math.max(0, Number(e.target.value || 0)))}
+                disabled={markPaid}
+                placeholder={markPaid ? 'Full payment selected' : '0'}
+                className="w-full border-2 border-teal-200 rounded-lg p-2.5 bg-white disabled:bg-gray-100"
+              />
+              {!markPaid && (
+                <p className="text-[11px] text-gray-600 mt-1">Remaining due will be shown in the confirmation screen.</p>
+              )}
+            </div>
           </div>
 
           {/* Submit Buttons */}

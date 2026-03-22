@@ -30,6 +30,10 @@ const bookingSchema = new mongoose.Schema({
   gstPercentage: { type: Number, min: 0, default: 0 }, // GST % applied
   gstAmount: { type: Number, min: 0, default: 0 }, // GST amount
   total: { type: Number, required: true, min: 0 },
+  // Offline/advance payments (amount received so far)
+  amountPaid: { type: Number, min: 0, default: 0 },
+  // For count-based room types, whether we have reserved inventory (decremented count)
+  inventoryCommitted: { type: Boolean, default: false },
   // status: pending -> paid -> completed | cancelled
   status: { type: String, enum: ['pending','paid','completed','cancelled'], default: 'pending' },
   payment: {

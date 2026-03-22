@@ -152,6 +152,9 @@ export default function Confirmation(){
                           <IndianRupee size={20} />
                           <span>{booking.total?.toLocaleString('en-IN')}</span>
                         </div>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Paid ₹{(booking.amountPaid || 0).toLocaleString('en-IN')} · Remaining Due ₹{Math.max(0, (booking.total || 0) - (booking.amountPaid || 0)).toLocaleString('en-IN')}
+                        </p>
                       </div>
                     </div>
                   </div>

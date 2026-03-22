@@ -39,6 +39,7 @@ export default function EditBookingPage() {
   const [availableRooms, setAvailableRooms] = useState({}) // { roomTypeKey: [roomNumbers] }
   const [selectedRooms, setSelectedRooms] = useState({}) // { roomTypeKey: [selectedRoomNumbers] }
   const [fetchingRooms, setFetchingRooms] = useState(false)
+  const [amountPaid, setAmountPaid] = useState(0)
 
   const getPricingNights = () => {
     if (newCheckIn && newCheckOut) {
@@ -126,6 +127,7 @@ export default function EditBookingPage() {
           gstAmount: Number(bookingData.gstAmount || 0),
           total: Number(bookingData.total || 0)
         })
+        setAmountPaid(Number(bookingData.amountPaid || 0))
         
         // Initialize additional guests state
         const initialGuests = {}
@@ -138,7 +140,12 @@ export default function EditBookingPage() {
         setSelectedRooms(initialSelected)
         
         // Fetch available rooms
-        await fetchAvailableRooms(bookingData)
+        await fetchAvailableRooms({
+          bookingId: bookingData._id,
+          items: bookingData.items || [],
+          checkIn: bookingData.checkIn,
+          checkOut: bookingData.checkOut
+        })
       }
     } catch (error) {
       console.error('Error fetching booking:', error)
@@ -176,17 +183,21 @@ export default function EditBookingPage() {
     }))
   }
 
-  const fetchAvailableRooms = async (bookingData) => {
+  const fetchAvailableRooms = async ({ bookingId, items, checkIn, checkOut }) => {
     setFetchingRooms(true)
     try {
       const availableRoomsData = {}
+
+      const ci = checkIn
+      const co = checkOut || (ci ? new Date(new Date(ci).getTime() + 24 * 60 * 60 * 1000).toISOString() : null)
       
-      for (const item of bookingData.items) {
+      for (const item of (items || [])) {
         try {
           const { data } = await api.get(`/bookings/available-rooms/${item.roomTypeKey}`, {
             params: {
-              checkIn: bookingData.checkIn,
-              checkOut: bookingData.checkOut
+              checkIn: ci,
+              checkOut: co,
+              excludeBookingId: bookingId
             }
           })
           
@@ -207,6 +218,19 @@ export default function EditBookingPage() {
       setFetchingRooms(false)
     }
   }
+
+  // Refetch availability when dates change
+  useEffect(() => {
+    if (!booking) return
+    if (!newCheckIn || !newCheckOut) return
+    fetchAvailableRooms({
+      bookingId: booking._id,
+      items: editableItems.length > 0 ? editableItems : (booking.items || []),
+      checkIn: new Date(newCheckIn).toISOString(),
+      checkOut: new Date(newCheckOut).toISOString()
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [booking?._id, newCheckIn, newCheckOut])
 
   const toggleRoomSelection = (roomTypeKey, roomNumber, maxQuantity) => {
     setSelectedRooms(prev => {
@@ -379,6 +403,11 @@ export default function EditBookingPage() {
           gstPercentage: Math.max(0, Number(pricing.gstPercentage || 0))
         }
       }
+
+      // Advance/partial payment
+      if (Number(amountPaid || 0) !== Number(booking.amountPaid || 0)) {
+        updates.amountPaid = Math.max(0, Number(amountPaid || 0))
+      }
       
       if (Object.keys(updates).length === 0) {
         toast.show({ type: 'info', message: 'No changes to save' })
@@ -387,6 +416,10 @@ export default function EditBookingPage() {
       
       await api.put(`/bookings/${booking._id}`, updates)
       toast.show({ type: 'success', message: 'Booking updated successfully!' })
+      try {
+        sessionStorage.setItem('booking_updated_id', booking._id)
+        sessionStorage.setItem('booking_updated_at', String(Date.now()))
+      } catch {}
       router.back()
     } catch (error) {
       console.error('Error updating booking:', error)
@@ -642,7 +675,7 @@ export default function EditBookingPage() {
         <div className="bg-gradient-to-r from-amber-600 to-amber-700 text-white p-4">
           <h3 className="text-xl font-bold">Edit Pricing</h3>
         </div>
-        <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-6 gap-3">
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Subtotal</label>
             <input type="number" min="0" step="1" value={pricing.subtotal} readOnly className="w-full border border-gray-300 rounded-lg p-2 bg-gray-100" />
@@ -670,6 +703,28 @@ export default function EditBookingPage() {
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Total</label>
             <input type="number" min="0" step="1" value={pricing.total} readOnly className="w-full border border-gray-300 rounded-lg p-2 bg-gray-100" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Advance / Paid</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={amountPaid}
+              onChange={(e) => setAmountPaid(Math.max(0, Number(e.target.value || 0)))}
+              className="w-full border border-gray-300 rounded-lg p-2"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Remaining Due</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={Math.max(0, Number(pricing.total || 0) - Number(amountPaid || 0))}
+              readOnly
+              className="w-full border border-gray-300 rounded-lg p-2 bg-gray-100"
+            />
           </div>
         </div>
       </div>

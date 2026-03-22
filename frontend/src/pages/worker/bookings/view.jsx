@@ -129,6 +129,8 @@ function DetailModal({ booking, onClose }) {
             <div className="flex justify-between font-black text-base pt-1 border-t border-green-300">
               <span>Total</span><span className="text-green-700">₹{booking.total?.toLocaleString()}</span>
             </div>
+            <div className="flex justify-between"><span className="text-gray-500">Paid</span><span className="font-semibold">₹{(booking.amountPaid || 0).toLocaleString()}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Remaining Due</span><span className="font-semibold">₹{Math.max(0, (booking.total || 0) - (booking.amountPaid || 0)).toLocaleString()}</span></div>
             <div className="flex justify-between items-center pt-1">
               <span className="text-gray-400 text-xs">Status</span><StatusBadge status={booking.status} />
             </div>
@@ -181,15 +183,37 @@ export default function ViewBookingsPage() {
     setLoading(true); setError('')
     try {
       const res = await api.get('/bookings')
-      setAllBookings(res.data.bookings || [])
+      const list = res.data.bookings || []
+      setAllBookings(list)
+      return list
     } catch (e) {
       setError(e.response?.data?.message || 'Failed to load bookings')
+      return null
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => { fetchAll() }, [fetchAll])
+
+  // Refresh after returning from edit-booking
+  useEffect(() => {
+    const refreshIfEdited = async () => {
+      let updatedId = null
+      try { updatedId = sessionStorage.getItem('booking_updated_id') } catch {}
+      if (!updatedId) return
+      const list = await fetchAll()
+      try {
+        sessionStorage.removeItem('booking_updated_id')
+        sessionStorage.removeItem('booking_updated_at')
+      } catch {}
+      if (selected?._id && selected._id === updatedId && Array.isArray(list)) {
+        const fresh = list.find(b => b._id === updatedId)
+        if (fresh) setSelected(fresh)
+      }
+    }
+    refreshIfEdited()
+  }, [fetchAll, selected?._id])
 
   // ── Date range from preset ────────────────────────────────────────
   const { rangeFrom, rangeTo } = useMemo(() => {

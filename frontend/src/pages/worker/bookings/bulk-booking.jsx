@@ -89,6 +89,23 @@ function GuestRow({
     return { subtotal, gstAmount: gst.gstAmount, gstPct: gst.gstPercentage, total: gst.totalAmount, rows }
   }, [guest.roomSelections, roomTypes, nights])
 
+  const effectivePaid = guest.paid
+    ? pricing.total
+    : Math.min(
+        Math.max(0, Number(guest.amountPaid || 0)),
+        pricing.total || Math.max(0, Number(guest.amountPaid || 0))
+      )
+  const remainingDue = Math.max(0, (pricing.total || 0) - (effectivePaid || 0))
+
+  const togglePaid = () => {
+    const nextPaid = !guest.paid
+    onUpdate(index, {
+      ...guest,
+      paid: nextPaid,
+      amountPaid: nextPaid ? (pricing.total || 0) : 0
+    })
+  }
+
   const totalRooms = (guest.roomSelections || []).reduce((s, r) => s + (r.quantity || 0), 0)
 
   return (
@@ -367,12 +384,34 @@ function GuestRow({
                 </div>
                 <button
                   type="button"
-                  onClick={() => set('paid', !guest.paid)}
+                  onClick={togglePaid}
                   className={`relative w-12 h-6 rounded-full transition-colors duration-300 shrink-0 ${guest.paid ? 'bg-green-500' : 'bg-gray-300'}`}
                 >
                   <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${guest.paid ? 'translate-x-6' : 'translate-x-0.5'}`} />
                 </button>
               </div>
+
+              {pricing.total > 0 && (
+                <div className="flex-1 sm:flex-none min-w-[220px] bg-white border-2 border-gray-200 rounded-xl px-4 py-3">
+                  <label className="text-[10px] font-black text-gray-500 uppercase mb-1 block">Advance / Paid (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={guest.paid ? (pricing.total || 0) : (guest.amountPaid || 0)}
+                    onChange={e => {
+                      const next = Math.max(0, Number(e.target.value || 0))
+                      set('amountPaid', Math.min(next, pricing.total || next))
+                    }}
+                    disabled={guest.paid}
+                    className="w-full border-2 border-gray-200 rounded-lg p-2.5 bg-white disabled:bg-gray-100"
+                    placeholder={guest.paid ? 'Paid in full' : '0'}
+                  />
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    Remaining Due: <span className="font-bold text-gray-700">₹{remainingDue.toLocaleString()}</span>
+                  </p>
+                </div>
+              )}
               <div className="flex gap-2">
                 <button onClick={() => onDuplicate(index)} className="flex items-center gap-1.5 px-3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-xs font-bold transition-colors">
                   <Copy size={13} /> Clone
@@ -434,6 +473,9 @@ function ReviewModal({ guests, roomTypes, nights, checkIn, checkOut, onClose, on
             const k = g.roomSelections?.find(s => s.roomTypeKey)?.roomTypeKey
             const rt = k ? roomTypes.find(r => r.key === k) : null
             const gst = calculateGST(sub, rt || {}, rt?.prices?.roomOnly || rt?.basePrice || 0)
+            const total = gst.totalAmount || 0
+            const amountPaid = g.paid ? total : Math.min(Math.max(0, Number(g.amountPaid || 0)), total)
+            const remaining = Math.max(0, total - amountPaid)
             return (
               <div key={i} className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
@@ -446,6 +488,7 @@ function ReviewModal({ guests, roomTypes, nights, checkIn, checkOut, onClose, on
                   </div>
                   <div className="text-right">
                     <p className="text-base font-black text-green-600">₹{gst.totalAmount.toLocaleString()}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Paid ₹{amountPaid.toLocaleString()} · Due ₹{remaining.toLocaleString()}</p>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${g.paid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                       {g.paid ? '✓ PAID' : 'PENDING'}
                     </span>
@@ -535,6 +578,9 @@ function ResultModal({ data, onClose }) {
                 </div>
                 <div className="text-right">
                   <p className="font-black text-green-700 text-sm">₹{(r.booking?.total || 0).toLocaleString()}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">
+                    Paid ₹{(r.booking?.amountPaid || 0).toLocaleString()} · Due ₹{Math.max(0, (r.booking?.total || 0) - (r.booking?.amountPaid || 0)).toLocaleString()}
+                  </p>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.booking?.status === 'paid' ? 'bg-green-200 text-green-700' : 'bg-amber-200 text-amber-700'}`}>
                     {r.booking?.status?.toUpperCase()}
                   </span>
@@ -584,7 +630,7 @@ export default function BulkBookingPage() {
   const [submitting, setSubmitting]         = useState(false)
   const [availableRoomsMap, setAvailableRoomsMap] = useState({})  // key: "rtKey_ci_co"
   const [guests, setGuests]                 = useState([
-    { guestName: '', guestEmail: '', guestPhone: '', idProofType: '', idProofNumber: '', roomSelections: [], paid: false }
+    { guestName: '', guestEmail: '', guestPhone: '', idProofType: '', idProofNumber: '', roomSelections: [], paid: false, amountPaid: 0 }
   ])
   const [expandedIndex, setExpandedIndex]   = useState(0)
   const [showReview, setShowReview]         = useState(false)
@@ -628,7 +674,7 @@ export default function BulkBookingPage() {
     keys.forEach(k => fetchAvailableRooms(k, ci, co))
   }, [guests, fetchAvailableRooms])
 
-  const emptyGuest = () => ({ guestName: '', guestEmail: '', guestPhone: '', idProofType: '', idProofNumber: '', roomSelections: [], paid: false })
+  const emptyGuest = () => ({ guestName: '', guestEmail: '', guestPhone: '', idProofType: '', idProofNumber: '', roomSelections: [], paid: false, amountPaid: 0 })
 
   const addGuest = () => {
     setGuests(prev => [...prev, emptyGuest()])
@@ -641,7 +687,7 @@ export default function BulkBookingPage() {
   }
   const duplicateGuest = (i) => {
     const src = guests[i]
-    const dup = { ...src, guestName: '', guestEmail: '', guestPhone: '', idProofType: '', idProofNumber: '', paid: false, roomSelections: src.roomSelections.map(s => ({ ...s, selectedRooms: [], quantity: 0 })) }
+    const dup = { ...src, guestName: '', guestEmail: '', guestPhone: '', idProofType: '', idProofNumber: '', paid: false, amountPaid: 0, roomSelections: src.roomSelections.map(s => ({ ...s, selectedRooms: [], quantity: 0 })) }
     setGuests(prev => [...prev.slice(0, i + 1), dup, ...prev.slice(i + 1)])
     setExpandedIndex(i + 1)
   }
@@ -693,6 +739,7 @@ export default function BulkBookingPage() {
         checkIn,
         checkOut,
         paid: g.paid,
+        amountPaid: g.paid ? undefined : (g.amountPaid || 0),
         packageType: 'roomOnly',
         items: g.roomSelections.filter(s => s.roomTypeKey && s.quantity > 0).map(s => ({
           roomTypeKey: s.roomTypeKey,

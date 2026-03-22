@@ -5,7 +5,7 @@ import { authRequired, adminRequired, rolesRequired } from '../middleware/auth.j
 import Booking from '../models/Booking.js'
 import RoomType from '../models/RoomType.js'
 import User from '../models/User.js'
-import { sendBookingConfirmationToUser, sendBookingNotificationToAdmin, sendCancellationToUser, sendCancellationToAdmin } from '../utils/email.js'
+import { sendBookingConfirmationToUser, sendBookingNotificationToAdmin, sendBookingUpdateToUser, sendBookingUpdateNotificationToAdmin, sendCancellationToUser, sendCancellationToAdmin } from '../utils/email.js'
 import { calculateGST } from '../utils/gst.js'
 import { logActivity } from '../utils/activityLogger.js'
 
@@ -42,6 +42,28 @@ function nightsBetween(start, end) {
   return Math.max(1, Math.ceil((e - s) / ms))
 }
 
+function hasRoomNumbers(roomType) {
+  return Array.isArray(roomType?.roomNumbers) && roomType.roomNumbers.length > 0
+}
+
+function normalizeCheckOut(checkIn, checkOut) {
+  const ci = new Date(checkIn)
+  if (!(ci instanceof Date) || Number.isNaN(ci.getTime())) return null
+  if (checkOut) {
+    const co = new Date(checkOut)
+    if (co instanceof Date && !Number.isNaN(co.getTime()) && co > ci) return co
+  }
+  // fullDay bookings: treat as 1-night window for overlap checks
+  return new Date(ci.getTime() + 24 * 60 * 60 * 1000)
+}
+
+function parseAmountPaid(input) {
+  if (input === undefined || input === null || input === '') return null
+  const n = Number(input)
+  if (!Number.isFinite(n) || n < 0) return NaN
+  return n
+}
+
 // Helper function to check room number availability
 async function getAvailableRoomNumbers(roomTypeKey, checkIn, checkOut, excludeBookingId = null) {
   const roomType = await RoomType.findOne({ key: roomTypeKey })
@@ -49,11 +71,14 @@ async function getAvailableRoomNumbers(roomTypeKey, checkIn, checkOut, excludeBo
     return []
   }
 
+  const effCheckOut = normalizeCheckOut(checkIn, checkOut)
+  if (!effCheckOut) return []
+
   // Find all bookings that overlap with the requested date range
   const overlappingBookings = await Booking.find({
     _id: { $ne: excludeBookingId },
     status: { $in: ['paid', 'pending'] },
-    checkIn: { $lt: checkOut },
+    checkIn: { $lt: effCheckOut },
     checkOut: { $gt: checkIn },
     'items.roomTypeKey': roomTypeKey
   })
@@ -107,10 +132,16 @@ router.post('/', authRequired, async (req, res, next) => {
     const typeMap = Object.fromEntries(types.map(t => [t.key, t]))
 
     // Validate availability per item
+    const effCheckOut = normalizeCheckOut(checkIn, checkOut)
     for (const it of data.items) {
       const t = typeMap[it.roomTypeKey]
       if (!t) return res.status(400).json({ message: `Invalid room type ${it.roomTypeKey}` })
-      if (t.count < it.quantity) return res.status(409).json({ message: `${t.title} rooms full` })
+      if (hasRoomNumbers(t)) {
+        const availableRooms = await getAvailableRoomNumbers(it.roomTypeKey, checkIn, effCheckOut)
+        if (availableRooms.length < it.quantity) return res.status(409).json({ message: `${t.title} rooms full` })
+      } else {
+        if (t.count < it.quantity) return res.status(409).json({ message: `${t.title} rooms full` })
+      }
     }
 
     // Aggregate capacity check across ALL items combined
@@ -205,15 +236,37 @@ router.post('/:id/pay', authRequired, async (req, res, next) => {
     }
     if (booking.status === 'paid') return res.json({ booking })
 
-    // Check and decrement counts
+    // Check availability; decrement counts only for count-based room types
     for (const it of booking.items) {
       const t = await RoomType.findOne({ key: it.roomTypeKey })
-      if (!t || t.count < it.quantity) return res.status(409).json({ message: `${it.title} rooms full` })
+      if (!t) return res.status(409).json({ message: `${it.title} rooms full` })
+
+      if (hasRoomNumbers(t)) {
+        const effCheckOut = normalizeCheckOut(booking.checkIn, booking.checkOut)
+        const availRooms = await getAvailableRoomNumbers(it.roomTypeKey, booking.checkIn, effCheckOut, booking._id)
+        if ((availRooms || []).length < it.quantity) {
+          return res.status(409).json({ message: `${it.title} rooms full` })
+        }
+      } else {
+        if (!booking.inventoryCommitted && (t.count || 0) < it.quantity) {
+          return res.status(409).json({ message: `${it.title} rooms full` })
+        }
+      }
     }
+
+    let didCommitInventory = false
     for (const it of booking.items) {
-      await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: -it.quantity } })
+      const t = await RoomType.findOne({ key: it.roomTypeKey })
+      if (t && !hasRoomNumbers(t)) {
+        await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: -it.quantity } })
+        didCommitInventory = true
+      }
     }
+
     booking.status = 'paid'
+    booking.amountPaid = Number(booking.total || 0)
+    booking.payment = { ...(booking.payment || {}), provider: booking.payment?.provider || 'razorpay', status: 'paid' }
+    booking.inventoryCommitted = booking.inventoryCommitted || didCommitInventory
     await booking.save()
 
     logActivity({ action: 'booking_paid', req, target: { type: 'booking', id: booking._id.toString() }, details: `Booking marked as paid - ₹${booking.total}`, metadata: { bookingId: booking._id, total: booking.total } })
@@ -242,7 +295,7 @@ router.get('/', authRequired, rolesRequired('admin','worker'), async (req, res, 
 router.get('/available-rooms/:roomTypeKey', authRequired, rolesRequired('admin','worker'), async (req, res, next) => {
   try {
     const { roomTypeKey } = req.params
-    const { checkIn, checkOut } = req.query
+    const { checkIn, checkOut, excludeBookingId } = req.query
     
     if (!checkIn || !checkOut) {
       return res.status(400).json({ message: 'checkIn and checkOut dates are required' })
@@ -251,7 +304,8 @@ router.get('/available-rooms/:roomTypeKey', authRequired, rolesRequired('admin',
     const availableRooms = await getAvailableRoomNumbers(
       roomTypeKey,
       new Date(checkIn),
-      new Date(checkOut)
+      new Date(checkOut),
+      excludeBookingId ? String(excludeBookingId) : null
     )
 
     res.json({ 
@@ -309,6 +363,18 @@ router.post('/:id/allot-rooms', authRequired, rolesRequired('admin','worker'), a
 
     booking.markModified('items')
     await booking.save()
+
+    // Send update emails (fire-and-forget)
+    const changedFields = ['room_allotments']
+    const userForEmail = await User.findById(booking.user)
+    if (userForEmail?.email) {
+      sendBookingUpdateToUser(booking, userForEmail, { changedFields, actor: req.user }).catch(err =>
+        console.error('Failed to send booking update email to user:', err)
+      )
+      sendBookingUpdateNotificationToAdmin(booking, userForEmail, { changedFields, actor: req.user }).catch(err =>
+        console.error('Failed to send booking update email to admin:', err)
+      )
+    }
 
     const allottedSummary = allotments.map(a => `${a.roomTypeKey}: [${a.roomNumbers.join(', ')}]`).join('; ')
     logActivity({ action: 'rooms_allotted', req, target: { type: 'booking', id: booking._id.toString() }, details: `Rooms allotted - ${allottedSummary}`, metadata: { bookingId: booking._id, allotments } })
@@ -395,6 +461,10 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
         return res.status(400).json({ message: 'Check-out must be after check-in' })
       }
       booking.checkOut = newCheckOut
+      if (booking.fullDay) {
+        booking.fullDay = false
+        changedFields.push('full_day')
+      }
       recalculate = true
       changedFields.push('check_out')
     }
@@ -469,8 +539,8 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
         newQtyMap[roomTypeKey] = (newQtyMap[roomTypeKey] || 0) + qty
       }
 
-      // Keep room inventory in sync for paid bookings when quantities change
-      if (booking.status === 'paid') {
+      // Keep room inventory in sync for committed bookings when quantities change
+      if (booking.inventoryCommitted) {
         const touchedKeys = [...new Set([...Object.keys(oldQtyMap), ...Object.keys(newQtyMap)])]
         for (const key of touchedKeys) {
           const oldQty = oldQtyMap[key] || 0
@@ -478,12 +548,17 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
           const delta = newQty - oldQty
           if (delta > 0) {
             const rt = roomTypeMap[key] || await RoomType.findOne({ key })
-            if (!rt || (rt.count || 0) < delta) {
-              return res.status(409).json({ message: `${rt?.title || key} rooms not available` })
+            if (rt && !hasRoomNumbers(rt)) {
+              if ((rt.count || 0) < delta) {
+                return res.status(409).json({ message: `${rt?.title || key} rooms not available` })
+              }
+              await RoomType.updateOne({ key }, { $inc: { count: -delta } })
             }
-            await RoomType.updateOne({ key }, { $inc: { count: -delta } })
           } else if (delta < 0) {
-            await RoomType.updateOne({ key }, { $inc: { count: Math.abs(delta) } })
+            const rt = roomTypeMap[key] || await RoomType.findOne({ key })
+            if (rt && !hasRoomNumbers(rt)) {
+              await RoomType.updateOne({ key }, { $inc: { count: Math.abs(delta) } })
+            }
           }
         }
       }
@@ -501,7 +576,7 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
           return res.status(400).json({ message: `Invalid room type ${newItem.roomTypeKey}` })
         }
 
-        if (roomType.count < newItem.quantity) {
+        if (!hasRoomNumbers(roomType) && roomType.count < newItem.quantity) {
           return res.status(409).json({ message: `${roomType.title} rooms not available` })
         }
 
@@ -527,7 +602,7 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
           })
         }
 
-        if (booking.status === 'paid') {
+        if (booking.inventoryCommitted && !hasRoomNumbers(roomType)) {
           await RoomType.updateOne({ key: newItem.roomTypeKey }, { $inc: { count: -newItem.quantity } })
         }
       }
@@ -642,6 +717,55 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
       changedFields.push('pricing')
     }
 
+    // Advance/partial payment update
+    if (req.body && Object.prototype.hasOwnProperty.call(req.body, 'amountPaid')) {
+      const parsed = parseAmountPaid(req.body.amountPaid)
+      if (Number.isNaN(parsed)) return res.status(400).json({ message: 'Invalid amountPaid' })
+      const nextPaid = parsed === null ? booking.amountPaid : parsed
+      const prevPaid = Number(booking.amountPaid || 0)
+      booking.amountPaid = Math.min(Math.max(0, nextPaid || 0), Number(booking.total || 0))
+      changedFields.push('amount_paid')
+
+      // If advance payment is received, reserve count-based inventory (once)
+      if (!booking.inventoryCommitted && booking.amountPaid > 0) {
+        for (const it of booking.items) {
+          const rt = await RoomType.findOne({ key: it.roomTypeKey })
+          if (rt && !hasRoomNumbers(rt)) {
+            if ((rt.count || 0) < it.quantity) {
+              return res.status(409).json({ message: `${rt.title} rooms full` })
+            }
+          }
+        }
+        for (const it of booking.items) {
+          const rt = await RoomType.findOne({ key: it.roomTypeKey })
+          if (rt && !hasRoomNumbers(rt)) {
+            await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: -it.quantity } })
+          }
+        }
+        booking.inventoryCommitted = true
+      }
+
+      // If payment is removed entirely, unreserve inventory for count-based room types
+      if (booking.inventoryCommitted && prevPaid > 0 && booking.amountPaid <= 0 && booking.status !== 'paid') {
+        for (const it of booking.items) {
+          const rt = await RoomType.findOne({ key: it.roomTypeKey })
+          if (rt && !hasRoomNumbers(rt)) {
+            await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: it.quantity } })
+          }
+        }
+        booking.inventoryCommitted = false
+      }
+
+      if (booking.amountPaid >= Number(booking.total || 0)) {
+        booking.status = 'paid'
+        booking.payment = { ...(booking.payment || {}), provider: booking.payment?.provider || 'offline', status: 'paid' }
+      } else {
+        if (booking.status === 'paid') {
+          booking.status = 'pending'
+        }
+      }
+    }
+
     booking.markModified('items')
     await booking.save()
 
@@ -660,6 +784,18 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
         changedFields: [...new Set(changedFields)]
       }
     })
+
+    // Always send update emails after any successful edit (fire-and-forget)
+    const userForEmail = bookingUser || await User.findById(booking.user)
+    const emailFields = changedFields.length > 0 ? [...new Set(changedFields)] : ['booking_updated']
+    if (userForEmail?.email) {
+      sendBookingUpdateToUser(booking, userForEmail, { changedFields: emailFields, actor: req.user }).catch(err =>
+        console.error('Failed to send booking update email to user:', err)
+      )
+    }
+    sendBookingUpdateNotificationToAdmin(booking, userForEmail || {}, { changedFields: emailFields, actor: req.user }).catch(err =>
+      console.error('Failed to send booking update email to admin:', err)
+    )
 
     res.json({ booking })
   } catch (e) { next(e) }
@@ -802,6 +938,12 @@ router.post('/bulk', authRequired, rolesRequired('admin','worker'), async (req, 
         const finalGSTAmount = gstEnabled ? gstResult.gstAmount : 0
         const total = subtotalAmount + finalGSTAmount
 
+        const advancePaidRaw = parseAmountPaid(entry.amountPaid ?? entry.advancePaid ?? entry.advanceAmount)
+        if (Number.isNaN(advancePaidRaw)) {
+          errors.push({ index: idx, message: `Entry ${idx + 1}: Invalid advance/amountPaid` })
+          continue
+        }
+
         let booking = await Booking.create({
           user: user._id,
           checkIn,
@@ -813,11 +955,34 @@ router.post('/bulk', authRequired, rolesRequired('admin','worker'), async (req, 
           gstPercentage: finalGSTPercentage,
           gstAmount: finalGSTAmount,
           total,
+          amountPaid: Math.min(Math.max(0, advancePaidRaw || 0), total),
           status: 'pending'
         })
 
         // Mark paid if requested
-        const markPaid = !!entry.paid
+        const markPaid = !!entry.paid || (booking.amountPaid >= total)
+
+        // Reserve count-based inventory if any payment was taken (advance or full)
+        if (!booking.inventoryCommitted && booking.amountPaid > 0) {
+          let canCommit = true
+          for (const it of booking.items) {
+            const t = await RoomType.findOne({ key: it.roomTypeKey })
+            if (!t) { canCommit = false; break }
+            if (!hasRoomNumbers(t) && (t.count || 0) < it.quantity) { canCommit = false; break }
+          }
+          if (canCommit) {
+            for (const it of booking.items) {
+              const t = await RoomType.findOne({ key: it.roomTypeKey })
+              if (t && !hasRoomNumbers(t)) {
+                await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: -it.quantity } })
+              }
+            }
+            booking.inventoryCommitted = true
+            booking.payment = { ...(booking.payment || {}), provider: booking.payment?.provider || 'offline', status: booking.payment?.status || 'created' }
+            await booking.save()
+          }
+        }
+
         if (markPaid) {
           let canPay = true
           for (const it of booking.items) {
@@ -827,14 +992,21 @@ router.post('/bulk', authRequired, rolesRequired('admin','worker'), async (req, 
             if (t.roomNumbers && t.roomNumbers.length > 0) {
               const availRooms = await getAvailableRoomNumbers(it.roomTypeKey, checkIn, effCheckOut, booking._id)
               if (availRooms.length < it.quantity) { canPay = false; break }
-            } else if (t.count < it.quantity) { canPay = false; break }
+            } else if (!booking.inventoryCommitted && t.count < it.quantity) { canPay = false; break }
           }
           if (canPay) {
             for (const it of booking.items) {
-              await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: -it.quantity } })
+              const t = await RoomType.findOne({ key: it.roomTypeKey })
+              if (t && !hasRoomNumbers(t)) {
+                if (!booking.inventoryCommitted) {
+                  await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: -it.quantity } })
+                  booking.inventoryCommitted = true
+                }
+              }
             }
             booking.status = 'paid'
             booking.payment = { provider: 'offline', status: 'paid' }
+            booking.amountPaid = total
             await booking.save()
           }
         }
@@ -955,10 +1127,16 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
     const typeMap = Object.fromEntries(types.map(t => [t.key, t]))
 
     // Validate availability per item
+    const effCheckOut = normalizeCheckOut(checkIn, checkOut)
     for (const it of data.items) {
       const t = typeMap[it.roomTypeKey]
       if (!t) return res.status(400).json({ message: `Invalid room type ${it.roomTypeKey}` })
-      if (t.count < it.quantity) return res.status(409).json({ message: `${t.title} rooms full` })
+      if (hasRoomNumbers(t)) {
+        const availableRooms = await getAvailableRoomNumbers(it.roomTypeKey, checkIn, effCheckOut)
+        if (availableRooms.length < it.quantity) return res.status(409).json({ message: `${t.title} rooms full` })
+      } else {
+        if (t.count < it.quantity) return res.status(409).json({ message: `${t.title} rooms full` })
+      }
     }
 
     // Aggregate capacity check across ALL items combined
@@ -1008,6 +1186,9 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
     const manualGSTAmount = manualGSTEnabled ? manualGSTResult.gstAmount : 0
     const manualTotal = manualSubtotal + manualGSTAmount
 
+    const advancePaidRaw = parseAmountPaid(payload.amountPaid ?? payload.advancePaid ?? payload.advanceAmount)
+    if (Number.isNaN(advancePaidRaw)) return res.status(400).json({ message: 'Invalid advance/amountPaid' })
+
     let booking = await Booking.create({
       user: user._id,
       checkIn,
@@ -1019,24 +1200,59 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
       gstPercentage: manualGSTPercentage,
       gstAmount: manualGSTAmount,
       total: manualTotal,
+      amountPaid: Math.min(Math.max(0, advancePaidRaw || 0), manualTotal),
       status: 'pending'
     })
 
-    const markPaid = !!payload.paid || payload.status === 'paid'
-    if (markPaid) {
-      // decrement counts then set status paid
+    const markPaid = !!payload.paid || payload.status === 'paid' || (booking.amountPaid >= manualTotal)
+
+    // Reserve count-based inventory if any payment was taken (advance or full)
+    if (!booking.inventoryCommitted && booking.amountPaid > 0) {
       for (const it of booking.items) {
         const t = await RoomType.findOne({ key: it.roomTypeKey })
-        if (!t || t.count < it.quantity) return res.status(409).json({ message: `${it.title} rooms full` })
+        if (!t) return res.status(409).json({ message: `${it.title} rooms full` })
+        if (!hasRoomNumbers(t) && (t.count || 0) < it.quantity) {
+          return res.status(409).json({ message: `${it.title} rooms full` })
+        }
       }
       for (const it of booking.items) {
-        await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: -it.quantity } })
+        const t = await RoomType.findOne({ key: it.roomTypeKey })
+        if (t && !hasRoomNumbers(t)) {
+          await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: -it.quantity } })
+        }
       }
+      booking.inventoryCommitted = true
+      booking.payment = { ...(booking.payment || {}), provider: booking.payment?.provider || 'offline', status: booking.payment?.status || 'created' }
+      await booking.save()
+    }
+
+    if (markPaid) {
+      // validate availability then set status paid
+      for (const it of booking.items) {
+        const t = await RoomType.findOne({ key: it.roomTypeKey })
+        if (!t) return res.status(409).json({ message: `${it.title} rooms full` })
+        if (hasRoomNumbers(t)) {
+          const availRooms = await getAvailableRoomNumbers(it.roomTypeKey, checkIn, effCheckOut, booking._id)
+          if (availRooms.length < it.quantity) return res.status(409).json({ message: `${it.title} rooms full` })
+        } else if ((t.count || 0) < it.quantity && !booking.inventoryCommitted) {
+          return res.status(409).json({ message: `${it.title} rooms full` })
+        }
+      }
+
+      // if not already committed, commit now
+      if (!booking.inventoryCommitted) {
+        for (const it of booking.items) {
+          const t = await RoomType.findOne({ key: it.roomTypeKey })
+          if (t && !hasRoomNumbers(t)) {
+            await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: -it.quantity } })
+          }
+        }
+        booking.inventoryCommitted = true
+      }
+
       booking.status = 'paid'
-      booking.payment = {
-        provider: 'offline',
-        status: 'paid'
-      }
+      booking.payment = { provider: 'offline', status: 'paid' }
+      booking.amountPaid = manualTotal
       await booking.save()
     }
 
@@ -1064,9 +1280,13 @@ router.post('/:id/checkout', authRequired, rolesRequired('admin','worker'), asyn
     if (!booking) return res.status(404).json({ message: 'Not found' })
     if (booking.status !== 'paid') return res.status(400).json({ message: 'Only paid bookings can be checked out' })
     for (const it of booking.items) {
-      await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: it.quantity } })
+      const t = await RoomType.findOne({ key: it.roomTypeKey })
+      if (t && !hasRoomNumbers(t)) {
+        await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: it.quantity } })
+      }
     }
     booking.status = 'completed'
+    booking.inventoryCommitted = false
     await booking.save()
 
     logActivity({ action: 'guest_checked_out', req, target: { type: 'booking', id: booking._id.toString() }, details: `Guest checked out - ${booking.items.map(i => `${i.quantity}x ${i.title}`).join(', ')}`, metadata: { bookingId: booking._id } })
@@ -1089,15 +1309,19 @@ router.post('/:id/cancel', authRequired, rolesRequired('admin','worker'), async 
       return res.status(400).json({ message: 'Cannot cancel completed bookings' })
     }
 
-    // If booking was paid, restore room availability
-    if (booking.status === 'paid') {
+    // Restore room availability if inventory was committed (reserved)
+    if (booking.inventoryCommitted) {
       for (const it of booking.items) {
-        await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: it.quantity } })
+        const t = await RoomType.findOne({ key: it.roomTypeKey })
+        if (t && !hasRoomNumbers(t)) {
+          await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: it.quantity } })
+        }
       }
     }
 
     // Mark as cancelled
     booking.status = 'cancelled'
+    booking.inventoryCommitted = false
     await booking.save()
 
     // Send cancellation notifications

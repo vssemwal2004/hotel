@@ -49,6 +49,25 @@ export default function AdminBookings(){
     fetchBookings()
   }, [])
 
+  // Refresh after returning from edit-booking
+  useEffect(() => {
+    const refreshIfEdited = async () => {
+      let updatedId = null
+      try { updatedId = sessionStorage.getItem('booking_updated_id') } catch {}
+      if (!updatedId) return
+      const list = await fetchBookings()
+      try {
+        sessionStorage.removeItem('booking_updated_id')
+        sessionStorage.removeItem('booking_updated_at')
+      } catch {}
+      if (selectedBooking?._id && selectedBooking._id === updatedId && Array.isArray(list)) {
+        const fresh = list.find(b => b._id === updatedId)
+        if (fresh) setSelectedBooking(fresh)
+      }
+    }
+    refreshIfEdited()
+  }, [])
+
   useEffect(() => {
     filterBookings()
   }, [searchQuery, statusFilter, dateFilter, customStartDate, customEndDate, bookingTypeFilter, bookings])
@@ -57,9 +76,12 @@ export default function AdminBookings(){
     setLoading(true)
     try {
       const { data } = await api.get('/bookings')
-      setBookings(data.bookings || [])
+      const list = data.bookings || []
+      setBookings(list)
+      return list
     } catch (error) {
       console.error('Error fetching bookings:', error)
+      return null
     } finally {
       setLoading(false)
     }
@@ -286,9 +308,11 @@ export default function AdminBookings(){
                 <div className="bg-white rounded-lg p-4 border border-purple-200">
                   <p className="text-xs text-gray-600 mb-1">Check-out Date & Time</p>
                   <p className="font-semibold text-gray-900">
-                    {booking.fullDay ? 'Same Day (Full Day)' : new Date(booking.checkOut).toLocaleDateString()}
+                    {booking.checkOut
+                      ? new Date(booking.checkOut).toLocaleDateString()
+                      : (booking.fullDay ? 'Same Day (Full Day)' : '—')}
                   </p>
-                  {!booking.fullDay && (
+                  {booking.checkOut && (
                     <p className="text-sm text-gray-600">{new Date(booking.checkOut).toLocaleTimeString()}</p>
                   )}
                 </div>
@@ -373,6 +397,14 @@ export default function AdminBookings(){
                     <Check size={16} />
                     Included
                   </span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-green-200">
+                  <span className="text-gray-700 font-medium">Paid</span>
+                  <span className="font-semibold text-gray-900">₹{(booking.amountPaid || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-green-200">
+                  <span className="text-gray-700 font-medium">Remaining Due</span>
+                  <span className="font-semibold text-gray-900">₹{Math.max(0, (booking.totalAmount || booking.total || 0) - (booking.amountPaid || 0)).toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-white shadow-lg">
                   <span className="text-lg font-bold">Grand Total</span>
@@ -650,6 +682,9 @@ export default function AdminBookings(){
                       </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
                         <p className="text-base font-bold text-green-600">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</p>
+                        {Math.max(0, (booking.totalAmount || booking.total || 0) - (booking.amountPaid || 0)) > 0 && (
+                          <p className="text-xs font-bold text-amber-700">Due ₹{Math.max(0, (booking.totalAmount || booking.total || 0) - (booking.amountPaid || 0)).toLocaleString()}</p>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
                         {getStatusBadge(booking.status)}
@@ -725,6 +760,9 @@ export default function AdminBookings(){
                       <div className="bg-white rounded-lg p-2 border border-green-200">
                         <p className="text-xs text-gray-600 mb-0.5">Amount</p>
                         <p className="text-base font-bold text-green-600">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</p>
+                        {Math.max(0, (booking.totalAmount || booking.total || 0) - (booking.amountPaid || 0)) > 0 && (
+                          <p className="text-xs font-bold text-amber-700">Due ₹{Math.max(0, (booking.totalAmount || booking.total || 0) - (booking.amountPaid || 0)).toLocaleString()}</p>
+                        )}
                       </div>
                     </div>
 

@@ -128,6 +128,9 @@ export default function CalendarRedirect() {
                           )}
                           <span className="text-[10px] text-gray-400">•</span>
                           <span className="text-[10px] font-bold text-green-600">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</span>
+                          {Math.max(0, (booking.totalAmount || booking.total || 0) - (booking.amountPaid || 0)) > 0 && (
+                            <span className="text-[10px] font-bold text-amber-700">Due ₹{Math.max(0, (booking.totalAmount || booking.total || 0) - (booking.amountPaid || 0)).toLocaleString()}</span>
+                          )}
                           <StatusBadge status={booking.status} />
                         </div>
                       </div>
@@ -309,6 +312,14 @@ function CustomerDetailsModal({ roomData, roomType, onClose, onCancelBooking }) 
                     <div className="flex justify-between text-base font-bold pt-1 border-t border-green-200">
                       <span className="text-gray-900">Total</span>
                       <span className="text-green-600">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Paid</span>
+                      <span className="text-gray-900">₹{(booking.amountPaid || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Remaining Due</span>
+                      <span className="text-gray-900">₹{Math.max(0, (booking.totalAmount || booking.total || 0) - (booking.amountPaid || 0)).toLocaleString()}</span>
                     </div>
                   </div>
                 </div>

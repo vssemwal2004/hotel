@@ -64,6 +64,20 @@ export default function WorkerPage(){
     fetchAllBookings()
   }, [fetchAllBookings])
 
+  // Refresh after returning from edit-booking
+  useEffect(() => {
+    let updatedId = null
+    try { updatedId = sessionStorage.getItem('booking_updated_id') } catch {}
+    if (!updatedId) return
+    ;(async () => {
+      await fetchAllBookings()
+      try {
+        sessionStorage.removeItem('booking_updated_id')
+        sessionStorage.removeItem('booking_updated_at')
+      } catch {}
+    })()
+  }, [fetchAllBookings])
+
   // Auto-refresh when page gains focus (e.g. after navigating back from allot-rooms)
   useEffect(() => {
     const onFocus = () => fetchAllBookings()
@@ -570,7 +584,14 @@ export default function WorkerPage(){
               {/* Total */}
               <div className="flex items-center justify-between bg-gray-900 text-white rounded-lg px-4 py-3">
                 <span className="font-medium text-sm">Total Amount</span>
-                <span className="text-lg font-bold">₹{selectedBooking.total?.toLocaleString() || 0}</span>
+                <div className="text-right">
+                  <span className="text-lg font-bold">₹{selectedBooking.total?.toLocaleString() || 0}</span>
+                  {Math.max(0, (selectedBooking.total || 0) - (selectedBooking.amountPaid || 0)) > 0 && (
+                    <p className="text-[11px] font-semibold text-amber-200">
+                      Due ₹{Math.max(0, (selectedBooking.total || 0) - (selectedBooking.amountPaid || 0)).toLocaleString()}
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Created At */}

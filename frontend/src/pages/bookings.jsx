@@ -449,6 +449,11 @@ export default function BookingsPage() {
                               <IndianRupee size={22} />
                               <span>{booking.total.toLocaleString('en-IN')}</span>
                             </div>
+                            {Math.max(0, (booking.total || 0) - (booking.amountPaid || 0)) > 0 && (
+                              <p className="text-xs font-semibold text-amber-700 mt-0.5">
+                                Remaining Due ₹{Math.max(0, (booking.total || 0) - (booking.amountPaid || 0)).toLocaleString('en-IN')}
+                              </p>
+                            )}
                             <div className="flex items-center justify-end gap-1.5 mt-1.5">
                               <span className="text-xs text-gray-600">
                                 {isExpanded ? 'Hide' : 'View'} Details
