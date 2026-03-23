@@ -786,10 +786,10 @@ export default function AdminBookings(){
                         {getStatusBadge(booking.status)}
                       </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
                           <button
                             onClick={() => setSelectedBooking(booking)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
                             title="View"
                           >
                             <Eye size={14} /> View
@@ -798,7 +798,7 @@ export default function AdminBookings(){
                           {showEdit && (
                             <button
                               onClick={() => router.push(`/admin/bookings/edit-booking?id=${booking._id}`)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
                               title="Edit"
                             >
                               <Pencil size={14} /> Edit
@@ -808,7 +808,7 @@ export default function AdminBookings(){
                           {showCancel && (
                             <button
                               onClick={() => setCancelConfirmId(booking._id)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors"
                               title="Cancel"
                             >
                               <XCircle size={14} /> Cancel
@@ -819,7 +819,7 @@ export default function AdminBookings(){
                             <button
                               onClick={() => checkinEnabled ? setCheckinTarget(booking) : null}
                               disabled={!checkinEnabled || checkingInId === booking._id}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               title={checkinEnabled ? 'Check-In' : 'Check-In is available on/after check-in date'}
                             >
                               <LogIn size={14} /> {checkingInId === booking._id ? 'Checking…' : 'Check-In'}
@@ -830,7 +830,7 @@ export default function AdminBookings(){
                             <button
                               onClick={() => checkoutEnabled ? setCheckoutTarget(booking) : null}
                               disabled={!checkoutEnabled}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               title={checkoutEnabled ? 'Check-Out' : 'Check-Out is enabled only after Check-In (and payment is paid)'}
                             >
                               <CheckCircle size={14} /> Check-Out
@@ -840,7 +840,7 @@ export default function AdminBookings(){
                           {showMarkPaid && (
                             <button
                               onClick={() => handleMarkPaid(booking._id)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
                               title="Mark Paid"
                             >
                               <CheckCircle size={14} /> Mark Paid
@@ -911,10 +911,10 @@ export default function AdminBookings(){
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
                       <button
                         onClick={() => setSelectedBooking(booking)}
-                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors"
+                        className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors"
                       >
                         <Eye size={16} /> View
                       </button>
@@ -922,7 +922,7 @@ export default function AdminBookings(){
                       {showEdit && (
                         <button
                           onClick={() => router.push(`/admin/bookings/edit-booking?id=${booking._id}`)}
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors"
+                          className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors"
                         >
                           <Pencil size={16} /> Edit
                         </button>
@@ -931,7 +931,7 @@ export default function AdminBookings(){
                       {showCancel && (
                         <button
                           onClick={() => setCancelConfirmId(booking._id)}
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold text-sm transition-colors"
+                          className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold text-sm transition-colors"
                         >
                           <XCircle size={16} /> Cancel
                         </button>
@@ -941,7 +941,7 @@ export default function AdminBookings(){
                         <button
                           onClick={() => checkinEnabled ? setCheckinTarget(booking) : null}
                           disabled={!checkinEnabled || checkingInId === booking._id}
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <LogIn size={16} /> {checkingInId === booking._id ? 'Checking…' : 'Check-In'}
                         </button>
@@ -951,7 +951,7 @@ export default function AdminBookings(){
                         <button
                           onClick={() => checkoutEnabled ? setCheckoutTarget(booking) : null}
                           disabled={!checkoutEnabled}
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <CheckCircle size={16} /> Check-Out
                         </button>
@@ -960,7 +960,7 @@ export default function AdminBookings(){
                       {showMarkPaid && (
                         <button
                           onClick={() => handleMarkPaid(booking._id)}
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors"
+                          className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors"
                         >
                           <CheckCircle size={16} /> Mark Paid
                         </button>

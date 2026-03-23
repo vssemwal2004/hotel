@@ -676,10 +676,10 @@ export default function WorkerPage(){
                       <td className="px-3 py-2.5 text-right font-semibold text-sm text-gray-900 whitespace-nowrap">₹{b.total?.toLocaleString() || 0}</td>
                       <td className="px-3 py-2.5 text-center">{getStatusBadge(b.status)}</td>
                       <td className="px-3 py-2.5">
-                        <div className="flex flex-wrap items-center justify-center gap-2" onClick={e => e.stopPropagation()}>
+                        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap pb-1" onClick={e => e.stopPropagation()}>
                           <button
                             onClick={() => setSelectedBooking(b)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
                             title="View"
                           >
                             <Eye size={14} /> View
@@ -688,7 +688,7 @@ export default function WorkerPage(){
                           {showEdit && (
                             <button
                               onClick={() => router.push(`/worker/bookings/edit-booking?id=${b._id}`)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
                               title="Edit"
                             >
                               <Pencil size={14} /> Edit
@@ -698,7 +698,7 @@ export default function WorkerPage(){
                           {showCancel && (
                             <button
                               onClick={() => requestCancel(b)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors"
                               title="Cancel"
                             >
                               <XCircle size={14} /> Cancel
@@ -709,7 +709,7 @@ export default function WorkerPage(){
                             <button
                               onClick={() => checkinEnabled ? requestCheckIn(b) : null}
                               disabled={!checkinEnabled || checkingInId === b._id}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               title={checkinEnabled ? 'Check-In' : 'Check-In is available on/after check-in date'}
                             >
                               <LogIn size={14} /> {checkingInId === b._id ? 'Checking…' : 'Check-In'}
@@ -720,7 +720,7 @@ export default function WorkerPage(){
                             <button
                               onClick={() => checkoutEnabled ? requestCheckout(b) : null}
                               disabled={!checkoutEnabled}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               title={checkoutEnabled ? 'Check-Out' : 'Check-Out is enabled only after Check-In (and payment is paid)'}
                             >
                               <CheckCircle size={14} /> Check-Out
@@ -730,7 +730,7 @@ export default function WorkerPage(){
                           {showMarkPaid && (
                             <button
                               onClick={() => markPaid(b._id)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
                               title="Mark Paid"
                             >
                               <CheckCircle size={14} /> Mark Paid
@@ -788,10 +788,10 @@ export default function WorkerPage(){
                     const checkoutEnabled = canCheckoutNow(b)
 
                     return (
-                      <div className="flex flex-wrap gap-2 justify-end" onClick={e => e.stopPropagation()}>
+                      <div className="flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap pb-1" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => setSelectedBooking(b)}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                          className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
                         >
                           <Eye size={13} /> View
                         </button>
@@ -799,7 +799,7 @@ export default function WorkerPage(){
                         {showEdit && (
                           <button
                             onClick={() => router.push(`/worker/bookings/edit-booking?id=${b._id}`)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                            className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
                           >
                             <Pencil size={13} /> Edit
                           </button>
@@ -808,7 +808,7 @@ export default function WorkerPage(){
                         {showCancel && (
                           <button
                             onClick={() => requestCancel(b)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                            className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors"
                           >
                             <XCircle size={13} /> Cancel
                           </button>
@@ -818,7 +818,7 @@ export default function WorkerPage(){
                           <button
                             onClick={() => checkinEnabled ? requestCheckIn(b) : null}
                             disabled={!checkinEnabled || checkingInId === b._id}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <LogIn size={13} /> {checkingInId === b._id ? 'Checking…' : 'Check-In'}
                           </button>
@@ -828,7 +828,7 @@ export default function WorkerPage(){
                           <button
                             onClick={() => checkoutEnabled ? requestCheckout(b) : null}
                             disabled={!checkoutEnabled}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <CheckCircle size={13} /> Check-Out
                           </button>
@@ -837,7 +837,7 @@ export default function WorkerPage(){
                         {showMarkPaid && (
                           <button
                             onClick={() => markPaid(b._id)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                            className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
                           >
                             <CheckCircle size={13} /> Mark Paid
                           </button>
