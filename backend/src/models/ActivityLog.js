@@ -7,8 +7,10 @@ const activityLogSchema = new mongoose.Schema({
     enum: [
       'booking_created',
       'booking_cancelled',
+      'booking_cancel_undone',
       'booking_edited',
       'booking_paid',
+      'booking_marked_unpaid',
       'bulk_booking_created',
       'walk_in_created',
       'rooms_allotted',

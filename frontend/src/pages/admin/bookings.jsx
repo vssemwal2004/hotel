@@ -12,6 +12,8 @@ import {
   CreditCard, 
   Eye, 
   Check, 
+  CheckCircle,
+  LogIn,
   X,
   Clock,
   IndianRupee,
@@ -20,7 +22,6 @@ import {
   RefreshCw,
   Download,
   XCircle,
-  Ban,
   Pencil
 } from 'lucide-react'
 import { 
@@ -44,6 +45,10 @@ export default function AdminBookings(){
   const [selectedBooking, setSelectedBooking] = useState(null)
   const [cancelConfirmId, setCancelConfirmId] = useState(null)
   const [cancelling, setCancelling] = useState(false)
+  const [checkoutTarget, setCheckoutTarget] = useState(null)
+  const [checkingOut, setCheckingOut] = useState(false)
+  const [checkingInId, setCheckingInId] = useState(null)
+  const [checkinTarget, setCheckinTarget] = useState(null)
 
   useEffect(() => {
     fetchBookings()
@@ -87,6 +92,20 @@ export default function AdminBookings(){
     }
   }
 
+  const handleMarkPaid = async (bookingId) => {
+    try {
+      await api.post(`/bookings/${bookingId}/pay`)
+      toast.show({ type: 'success', title: 'Marked Paid', message: 'Booking has been marked as paid.' })
+      const list = await fetchBookings()
+      if (selectedBooking?._id && selectedBooking._id === bookingId && Array.isArray(list)) {
+        const fresh = list.find(b => b._id === bookingId)
+        if (fresh) setSelectedBooking(fresh)
+      }
+    } catch (err) {
+      toast.show({ type: 'error', title: 'Error', message: err?.response?.data?.message || 'Failed to mark as paid' })
+    }
+  }
+
   const handleCancelBooking = async (bookingId) => {
     setCancelling(true)
     try {
@@ -98,6 +117,71 @@ export default function AdminBookings(){
       toast.show({ type: 'error', title: 'Error', message: err?.response?.data?.message || 'Failed to cancel booking' })
     } finally {
       setCancelling(false)
+    }
+  }
+
+  const handleCheckoutBooking = async (bookingId) => {
+    setCheckingOut(true)
+    try {
+      await api.post(`/bookings/${bookingId}/checkout`)
+      toast.show({ type: 'success', title: 'Checked Out', message: 'Guest has been checked out successfully.' })
+      setCheckoutTarget(null)
+      const list = await fetchBookings()
+      if (selectedBooking?._id && selectedBooking._id === bookingId && Array.isArray(list)) {
+        const fresh = list.find(b => b._id === bookingId)
+        if (fresh) setSelectedBooking(fresh)
+      }
+    } catch (err) {
+      toast.show({ type: 'error', title: 'Error', message: err?.response?.data?.message || 'Failed to check out guest' })
+    } finally {
+      setCheckingOut(false)
+    }
+  }
+
+  const canCheckInNow = (booking) => {
+    if (!booking) return false
+    if (booking.status === 'cancelled' || booking.status === 'completed') return false
+    if (booking.checkedInAt) return false
+    if (!booking.checkIn) return false
+
+    const now = new Date()
+    const today = new Date(now)
+    today.setHours(0, 0, 0, 0)
+
+    const ci = new Date(booking.checkIn)
+    if (Number.isNaN(ci.getTime())) return false
+    ci.setHours(0, 0, 0, 0)
+
+    let co = booking.checkOut ? new Date(booking.checkOut) : null
+    if (!co || Number.isNaN(co.getTime())) {
+      co = new Date(ci.getTime() + 24 * 60 * 60 * 1000)
+    }
+    co.setHours(0, 0, 0, 0)
+
+    return ci <= today && co >= today
+  }
+
+  const canCheckoutNow = (booking) => {
+    if (!booking) return false
+    if (booking.status !== 'paid') return false
+    return !!booking.checkedInAt
+  }
+
+  const handleCheckInBooking = async (bookingId) => {
+    setCheckingInId(bookingId)
+    try {
+      await api.post(`/bookings/${bookingId}/checkin`)
+      toast.show({ type: 'success', title: 'Checked In', message: 'Guest has been checked in successfully.' })
+      setCheckinTarget(null)
+      const list = await fetchBookings()
+      if (selectedBooking?._id && selectedBooking._id === bookingId && Array.isArray(list)) {
+        const fresh = list.find(b => b._id === bookingId)
+        if (fresh) setSelectedBooking(fresh)
+      }
+    } catch (err) {
+      toast.show({ type: 'error', title: 'Error', message: err?.response?.data?.message || 'Failed to check in guest' })
+    } finally {
+      setCheckingInId(null)
     }
   }
 
@@ -647,8 +731,20 @@ export default function AdminBookings(){
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {filteredBookings.map((booking) => (
-                    <tr key={booking._id} className="hover:bg-blue-50 transition-colors">
+                  {filteredBookings.map((booking) => {
+                    const totalAmount = (booking.totalAmount || booking.total || 0)
+                    const amountPaid = (booking.amountPaid || 0)
+                    const paymentDue = totalAmount > amountPaid
+                    const showMarkPaid = booking.status === 'pending' && paymentDue
+                    const showEdit = (booking.status === 'pending' || booking.status === 'paid')
+                    const showCancel = (booking.status === 'pending' || booking.status === 'paid')
+                    const showCheckIn = (booking.status === 'pending' || booking.status === 'paid')
+                    const showCheckout = (booking.status === 'pending' || booking.status === 'paid')
+                    const checkinEnabled = canCheckInNow(booking)
+                    const checkoutEnabled = canCheckoutNow(booking)
+
+                    return (
+                      <tr key={booking._id} className={`${booking.checkedInAt ? 'bg-emerald-50/60' : ''} hover:bg-blue-50 transition-colors`}>
                       <td className="px-3 py-2.5 whitespace-nowrap">
                         <p className="text-xs font-mono font-semibold text-gray-900">#{booking._id.slice(-6)}</p>
                         <p className="text-xs text-gray-500">{new Date(booking.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</p>
@@ -690,42 +786,91 @@ export default function AdminBookings(){
                         {getStatusBadge(booking.status)}
                       </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
                             onClick={() => setSelectedBooking(booking)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all shadow-sm hover:shadow-md text-xs font-medium"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                            title="View"
                           >
-                            <Eye size={14} />
-                            View
+                            <Eye size={14} /> View
                           </button>
-                          {(booking.status === 'paid' || booking.status === 'pending') && (
+
+                          {showEdit && (
                             <button
-                              onClick={() => setCancelConfirmId(booking._id)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-lg transition-all shadow-sm hover:shadow-md text-xs font-medium"
+                              onClick={() => router.push(`/admin/bookings/edit-booking?id=${booking._id}`)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                              title="Edit"
                             >
-                              <Ban size={14} />
-                              Cancel
+                              <Pencil size={14} /> Edit
                             </button>
                           )}
-                          <button
-                            onClick={() => router.push(`/admin/bookings/edit-booking?id=${booking._id}`)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg transition-all shadow-sm hover:shadow-md text-xs font-medium"
-                          >
-                            <Pencil size={14} />
-                            Edit
-                          </button>
+
+                          {showCancel && (
+                            <button
+                              onClick={() => setCancelConfirmId(booking._id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                              title="Cancel"
+                            >
+                              <XCircle size={14} /> Cancel
+                            </button>
+                          )}
+
+                          {showCheckIn && (
+                            <button
+                              onClick={() => checkinEnabled ? setCheckinTarget(booking) : null}
+                              disabled={!checkinEnabled || checkingInId === booking._id}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={checkinEnabled ? 'Check-In' : 'Check-In is available on/after check-in date'}
+                            >
+                              <LogIn size={14} /> {checkingInId === booking._id ? 'Checking…' : 'Check-In'}
+                            </button>
+                          )}
+
+                          {showCheckout && (
+                            <button
+                              onClick={() => checkoutEnabled ? setCheckoutTarget(booking) : null}
+                              disabled={!checkoutEnabled}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={checkoutEnabled ? 'Check-Out' : 'Check-Out is enabled only after Check-In (and payment is paid)'}
+                            >
+                              <CheckCircle size={14} /> Check-Out
+                            </button>
+                          )}
+
+                          {showMarkPaid && (
+                            <button
+                              onClick={() => handleMarkPaid(booking._id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                              title="Mark Paid"
+                            >
+                              <CheckCircle size={14} /> Mark Paid
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
 
             {/* Mobile Card View */}
             <div className="lg:hidden p-3 space-y-3">
-              {filteredBookings.map((booking) => (
-                <div key={booking._id} className="bg-gradient-to-br from-white to-blue-50 rounded-lg border-2 border-blue-100 overflow-hidden shadow-sm">
+              {filteredBookings.map((booking) => {
+                const totalAmount = (booking.totalAmount || booking.total || 0)
+                const amountPaid = (booking.amountPaid || 0)
+                const paymentDue = totalAmount > amountPaid
+                const showMarkPaid = booking.status === 'pending' && paymentDue
+                const showEdit = (booking.status === 'pending' || booking.status === 'paid')
+                const showCancel = (booking.status === 'pending' || booking.status === 'paid')
+                const showCheckIn = (booking.status === 'pending' || booking.status === 'paid')
+                const showCheckout = (booking.status === 'pending' || booking.status === 'paid')
+                const checkinEnabled = canCheckInNow(booking)
+                const checkoutEnabled = canCheckoutNow(booking)
+
+                return (
+                  <div key={booking._id} className={`bg-gradient-to-br from-white to-blue-50 rounded-lg border-2 ${booking.checkedInAt ? 'border-emerald-200 bg-emerald-50/30' : 'border-blue-100'} overflow-hidden shadow-sm`}>
                   {/* Card Header */}
                   <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-3">
                     <div className="flex items-center justify-between mb-1.5">
@@ -766,34 +911,65 @@ export default function AdminBookings(){
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => setSelectedBooking(booking)}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-medium text-sm transition-all shadow-sm"
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors"
                       >
-                        <Eye size={16} />
-                        View Details
+                        <Eye size={16} /> View
                       </button>
-                      {(booking.status === 'paid' || booking.status === 'pending') && (
+
+                      {showEdit && (
                         <button
-                          onClick={() => setCancelConfirmId(booking._id)}
-                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-lg font-medium text-sm transition-all shadow-sm"
+                          onClick={() => router.push(`/admin/bookings/edit-booking?id=${booking._id}`)}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors"
                         >
-                          <Ban size={16} />
-                          Cancel
+                          <Pencil size={16} /> Edit
                         </button>
                       )}
-                      <button
-                        onClick={() => router.push(`/admin/bookings/edit-booking?id=${booking._id}`)}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-medium text-sm transition-all shadow-sm"
-                      >
-                        <Pencil size={16} />
-                        Edit
-                      </button>
+
+                      {showCancel && (
+                        <button
+                          onClick={() => setCancelConfirmId(booking._id)}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold text-sm transition-colors"
+                        >
+                          <XCircle size={16} /> Cancel
+                        </button>
+                      )}
+
+                      {showCheckIn && (
+                        <button
+                          onClick={() => checkinEnabled ? setCheckinTarget(booking) : null}
+                          disabled={!checkinEnabled || checkingInId === booking._id}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <LogIn size={16} /> {checkingInId === booking._id ? 'Checking…' : 'Check-In'}
+                        </button>
+                      )}
+
+                      {showCheckout && (
+                        <button
+                          onClick={() => checkoutEnabled ? setCheckoutTarget(booking) : null}
+                          disabled={!checkoutEnabled}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <CheckCircle size={16} /> Check-Out
+                        </button>
+                      )}
+
+                      {showMarkPaid && (
+                        <button
+                          onClick={() => handleMarkPaid(booking._id)}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors"
+                        >
+                          <CheckCircle size={16} /> Mark Paid
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </>
         )}
@@ -805,6 +981,58 @@ export default function AdminBookings(){
           booking={selectedBooking}
           onClose={() => setSelectedBooking(null)}
         />
+      )}
+
+      {/* Check-In Confirmation Modal */}
+      {checkinTarget && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => checkingInId !== checkinTarget?._id && setCheckinTarget(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 p-5 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <LogIn size={28} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Check-In Guest</h3>
+                  <p className="text-emerald-100 text-sm">Marks guest as arrived</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5">
+              <p className="text-sm text-gray-600 mb-1">Are you sure you want to check in this booking?</p>
+              <div className="mt-3 bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Guest</span><span className="font-semibold text-gray-900 text-right">{checkinTarget.user?.name || '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Email</span><span className="font-semibold text-gray-900 text-right break-all">{checkinTarget.user?.email || '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Check-in</span><span className="font-semibold text-gray-900 text-right">{checkinTarget.checkIn ? new Date(checkinTarget.checkIn).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Check-out</span><span className="font-semibold text-gray-900 text-right">{checkinTarget.checkOut ? new Date(checkinTarget.checkOut).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : (checkinTarget.fullDay ? 'Same Day' : '—')}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Rooms</span><span className="font-semibold text-gray-900 text-right">{(checkinTarget.items || []).map(i => `${i.title} x${i.quantity}`).join(', ') || '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Amount</span><span className="font-semibold text-gray-900 text-right">₹{((checkinTarget.totalAmount || checkinTarget.total) || 0).toLocaleString()}</span></div>
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => handleCheckInBooking(checkinTarget._id)}
+                  disabled={checkingInId === checkinTarget._id}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-400 text-white rounded-xl font-semibold text-sm transition-all"
+                >
+                  {checkingInId === checkinTarget._id ? (
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Checking in...</>
+                  ) : (
+                    <><LogIn size={16} /> Yes, Check-In</>
+                  )}
+                </button>
+                <button
+                  onClick={() => setCheckinTarget(null)}
+                  disabled={checkingInId === checkinTarget._id}
+                  className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold text-sm transition-all"
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Cancel Confirmation Modal */}
@@ -840,6 +1068,57 @@ export default function AdminBookings(){
                 <button
                   onClick={() => setCancelConfirmId(null)}
                   disabled={cancelling}
+                  className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold text-sm transition-all"
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Check-Out Confirmation Modal */}
+      {checkoutTarget && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => !checkingOut && setCheckoutTarget(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 p-5 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <CheckCircle size={28} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Check-Out Guest</h3>
+                  <p className="text-emerald-100 text-sm">Marks the stay as completed</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-5">
+              <p className="text-sm text-gray-600 mb-1">Are you sure you want to check out this booking?</p>
+              <div className="mt-3 bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Guest</span><span className="font-semibold text-gray-900 text-right">{checkoutTarget.user?.name || '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Email</span><span className="font-semibold text-gray-900 text-right break-all">{checkoutTarget.user?.email || '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Check-in</span><span className="font-semibold text-gray-900 text-right">{checkoutTarget.checkIn ? new Date(checkoutTarget.checkIn).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Check-out</span><span className="font-semibold text-gray-900 text-right">{checkoutTarget.checkOut ? new Date(checkoutTarget.checkOut).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : (checkoutTarget.fullDay ? 'Same Day' : '—')}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Rooms</span><span className="font-semibold text-gray-900 text-right">{(checkoutTarget.items || []).map(i => `${i.title} x${i.quantity}`).join(', ') || '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Amount</span><span className="font-semibold text-gray-900 text-right">₹{((checkoutTarget.totalAmount || checkoutTarget.total) || 0).toLocaleString()}</span></div>
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => handleCheckoutBooking(checkoutTarget._id)}
+                  disabled={checkingOut}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl font-semibold text-sm transition-all"
+                >
+                  {checkingOut ? (
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Checking out...</>
+                  ) : (
+                    <><CheckCircle size={16} /> Yes, Check-Out</>
+                  )}
+                </button>
+                <button
+                  onClick={() => setCheckoutTarget(null)}
+                  disabled={checkingOut}
                   className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold text-sm transition-all"
                 >
                   No

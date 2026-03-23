@@ -34,8 +34,23 @@ const bookingSchema = new mongoose.Schema({
   amountPaid: { type: Number, min: 0, default: 0 },
   // For count-based room types, whether we have reserved inventory (decremented count)
   inventoryCommitted: { type: Boolean, default: false },
+  // Operational status: whether guest has arrived and been checked in
+  checkedInAt: { type: Date, default: null },
+  checkedInBy: {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    name: { type: String, default: '' },
+    role: { type: String, default: '' }
+  },
   // status: pending -> paid -> completed | cancelled
   status: { type: String, enum: ['pending','paid','completed','cancelled'], default: 'pending' },
+  // Cancellation metadata (used for worker/admin cancel + undo-cancel)
+  statusBeforeCancel: { type: String, enum: ['pending','paid', null], default: null },
+  cancelledAt: { type: Date, default: null },
+  cancelledBy: {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    name: { type: String, default: '' },
+    role: { type: String, default: '' }
+  },
   payment: {
     provider: { type: String },
     orderId: { type: String },

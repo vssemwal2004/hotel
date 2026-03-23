@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ChevronDown,
   History,
+  XCircle,
   DoorOpen,
   LogIn,
   LogOut as LogOutIcon,
@@ -99,12 +100,13 @@ export default function WorkerLayout({ children }) {
       key: 'bookings',
       icon: History,
       label: 'Customer Bookings',
-      paths: ['/worker/bookings/check-in', '/worker/bookings/check-out', '/worker/bookings/history', '/worker/bookings/view'],
+      paths: ['/worker/bookings/check-in', '/worker/bookings/check-out', '/worker/bookings/history', '/worker/bookings/view', '/worker/bookings/cancelled'],
       items: [
         { icon: LogIn, label: 'Check-In', href: '/worker/bookings/check-in' },
         { icon: LogOutIcon, label: 'Check-Out', href: '/worker/bookings/check-out' },
         { icon: History, label: 'Booking Calendar', href: '/worker/bookings/history' },
         { icon: List, label: 'View Bookings', href: '/worker/bookings/view' },
+        { icon: XCircle, label: 'Canceled Bookings', href: '/worker/bookings/cancelled' },
       ]
     },
   ]

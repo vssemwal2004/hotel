@@ -14,12 +14,13 @@ import {
   Calendar,
   Home,
   Filter,
-  Edit,
+  Pencil,
   Eye,
   ChevronLeft,
   ChevronRight,
   X,
-  RefreshCw
+  RefreshCw,
+  LogIn
 } from 'lucide-react'
 
 const ROWS_PER_PAGE = 15
@@ -36,6 +37,12 @@ export default function WorkerPage(){
   const [statusFilter, setStatusFilter] = useState('all')
   const [timeFilter, setTimeFilter] = useState('all') // all | day | week | month
   const [selectedBooking, setSelectedBooking] = useState(null) // popup booking detail
+  const [cancelTarget, setCancelTarget] = useState(null) // booking to cancel (confirmation modal)
+  const [cancelling, setCancelling] = useState(false)
+  const [checkinTarget, setCheckinTarget] = useState(null) // booking to check in (confirmation modal)
+  const [checkoutTarget, setCheckoutTarget] = useState(null) // booking to check out (confirmation modal)
+  const [checkingOut, setCheckingOut] = useState(false)
+  const [checkingInId, setCheckingInId] = useState(null)
   const [page, setPage] = useState(1)
 
   const authorized = useMemo(() => {
@@ -113,27 +120,88 @@ export default function WorkerPage(){
     }
   }
 
+  const requestCancel = (booking) => setCancelTarget(booking)
+
+  const requestCheckIn = (booking) => setCheckinTarget(booking)
+
+  const requestCheckout = (booking) => setCheckoutTarget(booking)
+
   const cancelBooking = async (id) => {
-    if (!confirm('Are you sure you want to cancel this booking? This action cannot be undone and notifications will be sent to the customer and admin.')) {
-      return
-    }
+    setCancelling(true)
     try {
       await api.post(`/bookings/${id}/cancel`)
       await fetchAllBookings()
       if (selectedBooking?._id === id) setSelectedBooking(prev => ({ ...prev, status: 'cancelled' }))
       toast.show({ type: 'success', message: 'Booking cancelled successfully. Emails have been sent to the customer and admin.', duration: 5000 })
+      setCancelTarget(null)
     } catch (e) {
       toast.show({ type: 'error', message: e?.response?.data?.message || 'Failed to cancel booking' })
+    } finally {
+      setCancelling(false)
     }
   }
 
   const checkout = async (id) => {
+    setCheckingOut(true)
     try {
       await api.post(`/bookings/${id}/checkout`)
       await fetchAllBookings()
       if (selectedBooking?._id === id) setSelectedBooking(prev => ({ ...prev, status: 'completed' }))
+      toast.show({ type: 'success', message: 'Checked out successfully.' })
+      setCheckoutTarget(null)
     } catch (e) {
       toast.show({ type: 'error', message: e?.response?.data?.message || 'Failed to checkout' })
+    } finally {
+      setCheckingOut(false)
+    }
+  }
+
+  const canCheckInNow = (booking) => {
+    if (!booking) return false
+    if (booking.status === 'cancelled' || booking.status === 'completed') return false
+    if (booking.checkedInAt) return false
+    if (!booking.checkIn) return false
+
+    const now = new Date()
+    const today = new Date(now)
+    today.setHours(0, 0, 0, 0)
+
+    const ci = new Date(booking.checkIn)
+    if (Number.isNaN(ci.getTime())) return false
+    ci.setHours(0, 0, 0, 0)
+
+    let co = booking.checkOut ? new Date(booking.checkOut) : null
+    if (!co || Number.isNaN(co.getTime())) {
+      co = new Date(ci.getTime() + 24 * 60 * 60 * 1000)
+    }
+    co.setHours(0, 0, 0, 0)
+
+    return ci <= today && co >= today
+  }
+
+  const canCheckoutNow = (booking) => {
+    if (!booking) return false
+    if (booking.status !== 'paid') return false
+    return !!booking.checkedInAt
+  }
+
+  const checkInBooking = async (booking) => {
+    if (!booking?._id) return
+    setCheckingInId(booking._id)
+    try {
+      await api.post(`/bookings/${booking._id}/checkin`)
+      await fetchAllBookings()
+      if (selectedBooking?._id === booking._id) {
+        setSelectedBooking(prev => ({ ...prev, checkedInAt: new Date().toISOString() }))
+      }
+      toast.show({ type: 'success', message: 'Guest checked in successfully.' })
+      if (checkinTarget?._id === booking._id) setCheckinTarget(null)
+      return true
+    } catch (e) {
+      toast.show({ type: 'error', message: e?.response?.data?.message || 'Failed to check in' })
+      return false
+    } finally {
+      setCheckingInId(null)
     }
   }
 
@@ -209,10 +277,220 @@ export default function WorkerPage(){
 
   // Close modal on Escape
   useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') setSelectedBooking(null) }
+    const handler = (e) => {
+      if (e.key === 'Escape') {
+        setSelectedBooking(null)
+        setCancelTarget(null)
+        setCheckinTarget(null)
+        setCheckoutTarget(null)
+      }
+    }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [])
+
+  const CheckInConfirmModal = ({ booking, onClose }) => {
+    if (!booking) return null
+    const roomSummary = (booking.items || []).map(it => `${it.title} x${it.quantity}`).join(', ')
+    const busy = checkingInId === booking._id
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" onClick={onClose}>
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+        <div
+          onClick={e => e.stopPropagation()}
+          className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden"
+        >
+          <div className="px-4 py-3 bg-emerald-700 text-white flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold">Are you sure you want to check in this booking?</p>
+              <p className="text-[11px] text-white/80 font-mono">#{booking._id?.slice(-10)?.toUpperCase()}</p>
+            </div>
+            <button
+              onClick={onClose}
+              disabled={busy}
+              className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-50"
+              title="Close"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="p-4 space-y-3">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Booking Details</p>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Guest</span><span className="font-semibold text-gray-900 text-right">{booking.user?.name || '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Email</span><span className="font-semibold text-gray-900 text-right break-all">{booking.user?.email || '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Check-in</span><span className="font-semibold text-gray-900 text-right">{formatShortDate(booking.checkIn)}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Check-out</span><span className="font-semibold text-gray-900 text-right">{formatShortDate(booking.checkOut)}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Rooms</span><span className="font-semibold text-gray-900 text-right">{roomSummary || '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Amount</span><span className="font-semibold text-gray-900 text-right">₹{((booking.totalAmount || booking.total) || 0).toLocaleString()}</span></div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => checkInBooking(booking)}
+                disabled={busy}
+                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white transition-colors disabled:opacity-60"
+              >
+                {busy ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/80 border-t-transparent rounded-full animate-spin" />
+                    Checking in...
+                  </>
+                ) : (
+                  <>
+                    <LogIn size={16} /> Yes, Check-In
+                  </>
+                )}
+              </button>
+              <button
+                onClick={onClose}
+                disabled={busy}
+                className="px-5 py-2.5 rounded-lg text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors disabled:opacity-60"
+              >
+                No
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const CancelConfirmModal = ({ booking, onClose }) => {
+    if (!booking) return null
+    const roomSummary = (booking.items || []).map(it => `${it.title} x${it.quantity}`).join(', ')
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" onClick={onClose}>
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+        <div
+          onClick={e => e.stopPropagation()}
+          className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden"
+        >
+          <div className="px-4 py-3 bg-red-600 text-white flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold">Are you sure you want to cancel this booking?</p>
+              <p className="text-[11px] text-white/80 font-mono">#{booking._id?.slice(-10)?.toUpperCase()}</p>
+            </div>
+            <button
+              onClick={onClose}
+              disabled={cancelling}
+              className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-50"
+              title="Close"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="p-4 space-y-3">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Booking Details</p>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Guest</span><span className="font-semibold text-gray-900 text-right">{booking.user?.name || '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Email</span><span className="font-semibold text-gray-900 text-right break-all">{booking.user?.email || '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Check-in</span><span className="font-semibold text-gray-900 text-right">{formatShortDate(booking.checkIn)}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Check-out</span><span className="font-semibold text-gray-900 text-right">{formatShortDate(booking.checkOut)}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Rooms</span><span className="font-semibold text-gray-900 text-right">{roomSummary || '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Amount</span><span className="font-bold text-gray-900 text-right">₹{(booking.totalAmount || booking.total || 0).toLocaleString()}</span></div>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-500">
+              Cancellation emails will be sent to the guest and admin.
+            </p>
+          </div>
+
+          <div className="px-4 py-3 border-t border-gray-200 flex gap-2">
+            <button
+              onClick={onClose}
+              disabled={cancelling}
+              className="flex-1 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-sm disabled:opacity-50"
+            >
+              No, keep booking
+            </button>
+            <button
+              onClick={() => cancelBooking(booking._id)}
+              disabled={cancelling}
+              className="flex-1 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-sm disabled:opacity-50"
+            >
+              {cancelling ? 'Cancelling…' : 'Yes, cancel booking'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const CheckoutConfirmModal = ({ booking, onClose }) => {
+    if (!booking) return null
+    const roomSummary = (booking.items || []).map(it => `${it.title} x${it.quantity}`).join(', ')
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" onClick={onClose}>
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+        <div
+          onClick={e => e.stopPropagation()}
+          className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden"
+        >
+          <div className="px-4 py-3 bg-emerald-600 text-white flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold">Are you sure you want to check out this booking?</p>
+              <p className="text-[11px] text-white/80 font-mono">#{booking._id?.slice(-10)?.toUpperCase()}</p>
+            </div>
+            <button
+              onClick={onClose}
+              disabled={checkingOut}
+              className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-50"
+              title="Close"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="p-4 space-y-3">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Booking Details</p>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Guest</span><span className="font-semibold text-gray-900 text-right">{booking.user?.name || '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Email</span><span className="font-semibold text-gray-900 text-right break-all">{booking.user?.email || '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Check-in</span><span className="font-semibold text-gray-900 text-right">{formatShortDate(booking.checkIn)}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Check-out</span><span className="font-semibold text-gray-900 text-right">{formatShortDate(booking.checkOut)}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Rooms</span><span className="font-semibold text-gray-900 text-right">{roomSummary || '—'}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-gray-500">Amount</span><span className="font-semibold text-gray-900 text-right">₹{((booking.totalAmount || booking.total) || 0).toLocaleString()}</span></div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => checkout(booking._id)}
+                disabled={checkingOut}
+                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white transition-colors disabled:opacity-60"
+              >
+                {checkingOut ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/80 border-t-transparent rounded-full animate-spin" />
+                    Checking out...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={16} /> Yes, Check-Out
+                  </>
+                )}
+              </button>
+              <button
+                onClick={onClose}
+                disabled={checkingOut}
+                className="px-5 py-2.5 rounded-lg text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors disabled:opacity-60"
+              >
+                No
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (loading || !authorized) {
     return (
@@ -358,11 +636,22 @@ export default function WorkerPage(){
               <tbody className="divide-y divide-gray-100">
                 {paginatedBookings.map(b => {
                   const roomSummary = (b.items || []).map(it => `${it.title} x${it.quantity}`).join(', ')
+                  const checkedIn = !!b.checkedInAt
+                  const totalAmount = (b.totalAmount || b.total || 0)
+                  const amountPaid = (b.amountPaid || 0)
+                  const paymentDue = totalAmount > amountPaid
+                  const showMarkPaid = b.status === 'pending' && paymentDue
+                  const showEdit = (b.status === 'pending' || b.status === 'paid')
+                  const showCancel = (b.status === 'pending' || b.status === 'paid')
+                  const showCheckIn = (b.status === 'pending' || b.status === 'paid')
+                  const showCheckout = (b.status === 'pending' || b.status === 'paid')
+                  const checkinEnabled = canCheckInNow(b)
+                  const checkoutEnabled = canCheckoutNow(b)
                   return (
                     <tr
                       key={b._id}
                       onClick={() => setSelectedBooking(b)}
-                      className="hover:bg-teal-50/50 cursor-pointer transition-colors group"
+                      className={`${checkedIn ? 'bg-emerald-50/60' : ''} hover:bg-teal-50/50 cursor-pointer transition-colors group`}
                     >
                       <td className="px-3 py-2.5">
                         <div>
@@ -387,28 +676,64 @@ export default function WorkerPage(){
                       <td className="px-3 py-2.5 text-right font-semibold text-sm text-gray-900 whitespace-nowrap">₹{b.total?.toLocaleString() || 0}</td>
                       <td className="px-3 py-2.5 text-center">{getStatusBadge(b.status)}</td>
                       <td className="px-3 py-2.5">
-                        <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
-                          <button onClick={() => setSelectedBooking(b)} className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-teal-600 transition-colors" title="View Details">
-                            <Eye size={15} />
+                        <div className="flex flex-wrap items-center justify-center gap-2" onClick={e => e.stopPropagation()}>
+                          <button
+                            onClick={() => setSelectedBooking(b)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                            title="View"
+                          >
+                            <Eye size={14} /> View
                           </button>
-                          {(b.status === 'pending' || b.status === 'paid') && (
-                            <button onClick={() => router.push(`/worker/bookings/edit-booking?id=${b._id}`)} className="p-1.5 rounded-md hover:bg-blue-100 text-gray-500 hover:text-blue-600 transition-colors" title="Edit Booking">
-                              <Edit size={15} />
+
+                          {showEdit && (
+                            <button
+                              onClick={() => router.push(`/worker/bookings/edit-booking?id=${b._id}`)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                              title="Edit"
+                            >
+                              <Pencil size={14} /> Edit
                             </button>
                           )}
-                          {b.status === 'pending' && (
-                            <>
-                              <button onClick={() => markPaid(b._id)} className="p-1.5 rounded-md hover:bg-emerald-100 text-gray-500 hover:text-emerald-600 transition-colors" title="Mark Paid">
-                                <CheckCircle size={15} />
-                              </button>
-                              <button onClick={() => cancelBooking(b._id)} className="p-1.5 rounded-md hover:bg-red-100 text-gray-500 hover:text-red-600 transition-colors" title="Cancel">
-                                <XCircle size={15} />
-                              </button>
-                            </>
+
+                          {showCancel && (
+                            <button
+                              onClick={() => requestCancel(b)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                              title="Cancel"
+                            >
+                              <XCircle size={14} /> Cancel
+                            </button>
                           )}
-                          {b.status === 'paid' && (
-                            <button onClick={() => checkout(b._id)} className="p-1.5 rounded-md hover:bg-emerald-100 text-gray-500 hover:text-emerald-600 transition-colors" title="Checkout">
-                              <CheckCircle size={15} />
+
+                          {showCheckIn && (
+                            <button
+                              onClick={() => checkinEnabled ? requestCheckIn(b) : null}
+                              disabled={!checkinEnabled || checkingInId === b._id}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={checkinEnabled ? 'Check-In' : 'Check-In is available on/after check-in date'}
+                            >
+                              <LogIn size={14} /> {checkingInId === b._id ? 'Checking…' : 'Check-In'}
+                            </button>
+                          )}
+
+                          {showCheckout && (
+                            <button
+                              onClick={() => checkoutEnabled ? requestCheckout(b) : null}
+                              disabled={!checkoutEnabled}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={checkoutEnabled ? 'Check-Out' : 'Check-Out is enabled only after Check-In (and payment is paid)'}
+                            >
+                              <CheckCircle size={14} /> Check-Out
+                            </button>
+                          )}
+
+                          {showMarkPaid && (
+                            <button
+                              onClick={() => markPaid(b._id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                              title="Mark Paid"
+                            >
+                              <CheckCircle size={14} /> Mark Paid
                             </button>
                           )}
                         </div>
@@ -426,7 +751,7 @@ export default function WorkerPage(){
               <div
                 key={b._id}
                 onClick={() => setSelectedBooking(b)}
-                className="p-3 hover:bg-teal-50/50 cursor-pointer transition-colors active:bg-teal-100/50"
+                className={`p-3 ${b.checkedInAt ? 'bg-emerald-50/60' : ''} hover:bg-teal-50/50 cursor-pointer transition-colors active:bg-teal-100/50`}
               >
                 <div className="flex items-start justify-between gap-2 mb-1.5">
                   <div className="min-w-0 flex-1">
@@ -450,20 +775,76 @@ export default function WorkerPage(){
                 )}
                 <div className="flex items-center justify-between mt-1.5">
                   <p className="text-[11px] text-gray-500 truncate max-w-[60%]">{(b.items || []).map(it => it.title).join(', ') || '—'}</p>
-                  <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-                    {(b.status === 'pending' || b.status === 'paid') && (
-                      <button onClick={() => router.push(`/worker/bookings/edit-booking?id=${b._id}`)} className="p-1 rounded hover:bg-blue-100 text-blue-500" title="Edit"><Edit size={14} /></button>
-                    )}
-                    {b.status === 'pending' && (
-                      <>
-                        <button onClick={() => markPaid(b._id)} className="p-1 rounded hover:bg-emerald-100 text-emerald-500" title="Mark Paid"><CheckCircle size={14} /></button>
-                        <button onClick={() => cancelBooking(b._id)} className="p-1 rounded hover:bg-red-100 text-red-500" title="Cancel"><XCircle size={14} /></button>
-                      </>
-                    )}
-                    {b.status === 'paid' && (
-                      <button onClick={() => checkout(b._id)} className="p-1 rounded hover:bg-emerald-100 text-emerald-500" title="Checkout"><CheckCircle size={14} /></button>
-                    )}
-                  </div>
+                  {(() => {
+                    const totalAmount = (b.totalAmount || b.total || 0)
+                    const amountPaid = (b.amountPaid || 0)
+                    const paymentDue = totalAmount > amountPaid
+                    const showMarkPaid = b.status === 'pending' && paymentDue
+                    const showEdit = (b.status === 'pending' || b.status === 'paid')
+                    const showCancel = (b.status === 'pending' || b.status === 'paid')
+                    const showCheckIn = (b.status === 'pending' || b.status === 'paid')
+                    const showCheckout = (b.status === 'pending' || b.status === 'paid')
+                    const checkinEnabled = canCheckInNow(b)
+                    const checkoutEnabled = canCheckoutNow(b)
+
+                    return (
+                      <div className="flex flex-wrap gap-2 justify-end" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => setSelectedBooking(b)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          <Eye size={13} /> View
+                        </button>
+
+                        {showEdit && (
+                          <button
+                            onClick={() => router.push(`/worker/bookings/edit-booking?id=${b._id}`)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                          >
+                            <Pencil size={13} /> Edit
+                          </button>
+                        )}
+
+                        {showCancel && (
+                          <button
+                            onClick={() => requestCancel(b)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                          >
+                            <XCircle size={13} /> Cancel
+                          </button>
+                        )}
+
+                        {showCheckIn && (
+                          <button
+                            onClick={() => checkinEnabled ? requestCheckIn(b) : null}
+                            disabled={!checkinEnabled || checkingInId === b._id}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <LogIn size={13} /> {checkingInId === b._id ? 'Checking…' : 'Check-In'}
+                          </button>
+                        )}
+
+                        {showCheckout && (
+                          <button
+                            onClick={() => checkoutEnabled ? requestCheckout(b) : null}
+                            disabled={!checkoutEnabled}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <CheckCircle size={13} /> Check-Out
+                          </button>
+                        )}
+
+                        {showMarkPaid && (
+                          <button
+                            onClick={() => markPaid(b._id)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                          >
+                            <CheckCircle size={13} /> Mark Paid
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
             ))}
@@ -609,16 +990,26 @@ export default function WorkerPage(){
                       onClick={() => router.push(`/worker/bookings/edit-booking?id=${selectedBooking._id}`)}
                       className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                     >
-                      <Edit size={15} /> Edit
+                      <Pencil size={15} /> Edit
                     </button>
+                    {Math.max(0, ((selectedBooking.totalAmount || selectedBooking.total || 0) - (selectedBooking.amountPaid || 0))) > 0 && (
+                      <button
+                        onClick={() => markPaid(selectedBooking._id)}
+                        className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
+                      >
+                        <CheckCircle size={15} /> Mark Paid
+                      </button>
+                    )}
                     <button
-                      onClick={() => markPaid(selectedBooking._id)}
-                      className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
+                      onClick={() => canCheckInNow(selectedBooking) ? requestCheckIn(selectedBooking) : null}
+                      disabled={!canCheckInNow(selectedBooking) || checkingInId === selectedBooking._id}
+                      className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      title={!canCheckInNow(selectedBooking) ? 'Check-In is available on/after check-in date' : 'Check-In'}
                     >
-                      <CheckCircle size={15} /> Mark Paid
+                      <LogIn size={15} /> {checkingInId === selectedBooking._id ? 'Checking In…' : 'Check-In'}
                     </button>
                     <button
-                      onClick={() => cancelBooking(selectedBooking._id)}
+                      onClick={() => requestCancel(selectedBooking)}
                       className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white transition-colors"
                     >
                       <XCircle size={15} /> Cancel
@@ -631,13 +1022,29 @@ export default function WorkerPage(){
                       onClick={() => router.push(`/worker/bookings/edit-booking?id=${selectedBooking._id}`)}
                       className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                     >
-                      <Edit size={15} /> Edit
+                      <Pencil size={15} /> Edit
                     </button>
                     <button
-                      onClick={() => checkout(selectedBooking._id)}
-                      className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
+                      onClick={() => canCheckInNow(selectedBooking) ? requestCheckIn(selectedBooking) : null}
+                      disabled={!canCheckInNow(selectedBooking) || checkingInId === selectedBooking._id}
+                      className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      title={!canCheckInNow(selectedBooking) ? 'Check-In is available on/after check-in date' : 'Check-In'}
+                    >
+                      <LogIn size={15} /> {checkingInId === selectedBooking._id ? 'Checking In…' : 'Check-In'}
+                    </button>
+                    <button
+                      onClick={() => requestCheckout(selectedBooking)}
+                      disabled={!canCheckoutNow(selectedBooking)}
+                      className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      title={!canCheckoutNow(selectedBooking) ? 'Check-Out is enabled only after Check-In' : 'Check-Out'}
                     >
                       <CheckCircle size={15} /> Complete Checkout
+                    </button>
+                    <button
+                      onClick={() => requestCancel(selectedBooking)}
+                      className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white transition-colors"
+                    >
+                      <XCircle size={15} /> Cancel
                     </button>
                   </>
                 )}
@@ -655,6 +1062,30 @@ export default function WorkerPage(){
             </div>
           </div>
         </div>
+      )}
+
+      {/* Cancel confirmation modal */}
+      {cancelTarget && (
+        <CancelConfirmModal
+          booking={cancelTarget}
+          onClose={() => { if (!cancelling) setCancelTarget(null) }}
+        />
+      )}
+
+      {/* Check-In confirmation modal */}
+      {checkinTarget && (
+        <CheckInConfirmModal
+          booking={checkinTarget}
+          onClose={() => { if (checkingInId !== checkinTarget?._id) setCheckinTarget(null) }}
+        />
+      )}
+
+      {/* Checkout confirmation modal */}
+      {checkoutTarget && (
+        <CheckoutConfirmModal
+          booking={checkoutTarget}
+          onClose={() => { if (!checkingOut) setCheckoutTarget(null) }}
+        />
       )}
     </WorkerLayout>
   )

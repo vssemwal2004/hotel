@@ -25,6 +25,7 @@ export default function EditBookingPage() {
   const [booking, setBooking] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [paymentUpdating, setPaymentUpdating] = useState(false)
   
   // Form state
   const [newCheckOut, setNewCheckOut] = useState('')
@@ -40,6 +41,11 @@ export default function EditBookingPage() {
   const [selectedRooms, setSelectedRooms] = useState({}) // { roomTypeKey: [selectedRoomNumbers] }
   const [fetchingRooms, setFetchingRooms] = useState(false)
   const [amountPaid, setAmountPaid] = useState(0)
+
+  const [roomTypes, setRoomTypes] = useState([])
+  const [roomTypesLoading, setRoomTypesLoading] = useState(false)
+  const [addRoomTypeKey, setAddRoomTypeKey] = useState('')
+  const [addRoomQty, setAddRoomQty] = useState(1)
 
   const getPricingNights = () => {
     if (newCheckIn && newCheckOut) {
@@ -74,6 +80,23 @@ export default function EditBookingPage() {
       fetchBooking()
     }
   }, [id])
+
+  useEffect(() => {
+    if (!booking?._id) return
+    const fetchRoomTypes = async () => {
+      setRoomTypesLoading(true)
+      try {
+        const res = await api.get('/room-types')
+        const types = res.data?.types || res.data?.roomTypes || res.data || []
+        setRoomTypes(Array.isArray(types) ? types : [])
+      } catch {
+        setRoomTypes([])
+      } finally {
+        setRoomTypesLoading(false)
+      }
+    }
+    fetchRoomTypes()
+  }, [booking?._id])
 
   useEffect(() => {
     if (!booking) return
@@ -153,6 +176,101 @@ export default function EditBookingPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const markPaid = async () => {
+    if (!booking?._id) return
+    if (Number(pricing.total || 0) !== Number(booking.total || 0)) {
+      toast.show({ type: 'warning', message: 'Please save changes first (payment uses saved total)' })
+      return
+    }
+
+    setPaymentUpdating(true)
+    try {
+      const { data } = await api.post(`/bookings/${booking._id}/pay`)
+      setBooking(prev => prev ? ({
+        ...prev,
+        status: data.booking?.status,
+        amountPaid: data.booking?.amountPaid,
+        payment: data.booking?.payment,
+        inventoryCommitted: data.booking?.inventoryCommitted
+      }) : prev)
+      setAmountPaid(Number(data.booking?.amountPaid || 0))
+      toast.show({ type: 'success', message: 'Marked as paid' })
+    } catch (error) {
+      toast.show({ type: 'error', message: error.response?.data?.message || 'Failed to mark paid' })
+    } finally {
+      setPaymentUpdating(false)
+    }
+  }
+
+  const markUnpaid = async () => {
+    if (!booking?._id) return
+    setPaymentUpdating(true)
+    try {
+      const { data } = await api.post(`/bookings/${booking._id}/unpay`)
+      setBooking(prev => prev ? ({
+        ...prev,
+        status: data.booking?.status,
+        amountPaid: data.booking?.amountPaid,
+        payment: data.booking?.payment,
+        inventoryCommitted: data.booking?.inventoryCommitted
+      }) : prev)
+      setAmountPaid(Number(data.booking?.amountPaid || 0))
+      toast.show({ type: 'success', message: 'Marked as unpaid' })
+    } catch (error) {
+      toast.show({ type: 'error', message: error.response?.data?.message || 'Failed to mark unpaid' })
+    } finally {
+      setPaymentUpdating(false)
+    }
+  }
+
+  const addRoomTypeItem = async () => {
+    const key = String(addRoomTypeKey || '').trim()
+    const qty = Math.max(1, Number(addRoomQty || 1))
+    if (!key) {
+      toast.show({ type: 'warning', message: 'Please select a room type' })
+      return
+    }
+    if ((editableItems || []).some(it => it.roomTypeKey === key)) {
+      toast.show({ type: 'info', message: 'Room type already in booking — increase quantity instead' })
+      return
+    }
+    const rt = (roomTypes || []).find(r => r.key === key)
+    if (!rt) {
+      toast.show({ type: 'error', message: 'Invalid room type' })
+      return
+    }
+
+    const base = Number(rt?.prices?.roomOnly ?? rt?.basePrice ?? 0)
+    const nextItem = {
+      roomTypeKey: key,
+      title: rt.title || key,
+      quantity: qty,
+      basePrice: Number.isFinite(base) ? Math.max(0, base) : 0,
+      guests: [{ name: '', email: '', phone: '', age: 18, type: 'adult' }],
+      allottedRoomNumbers: []
+    }
+
+    const nextItems = [...(editableItems || []), nextItem]
+    setEditableItems(nextItems)
+    setAdditionalGuests(prev => ({ ...prev, [key]: [] }))
+    setSelectedRooms(prev => ({ ...prev, [key]: [] }))
+
+    // Refresh available rooms for new item
+    const ci = newCheckIn ? new Date(newCheckIn).toISOString() : booking?.checkIn
+    const co = newCheckOut ? new Date(newCheckOut).toISOString() : booking?.checkOut
+    if (ci) {
+      await fetchAvailableRooms({
+        bookingId: booking._id,
+        items: nextItems,
+        checkIn: ci,
+        checkOut: co
+      })
+    }
+
+    setAddRoomTypeKey('')
+    setAddRoomQty(1)
   }
 
   const addGuest = (roomTypeKey) => {
@@ -509,17 +627,23 @@ export default function EditBookingPage() {
             Modify booking details for #{booking._id.slice(-6)}
           </p>
         </div>
-        <button
-          onClick={() => router.back()}
-          className="px-4 py-2 border-2 border-gray-300 hover:border-gray-400 text-gray-700 rounded-lg font-semibold transition-colors"
-        >
-          <X size={18} className="inline mr-1" />
-          Cancel
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${booking.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+            {booking.status === 'paid' ? 'PAID' : 'PENDING'}
+          </span>
+
+          <button
+            onClick={() => router.back()}
+            className="px-4 py-2 border-2 border-gray-300 hover:border-gray-400 text-gray-700 rounded-lg font-semibold transition-colors"
+          >
+            <X size={18} className="inline mr-1" />
+            Cancel
+          </button>
+        </div>
       </div>
 
       {/* Booking Info */}
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-4 md:p-6 mb-6">
+      <div className="bg-white rounded-xl border-2 border-gray-200 p-4 md:p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <p className="text-sm text-gray-600 mb-1">Guest Name</p>
@@ -527,7 +651,7 @@ export default function EditBookingPage() {
               type="text"
               value={guestInfo.name}
               onChange={(e) => setGuestInfo(prev => ({ ...prev, name: e.target.value }))}
-              className="w-full border-2 border-blue-300 rounded-lg p-2.5"
+              className="w-full border-2 border-gray-300 focus:border-gray-400 rounded-lg p-2.5"
             />
           </div>
           <div>
@@ -536,7 +660,7 @@ export default function EditBookingPage() {
               type="email"
               value={guestInfo.email}
               onChange={(e) => setGuestInfo(prev => ({ ...prev, email: e.target.value }))}
-              className="w-full border-2 border-blue-300 rounded-lg p-2.5"
+              className="w-full border-2 border-gray-300 focus:border-gray-400 rounded-lg p-2.5"
             />
           </div>
           <div>
@@ -545,7 +669,7 @@ export default function EditBookingPage() {
               type="text"
               value={guestInfo.phone}
               onChange={(e) => setGuestInfo(prev => ({ ...prev, phone: e.target.value }))}
-              className="w-full border-2 border-blue-300 rounded-lg p-2.5"
+              className="w-full border-2 border-gray-300 focus:border-gray-400 rounded-lg p-2.5"
             />
           </div>
         </div>
@@ -556,7 +680,7 @@ export default function EditBookingPage() {
               type="date"
               value={newCheckIn}
               onChange={(e) => setNewCheckIn(e.target.value)}
-              className="w-full border-2 border-blue-300 rounded-lg p-2.5"
+              className="w-full border-2 border-gray-300 focus:border-gray-400 rounded-lg p-2.5"
             />
           </div>
           <div>
@@ -566,7 +690,7 @@ export default function EditBookingPage() {
               value={newCheckOut}
               onChange={(e) => setNewCheckOut(e.target.value)}
               min={newCheckIn || undefined}
-              className="w-full border-2 border-blue-300 rounded-lg p-2.5"
+              className="w-full border-2 border-gray-300 focus:border-gray-400 rounded-lg p-2.5"
             />
           </div>
         </div>
@@ -574,13 +698,54 @@ export default function EditBookingPage() {
 
       {/* Editable Room Items & Guests */}
       <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden mb-6">
-        <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white p-4">
+        <div className="bg-gray-50 border-b border-gray-200 p-4">
           <h3 className="text-xl font-bold flex items-center gap-2">
             <Bed size={24} />
             Edit Rooms, Quantity, Price, Guests
           </h3>
         </div>
         <div className="p-4 md:p-6 space-y-5">
+          <div className="border border-gray-200 rounded-xl p-4 bg-white">
+            <p className="text-sm font-semibold text-gray-900 mb-3">Add Room Type</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Room Type</label>
+                <select
+                  value={addRoomTypeKey}
+                  onChange={(e) => setAddRoomTypeKey(e.target.value)}
+                  disabled={roomTypesLoading || (roomTypes || []).length === 0}
+                  className="w-full border border-gray-300 rounded-lg p-2"
+                >
+                  <option value="">Select room type...</option>
+                  {(roomTypes || []).map(rt => (
+                    <option key={rt.key} value={rt.key}>{rt.title}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Quantity</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={addRoomQty}
+                  onChange={(e) => setAddRoomQty(Math.max(1, Number(e.target.value || 1)))}
+                  className="w-full border border-gray-300 rounded-lg p-2"
+                />
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={addRoomTypeItem}
+                  disabled={saving || paymentUpdating || roomTypesLoading}
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <Plus size={16} /> Add
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">Tip: If the room type already exists, just increase its quantity.</p>
+          </div>
+
           {editableItems.map((item, itemIndex) => (
             <div key={`${item.roomTypeKey}-${itemIndex}`} className="border border-gray-200 rounded-xl p-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
@@ -672,8 +837,30 @@ export default function EditBookingPage() {
 
       {/* Manual Pricing */}
       <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden mb-6">
-        <div className="bg-gradient-to-r from-amber-600 to-amber-700 text-white p-4">
-          <h3 className="text-xl font-bold">Edit Pricing</h3>
+        <div className="bg-gray-50 border-b border-gray-200 p-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <h3 className="text-xl font-bold text-gray-900">Pricing & Payment</h3>
+            <div className="inline-flex rounded-lg border border-gray-300 overflow-hidden w-full md:w-auto">
+              <button
+                type="button"
+                onClick={() => booking.status !== 'paid' && markPaid()}
+                disabled={paymentUpdating || saving || booking.status !== 'pending'}
+                className={`px-4 py-2 text-sm font-semibold w-1/2 md:w-auto ${booking.status === 'paid' ? 'bg-green-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'} disabled:opacity-60 disabled:cursor-not-allowed`}
+                title={booking.status !== 'pending' ? 'Only pending bookings can be marked paid' : ''}
+              >
+                Paid
+              </button>
+              <button
+                type="button"
+                onClick={() => booking.status === 'paid' && markUnpaid()}
+                disabled={paymentUpdating || saving || booking.status !== 'paid' || !!booking.checkedInAt || booking.status === 'completed'}
+                className={`px-4 py-2 text-sm font-semibold w-1/2 md:w-auto ${booking.status !== 'paid' ? 'bg-amber-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'} disabled:opacity-60 disabled:cursor-not-allowed`}
+                title={booking.checkedInAt ? 'Cannot mark unpaid after check-in' : (booking.status === 'completed' ? 'Cannot mark unpaid after check-out' : '')}
+              >
+                Unpaid
+              </button>
+            </div>
+          </div>
         </div>
         <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-6 gap-3">
           <div>
@@ -732,7 +919,7 @@ export default function EditBookingPage() {
       <div className="space-y-6">
         {/* Extend Check-Out */}
         <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-4">
+          <div className="bg-gray-50 border-b border-gray-200 p-4">
             <h3 className="text-xl font-bold flex items-center gap-2">
               <Calendar size={24} />
               Extend Check-Out Date
@@ -760,7 +947,7 @@ export default function EditBookingPage() {
                   value={newCheckOut}
                   onChange={(e) => setNewCheckOut(e.target.value)}
                   min={booking.checkOut ? new Date(booking.checkOut).toISOString().split('T')[0] : ''}
-                  className="w-full border-2 border-purple-300 rounded-lg p-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full border-2 border-gray-300 rounded-lg p-3"
                 />
               </div>
             </div>
@@ -783,7 +970,7 @@ export default function EditBookingPage() {
 
         {/* Add Guests */}
         <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-4">
+          <div className="bg-gray-50 border-b border-gray-200 p-4">
             <h3 className="text-xl font-bold flex items-center gap-2">
               <Users size={24} />
               Add More Guests
@@ -836,7 +1023,7 @@ export default function EditBookingPage() {
                       placeholder="Guest Name"
                       value={newGuestName[item.roomTypeKey] || ''}
                       onChange={(e) => setNewGuestName(prev => ({ ...prev, [item.roomTypeKey]: e.target.value }))}
-                      className="border-2 border-green-300 rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      className="border-2 border-green-300 rounded-lg p-2"
                     />
                     <input
                       type="number"
@@ -844,12 +1031,12 @@ export default function EditBookingPage() {
                       min="0"
                       value={newGuestAge[item.roomTypeKey] || ''}
                       onChange={(e) => setNewGuestAge(prev => ({ ...prev, [item.roomTypeKey]: e.target.value }))}
-                      className="border-2 border-green-300 rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      className="border-2 border-green-300 rounded-lg p-2"
                     />
                     <select
                       value={newGuestType[item.roomTypeKey] || 'adult'}
                       onChange={(e) => setNewGuestType(prev => ({ ...prev, [item.roomTypeKey]: e.target.value }))}
-                      className="border-2 border-green-300 rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      className="border-2 border-green-300 rounded-lg p-2"
                     >
                       <option value="adult">Adult</option>
                       <option value="child">Child</option>
@@ -870,7 +1057,7 @@ export default function EditBookingPage() {
 
         {/* Room Number Selection */}
         <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4">
+          <div className="bg-gray-50 border-b border-gray-200 p-4">
             <h3 className="text-xl font-bold flex items-center gap-2">
               <DoorOpen size={24} />
               Select Room Numbers (Optional)
@@ -890,7 +1077,7 @@ export default function EditBookingPage() {
                   
                   return (
                     <div key={idx} className="border-2 border-gray-200 rounded-lg overflow-hidden">
-                      <div className="bg-gradient-to-r from-purple-100 to-purple-200 p-3">
+                      <div className="bg-gray-50 border-b border-gray-200 p-3">
                         <div className="flex items-center justify-between">
                           <div>
                             <h4 className="font-bold text-gray-900">{item.title}</h4>
@@ -898,7 +1085,7 @@ export default function EditBookingPage() {
                               Quantity: {item.quantity} | Selected: {selected.length}/{item.quantity}
                             </p>
                           </div>
-                          <Bed size={24} className="text-purple-600" />
+                          <Bed size={24} className="text-gray-600" />
                         </div>
                       </div>
 

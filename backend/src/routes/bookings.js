@@ -5,7 +5,16 @@ import { authRequired, adminRequired, rolesRequired } from '../middleware/auth.j
 import Booking from '../models/Booking.js'
 import RoomType from '../models/RoomType.js'
 import User from '../models/User.js'
-import { sendBookingConfirmationToUser, sendBookingNotificationToAdmin, sendBookingUpdateToUser, sendBookingUpdateNotificationToAdmin, sendCancellationToUser, sendCancellationToAdmin } from '../utils/email.js'
+import {
+  sendBookingConfirmationToUser,
+  sendBookingNotificationToAdmin,
+  sendBookingUpdateToUser,
+  sendBookingUpdateNotificationToAdmin,
+  sendCancellationToUser,
+  sendCancellationToAdmin,
+  sendUndoCancellationToUser,
+  sendUndoCancellationToAdmin
+} from '../utils/email.js'
 import { calculateGST } from '../utils/gst.js'
 import { logActivity } from '../utils/activityLogger.js'
 
@@ -270,6 +279,50 @@ router.post('/:id/pay', authRequired, async (req, res, next) => {
     await booking.save()
 
     logActivity({ action: 'booking_paid', req, target: { type: 'booking', id: booking._id.toString() }, details: `Booking marked as paid - ₹${booking.total}`, metadata: { bookingId: booking._id, total: booking.total } })
+
+    res.json({ booking })
+  } catch (e) { next(e) }
+})
+
+// Mark unpaid (revert paid -> pending) and restore inventory if it was committed
+router.post('/:id/unpay', authRequired, async (req, res, next) => {
+  try {
+    const booking = await Booking.findById(req.params.id)
+    if (!booking) return res.status(404).json({ message: 'Not found' })
+    if (String(booking.user) !== String(req.user._id) && !['admin','worker'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Forbidden' })
+    }
+
+    if (booking.status === 'pending') return res.json({ booking })
+    if (booking.status === 'cancelled') {
+      return res.status(409).json({ message: 'Cannot mark unpaid for cancelled booking' })
+    }
+    if (booking.status === 'completed') {
+      return res.status(409).json({ message: 'Cannot mark unpaid after check-out' })
+    }
+    if (booking.checkedInAt) {
+      return res.status(409).json({ message: 'Cannot mark unpaid after check-in' })
+    }
+    if (booking.status !== 'paid') {
+      return res.status(409).json({ message: 'Only paid bookings can be marked unpaid' })
+    }
+
+    if (booking.inventoryCommitted) {
+      for (const it of (booking.items || [])) {
+        const t = await RoomType.findOne({ key: it.roomTypeKey })
+        if (t && !hasRoomNumbers(t)) {
+          await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: it.quantity } })
+        }
+      }
+      booking.inventoryCommitted = false
+    }
+
+    booking.status = 'pending'
+    booking.amountPaid = 0
+    booking.payment = { ...(booking.payment || {}), status: 'pending' }
+    await booking.save()
+
+    logActivity({ action: 'booking_marked_unpaid', req, target: { type: 'booking', id: booking._id.toString() }, details: 'Booking marked as unpaid', metadata: { bookingId: booking._id } })
 
     res.json({ booking })
   } catch (e) { next(e) }
@@ -1279,6 +1332,7 @@ router.post('/:id/checkout', authRequired, rolesRequired('admin','worker'), asyn
     const booking = await Booking.findById(req.params.id)
     if (!booking) return res.status(404).json({ message: 'Not found' })
     if (booking.status !== 'paid') return res.status(400).json({ message: 'Only paid bookings can be checked out' })
+    if (!booking.checkedInAt) return res.status(400).json({ message: 'Guest must be checked in before checkout' })
     for (const it of booking.items) {
       const t = await RoomType.findOne({ key: it.roomTypeKey })
       if (t && !hasRoomNumbers(t)) {
@@ -1290,6 +1344,51 @@ router.post('/:id/checkout', authRequired, rolesRequired('admin','worker'), asyn
     await booking.save()
 
     logActivity({ action: 'guest_checked_out', req, target: { type: 'booking', id: booking._id.toString() }, details: `Guest checked out - ${booking.items.map(i => `${i.quantity}x ${i.title}`).join(', ')}`, metadata: { bookingId: booking._id } })
+
+    res.json({ booking })
+  } catch (e) { next(e) }
+})
+
+// Check-in: mark guest as checked-in (operational flag)
+router.post('/:id/checkin', authRequired, rolesRequired('admin','worker'), async (req, res, next) => {
+  try {
+    const booking = await Booking.findById(req.params.id)
+    if (!booking) return res.status(404).json({ message: 'Not found' })
+
+    if (booking.status === 'cancelled') return res.status(400).json({ message: 'Cannot check in a cancelled booking' })
+    if (booking.status === 'completed') return res.status(400).json({ message: 'Cannot check in a completed booking' })
+    if (!['paid', 'pending'].includes(booking.status)) {
+      return res.status(400).json({ message: 'Only paid or pending bookings can be checked in' })
+    }
+    if (booking.checkedInAt) return res.status(400).json({ message: 'Guest is already checked in' })
+
+    const now = new Date()
+    const checkInDate = booking.checkIn ? new Date(booking.checkIn) : null
+    const effCheckOut = normalizeCheckOut(booking.checkIn, booking.checkOut)
+
+    if (!checkInDate || Number.isNaN(checkInDate.getTime())) {
+      return res.status(400).json({ message: 'Invalid check-in date for this booking' })
+    }
+
+    // Only allow check-in during the stay window (date-time based)
+    if (now < checkInDate) {
+      return res.status(400).json({ message: 'Cannot check in before the check-in time' })
+    }
+    if (effCheckOut && now > effCheckOut) {
+      return res.status(400).json({ message: 'Cannot check in after the stay has ended' })
+    }
+
+    booking.checkedInAt = now
+    booking.checkedInBy = { userId: req.user._id, name: req.user?.name || '', role: req.user?.role || '' }
+    await booking.save()
+
+    logActivity({
+      action: 'guest_checked_in',
+      req,
+      target: { type: 'booking', id: booking._id.toString() },
+      details: `Guest checked in - ${booking.items.map(i => `${i.quantity}x ${i.title}`).join(', ')}`,
+      metadata: { bookingId: booking._id }
+    })
 
     res.json({ booking })
   } catch (e) { next(e) }
@@ -1319,7 +1418,15 @@ router.post('/:id/cancel', authRequired, rolesRequired('admin','worker'), async 
       }
     }
 
-    // Mark as cancelled
+    // Mark as cancelled (store metadata for undo)
+    const prevStatus = booking.status
+    booking.statusBeforeCancel = (prevStatus === 'paid' || prevStatus === 'pending') ? prevStatus : null
+    booking.cancelledAt = new Date()
+    booking.cancelledBy = {
+      userId: req.user?._id || null,
+      name: req.user?.name || '',
+      role: req.user?.role || ''
+    }
     booking.status = 'cancelled'
     booking.inventoryCommitted = false
     await booking.save()
@@ -1340,5 +1447,71 @@ router.post('/:id/cancel', authRequired, rolesRequired('admin','worker'), async 
 
     const guestName = booking.user?.name || 'Unknown'
     logActivity({ action: 'booking_cancelled', req, target: { type: 'booking', id: booking._id.toString(), name: guestName }, details: `Booking cancelled for ${guestName} - ₹${booking.total}`, metadata: { bookingId: booking._id, guestName, total: booking.total } })
+  } catch (e) { next(e) }
+})
+
+// Undo cancellation: restore booking to its previous confirmed/pending state and notify
+router.post('/:id/undo-cancel', authRequired, rolesRequired('admin','worker'), async (req, res, next) => {
+  try {
+    const booking = await Booking.findById(req.params.id).populate('user', 'name email phone')
+    if (!booking) return res.status(404).json({ message: 'Booking not found' })
+
+    if (booking.status !== 'cancelled') {
+      return res.status(400).json({ message: 'Only cancelled bookings can be restored' })
+    }
+
+    const computedStatus = (Number(booking.amountPaid || 0) >= Number(booking.total || 0)) ? 'paid' : 'pending'
+    let restoreStatus = booking.statusBeforeCancel || computedStatus
+    if (restoreStatus !== 'paid' && restoreStatus !== 'pending') restoreStatus = computedStatus
+    if (restoreStatus === 'paid' && computedStatus !== 'paid') restoreStatus = computedStatus
+
+    // Re-commit inventory (count-based room types) if any advance payment exists.
+    // This mirrors the reserve-on-payment behavior used elsewhere.
+    if (!booking.inventoryCommitted && Number(booking.amountPaid || 0) > 0) {
+      for (const it of booking.items) {
+        const rt = await RoomType.findOne({ key: it.roomTypeKey })
+        if (rt && !hasRoomNumbers(rt)) {
+          if ((rt.count || 0) < it.quantity) {
+            return res.status(409).json({ message: `${rt.title} rooms full — cannot restore booking` })
+          }
+        }
+      }
+      for (const it of booking.items) {
+        const rt = await RoomType.findOne({ key: it.roomTypeKey })
+        if (rt && !hasRoomNumbers(rt)) {
+          await RoomType.updateOne({ key: it.roomTypeKey }, { $inc: { count: -it.quantity } })
+        }
+      }
+      booking.inventoryCommitted = true
+    }
+
+    booking.status = restoreStatus
+    booking.statusBeforeCancel = null
+    booking.cancelledAt = null
+    booking.cancelledBy = { userId: null, name: '', role: '' }
+    await booking.save()
+
+    // Send restoration notifications
+    sendUndoCancellationToUser(booking, booking.user, req.user).catch(err =>
+      console.error('Failed to send undo-cancellation email to user:', err)
+    )
+    sendUndoCancellationToAdmin(booking, booking.user, req.user).catch(err =>
+      console.error('Failed to send undo-cancellation notification to admin:', err)
+    )
+
+    res.json({
+      success: true,
+      message: 'Booking restored successfully',
+      booking
+    })
+
+    const guestName = booking.user?.name || 'Unknown'
+    logActivity({
+      action: 'booking_cancel_undone',
+      req,
+      target: { type: 'booking', id: booking._id.toString(), name: guestName },
+      details: `Booking restored for ${guestName} - ₹${booking.total}`,
+      metadata: { bookingId: booking._id, guestName, total: booking.total, restoreStatus }
+    })
   } catch (e) { next(e) }
 })

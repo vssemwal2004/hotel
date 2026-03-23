@@ -961,7 +961,7 @@ export async function sendCancellationToAdmin(booking, user, cancelledBy) {
               <tr><td><strong>Check-in:</strong></td><td>${formatDate(booking.checkIn)}</td></tr>
               <tr><td><strong>Check-out:</strong></td><td>${booking.checkOut ? formatDate(booking.checkOut) : 'Full Day'}</td></tr>
               <tr><td><strong>Duration:</strong></td><td>${booking.nights} ${booking.fullDay ? 'Day(s)' : 'Night(s)'}</td></tr>
-              <tr><td><strong>Original Status:</strong></td><td>${booking.status}</td></tr>
+              <tr><td><strong>Original Status:</strong></td><td>${booking.statusBeforeCancel || booking.status}</td></tr>
               <tr><td><strong>Cancellation Time:</strong></td><td>${new Date().toLocaleString('en-IN')}</td></tr>
             </table>
           </div>
@@ -1005,6 +1005,233 @@ export async function sendCancellationToAdmin(booking, user, cancelledBy) {
     return true
   } catch (error) {
     console.error('Error sending cancellation notification to admin:', error)
+    return false
+  }
+}
+
+// Send booking restoration (undo-cancellation) notification to user
+export async function sendUndoCancellationToUser(booking, user, restoredBy) {
+  const transporter = getTransporter()
+
+  const roomDetails = (booking.items || []).map(item => `
+    <tr>
+      <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.title}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">${formatCurrency(item.subtotal)}</td>
+    </tr>
+  `).join('')
+
+  const actorLine = restoredBy?.name
+    ? `<p style="margin: 0; color: #666; font-size: 13px;">Restored by: <strong>${restoredBy.name}</strong> (${restoredBy.role || 'staff'})</p>`
+    : ''
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+        .booking-id { background: #e8f5e9; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px dashed #2e7d32; }
+        .details-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .details-table th { background: #2e7d32; color: white; padding: 12px; text-align: left; }
+        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+        .badge { display: inline-block; background: #2e7d32; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🏨 Hotel Krishna</h1>
+          <p>Booking Restored</p>
+        </div>
+        <div class="content">
+          <p>Dear <strong>${user.name}</strong>,</p>
+          <p>Your booking has been <span class="badge">RESTORED</span> and is confirmed again.</p>
+          ${actorLine}
+
+          <div class="booking-id">
+            <p style="margin: 0; color: #666;">Booking Reference</p>
+            <h2 style="margin: 5px 0; color: #333;">${booking._id}</h2>
+          </div>
+
+          <h3>📅 Booking Details</h3>
+          <table style="width: 100%; margin-bottom: 20px;">
+            <tr>
+              <td><strong>Check-in:</strong></td>
+              <td>${formatDate(booking.checkIn)}</td>
+            </tr>
+            <tr>
+              <td><strong>Check-out:</strong></td>
+              <td>${booking.checkOut ? formatDate(booking.checkOut) : 'Full Day Booking'}</td>
+            </tr>
+            <tr>
+              <td><strong>Duration:</strong></td>
+              <td>${booking.nights} ${booking.fullDay ? 'Day(s)' : 'Night(s)'}</td>
+            </tr>
+            <tr>
+              <td><strong>Status:</strong></td>
+              <td>${(booking.status || 'pending').toUpperCase()}</td>
+            </tr>
+          </table>
+
+          <h3>🛏️ Rooms</h3>
+          <table class="details-table">
+            <thead>
+              <tr>
+                <th>Room Type</th>
+                <th style="text-align: center;">Quantity</th>
+                <th style="text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${roomDetails}
+              <tr style="background: #e8f5e9; font-weight: bold;">
+                <td colspan="2" style="padding: 12px;">Total Amount</td>
+                <td style="padding: 12px; text-align: right;">${formatCurrency(booking.total)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p>If you have any questions, please reply to this email or contact us at ${process.env.ADMIN_EMAIL || 'hotelkrishna@example.com'}.</p>
+        </div>
+        <div class="footer">
+          <p><strong>Contact Us:</strong> ${process.env.ADMIN_EMAIL || 'hotelkrishna@example.com'}</p>
+          <p>© ${new Date().getFullYear()} Hotel Krishna. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  const mailOptions = {
+    from: `"Hotel Krishna" <${process.env.SMTP_USER || process.env.ADMIN_EMAIL}>`,
+    to: user.email,
+    subject: '✅ Booking Restored - Hotel Krishna',
+    html
+  }
+
+  try {
+    await transporter.sendMail(mailOptions)
+    console.log(`Undo-cancellation email sent to user: ${user.email}`)
+    return true
+  } catch (error) {
+    console.error('Error sending undo-cancellation email to user:', error)
+    return false
+  }
+}
+
+// Send booking restoration (undo-cancellation) notification to admin
+export async function sendUndoCancellationToAdmin(booking, user, restoredBy) {
+  const transporter = getTransporter()
+  const adminEmail = process.env.ADMIN_EMAIL
+
+  if (!adminEmail) {
+    console.error('Admin email not configured')
+    return false
+  }
+
+  const roomDetails = (booking.items || []).map(item => `
+    <tr>
+      <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.title}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">${formatCurrency(item.subtotal)}</td>
+    </tr>
+  `).join('')
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 700px; margin: 0 auto; padding: 20px; }
+        .header { background: #2e7d32; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f5f5f5; padding: 25px; }
+        .section { background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px; }
+        .details-table { width: 100%; border-collapse: collapse; }
+        .details-table th { background: #2e7d32; color: white; padding: 10px; text-align: left; }
+        .highlight { background: #e8f5e9; padding: 15px; border-radius: 8px; border-left: 4px solid #2e7d32; }
+        .amount { font-size: 24px; color: #2e7d32; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h2>✅ Booking Restoration Alert</h2>
+          <p>A cancelled booking has been restored</p>
+        </div>
+        <div class="content">
+          <div class="highlight">
+            <table style="width: 100%;">
+              <tr>
+                <td><strong>Booking ID:</strong> ${booking._id}</td>
+                <td style="text-align: right;"><strong>Amount:</strong> <span class="amount">${formatCurrency(booking.total)}</span></td>
+              </tr>
+              <tr>
+                <td colspan="2"><strong>Restored By:</strong> ${(restoredBy?.name || 'Staff')} (${restoredBy?.role || 'staff'})</td>
+              </tr>
+              <tr>
+                <td colspan="2"><strong>Restored Status:</strong> ${(booking.status || 'pending').toUpperCase()}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="section">
+            <h3>👤 Customer Details</h3>
+            <table style="width: 100%;">
+              <tr><td><strong>Name:</strong></td><td>${user.name}</td></tr>
+              <tr><td><strong>Email:</strong></td><td>${user.email}</td></tr>
+              <tr><td><strong>Phone:</strong></td><td>${user.phone || 'Not provided'}</td></tr>
+            </table>
+          </div>
+
+          <div class="section">
+            <h3>📅 Booking Details</h3>
+            <table style="width: 100%;">
+              <tr><td><strong>Check-in:</strong></td><td>${formatDate(booking.checkIn)}</td></tr>
+              <tr><td><strong>Check-out:</strong></td><td>${booking.checkOut ? formatDate(booking.checkOut) : 'Full Day'}</td></tr>
+              <tr><td><strong>Duration:</strong></td><td>${booking.nights} ${booking.fullDay ? 'Day(s)' : 'Night(s)'}</td></tr>
+              <tr><td><strong>Restoration Time:</strong></td><td>${new Date().toLocaleString('en-IN')}</td></tr>
+            </table>
+          </div>
+
+          <div class="section">
+            <h3>🛏️ Room Details</h3>
+            <table class="details-table">
+              <thead>
+                <tr>
+                  <th>Room Type</th>
+                  <th style="text-align: center;">Quantity</th>
+                  <th style="text-align: right;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${roomDetails}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  const mailOptions = {
+    from: `"Hotel Krishna System" <${process.env.SMTP_USER || process.env.ADMIN_EMAIL}>`,
+    to: adminEmail,
+    subject: `✅ Booking Restored - ${booking._id}`,
+    html
+  }
+
+  try {
+    await transporter.sendMail(mailOptions)
+    console.log(`Undo-cancellation notification sent to admin: ${adminEmail}`)
+    return true
+  } catch (error) {
+    console.error('Error sending undo-cancellation notification to admin:', error)
     return false
   }
 }

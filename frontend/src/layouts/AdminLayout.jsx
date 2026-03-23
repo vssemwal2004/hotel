@@ -25,7 +25,8 @@ import {
   CalendarCheck,
   List,
   Shield,
-  Activity
+  Activity,
+  XCircle
 } from 'lucide-react'
 
 const COLLAPSED_W = 72
@@ -104,6 +105,7 @@ export default function AdminLayout({ children }) {
     },
     { type: 'section', label: 'Bookings & Rooms' },
     { type: 'link', icon: List, label: 'All Bookings', href: '/admin/bookings' },
+    { type: 'link', icon: XCircle, label: 'Cancelled Bookings', href: '/admin/bookings/cancelled' },
     { type: 'link', icon: Calendar, label: 'Booking Calendar', href: '/admin/bookings/history' },
     { type: 'link', icon: DoorOpen, label: 'Room Availability', href: '/admin/bookings/available-rooms' },
     { type: 'link', icon: Bed, label: 'Room Types', href: '/admin/rooms' },
