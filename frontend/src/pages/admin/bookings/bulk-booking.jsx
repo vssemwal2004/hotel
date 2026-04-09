@@ -89,20 +89,38 @@ function GuestRow({
     return { subtotal, gstAmount: gst.gstAmount, gstPct: gst.gstPercentage, total: gst.totalAmount, rows }
   }, [guest.roomSelections, roomTypes, nights])
 
+  const negotiatedDiscount = useMemo(() => {
+    const raw = Number(guest.negotiatedDiscount || 0)
+    if (!Number.isFinite(raw) || raw <= 0) return 0
+    return Math.min(Math.max(0, raw), pricing.total || 0)
+  }, [guest.negotiatedDiscount, pricing.total])
+
+  const effectiveTotal = Math.max(0, (pricing.total || 0) - (negotiatedDiscount || 0))
+
   const effectivePaid = guest.paid
-    ? pricing.total
+    ? effectiveTotal
     : Math.min(
         Math.max(0, Number(guest.amountPaid || 0)),
-        pricing.total || Math.max(0, Number(guest.amountPaid || 0))
+        effectiveTotal || Math.max(0, Number(guest.amountPaid || 0))
       )
-  const remainingDue = Math.max(0, (pricing.total || 0) - (effectivePaid || 0))
+  const remainingDue = Math.max(0, (effectiveTotal || 0) - (effectivePaid || 0))
+
+  const updateNegotiatedDiscount = (val) => {
+    const raw = Number(val || 0)
+    const safe = Number.isFinite(raw) ? Math.max(0, raw) : 0
+    const capped = Math.min(safe, pricing.total || safe)
+    const nextTotal = Math.max(0, (pricing.total || 0) - capped)
+    const currentPaid = Number(guest.amountPaid || 0)
+    const nextPaid = guest.paid ? nextTotal : Math.min(Math.max(0, currentPaid), nextTotal)
+    onUpdate(index, { ...guest, negotiatedDiscount: capped, amountPaid: nextPaid })
+  }
 
   const togglePaid = () => {
     const nextPaid = !guest.paid
     onUpdate(index, {
       ...guest,
       paid: nextPaid,
-      amountPaid: nextPaid ? (pricing.total || 0) : 0
+      amountPaid: nextPaid ? (effectiveTotal || 0) : 0
     })
   }
 
@@ -134,7 +152,7 @@ function GuestRow({
           {pricing.total > 0 && (
             <span className={`hidden sm:inline text-xs font-bold px-2.5 py-1 rounded-full
               ${isExpanded ? 'bg-white/20 text-white' : 'bg-green-100 text-green-700'}`}>
-              ₹{pricing.total.toLocaleString()}
+              ₹{effectiveTotal.toLocaleString()}
             </span>
           )}
           {guest.paid && (
@@ -370,6 +388,24 @@ function GuestRow({
                     <span>Total</span>
                     <span className="text-green-700">₹{pricing.total.toLocaleString()}</span>
                   </div>
+                  <div className="flex items-end justify-between gap-3 pt-2">
+                    <div className="flex-1">
+                      <label className="text-[10px] font-black text-gray-500 uppercase mb-1 block">Negotiation Discount (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={guest.negotiatedDiscount || 0}
+                        onChange={e => updateNegotiatedDiscount(e.target.value)}
+                        className="w-full border-2 border-gray-200 rounded-lg p-2 bg-white"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-gray-500 uppercase">Updated Total</p>
+                      <p className="text-lg font-black text-emerald-700">₹{effectiveTotal.toLocaleString()}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -398,10 +434,10 @@ function GuestRow({
                     type="number"
                     min="0"
                     step="1"
-                    value={guest.paid ? (pricing.total || 0) : (guest.amountPaid || 0)}
+                    value={guest.paid ? (effectiveTotal || 0) : (guest.amountPaid || 0)}
                     onChange={e => {
                       const next = Math.max(0, Number(e.target.value || 0))
-                      set('amountPaid', Math.min(next, pricing.total || next))
+                      set('amountPaid', Math.min(next, effectiveTotal || next))
                     }}
                     disabled={guest.paid}
                     className="w-full border-2 border-gray-200 rounded-lg p-2.5 bg-white disabled:bg-gray-100"
@@ -440,7 +476,9 @@ function ReviewModal({ guests, roomTypes, nights, checkIn, checkOut, onClose, on
       })
       const k = g.roomSelections?.find(s => s.roomTypeKey)?.roomTypeKey
       const rt = k ? roomTypes.find(r => r.key === k) : null
-      t += calculateGST(sub, rt || {}, rt?.prices?.roomOnly || rt?.basePrice || 0).totalAmount
+      const gross = calculateGST(sub, rt || {}, rt?.prices?.roomOnly || rt?.basePrice || 0).totalAmount
+      const disc = Math.max(0, Number(g.negotiatedDiscount || 0))
+      t += Math.max(0, gross - disc)
     })
     return t
   }, [guests, roomTypes, nights])
@@ -473,7 +511,9 @@ function ReviewModal({ guests, roomTypes, nights, checkIn, checkOut, onClose, on
             const k = g.roomSelections?.find(s => s.roomTypeKey)?.roomTypeKey
             const rt = k ? roomTypes.find(r => r.key === k) : null
             const gst = calculateGST(sub, rt || {}, rt?.prices?.roomOnly || rt?.basePrice || 0)
-            const total = gst.totalAmount || 0
+            const grossTotal = gst.totalAmount || 0
+            const disc = Math.min(Math.max(0, Number(g.negotiatedDiscount || 0)), grossTotal)
+            const total = Math.max(0, grossTotal - disc)
             const amountPaid = g.paid ? total : Math.min(Math.max(0, Number(g.amountPaid || 0)), total)
             const remaining = Math.max(0, total - amountPaid)
             return (
@@ -487,8 +527,11 @@ function ReviewModal({ guests, roomTypes, nights, checkIn, checkOut, onClose, on
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-base font-black text-green-600">₹{gst.totalAmount.toLocaleString()}</p>
+                    <p className="text-base font-black text-green-600">₹{total.toLocaleString()}</p>
                     <p className="text-[10px] text-gray-500 mt-0.5">Paid ₹{amountPaid.toLocaleString()} · Due ₹{remaining.toLocaleString()}</p>
+                    {disc > 0 && (
+                      <p className="text-[10px] text-gray-400 mt-0.5">Discount: -₹{disc.toLocaleString()}</p>
+                    )}
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${g.paid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                       {g.paid ? '✓ PAID' : 'PENDING'}
                     </span>
@@ -630,7 +673,7 @@ export default function BulkBookingPage() {
   const [submitting, setSubmitting]         = useState(false)
   const [availableRoomsMap, setAvailableRoomsMap] = useState({})  // key: "rtKey_ci_co"
   const [guests, setGuests]                 = useState([
-    { guestName: '', guestEmail: '', guestPhone: '', idProofType: '', idProofNumber: '', roomSelections: [], paid: false, amountPaid: 0 }
+    { guestName: '', guestEmail: '', guestPhone: '', idProofType: '', idProofNumber: '', roomSelections: [], paid: false, amountPaid: 0, negotiatedDiscount: 0 }
   ])
   const [expandedIndex, setExpandedIndex]   = useState(0)
   const [showReview, setShowReview]         = useState(false)
@@ -674,7 +717,7 @@ export default function BulkBookingPage() {
     keys.forEach(k => fetchAvailableRooms(k, ci, co))
   }, [guests, fetchAvailableRooms])
 
-  const emptyGuest = () => ({ guestName: '', guestEmail: '', guestPhone: '', idProofType: '', idProofNumber: '', roomSelections: [], paid: false, amountPaid: 0 })
+  const emptyGuest = () => ({ guestName: '', guestEmail: '', guestPhone: '', idProofType: '', idProofNumber: '', roomSelections: [], paid: false, amountPaid: 0, negotiatedDiscount: 0 })
 
   const addGuest = () => {
     setGuests(prev => [...prev, emptyGuest()])
@@ -687,7 +730,7 @@ export default function BulkBookingPage() {
   }
   const duplicateGuest = (i) => {
     const src = guests[i]
-    const dup = { ...src, guestName: '', guestEmail: '', guestPhone: '', idProofType: '', idProofNumber: '', paid: false, amountPaid: 0, roomSelections: src.roomSelections.map(s => ({ ...s, selectedRooms: [], quantity: 0 })) }
+    const dup = { ...src, guestName: '', guestEmail: '', guestPhone: '', idProofType: '', idProofNumber: '', paid: false, amountPaid: 0, negotiatedDiscount: 0, roomSelections: src.roomSelections.map(s => ({ ...s, selectedRooms: [], quantity: 0 })) }
     setGuests(prev => [...prev.slice(0, i + 1), dup, ...prev.slice(i + 1)])
     setExpandedIndex(i + 1)
   }
@@ -705,7 +748,9 @@ export default function BulkBookingPage() {
       })
       const k = g.roomSelections?.find(s => s.roomTypeKey)?.roomTypeKey
       const rt = k ? roomTypes.find(r => r.key === k) : null
-      totalAmount += calculateGST(sub, rt || {}, rt?.prices?.roomOnly || rt?.basePrice || 0).totalAmount
+      const gross = calculateGST(sub, rt || {}, rt?.prices?.roomOnly || rt?.basePrice || 0).totalAmount
+      const disc = Math.max(0, Number(g.negotiatedDiscount || 0))
+      totalAmount += Math.max(0, gross - disc)
       if (g.paid) paidCount++
     })
     return { totalRooms, totalAmount, paidCount }
@@ -740,6 +785,7 @@ export default function BulkBookingPage() {
         checkOut,
         paid: g.paid,
         amountPaid: g.paid ? undefined : (g.amountPaid || 0),
+        negotiatedDiscount: g.negotiatedDiscount || 0,
         packageType: 'roomOnly',
         items: g.roomSelections.filter(s => s.roomTypeKey && s.quantity > 0).map(s => ({
           roomTypeKey: s.roomTypeKey,

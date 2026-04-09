@@ -327,9 +327,12 @@ export default function AdminWalkIn(){
       })
     }
 
+    const negotiatedDiscount = 0
+    const finalTotalAmount = Math.max(0, totalAmount - negotiatedDiscount)
+
     const paidNow = markPaid
-      ? totalAmount
-      : Math.min(Math.max(0, Number(advancePaid || 0)), totalAmount)
+      ? finalTotalAmount
+      : Math.min(Math.max(0, Number(advancePaid || 0)), finalTotalAmount)
 
     const bookingPayload = {
       user: {
@@ -343,6 +346,7 @@ export default function AdminWalkIn(){
       items,
       paid: markPaid,
       amountPaid: paidNow,
+      negotiatedDiscount,
       guestIdInfo: {
         type: mainGuest.idType,
         number: mainGuest.idNumber.trim()
@@ -362,8 +366,10 @@ export default function AdminWalkIn(){
         gstAmount: totalGST,
         gstPercentage: entryDetails[0]?.gstPercentage || 0,
         totalAmount,
+        negotiatedDiscount,
+        finalTotalAmount,
         amountPaid: paidNow,
-        remainingAmount: Math.max(0, totalAmount - paidNow)
+        remainingAmount: Math.max(0, finalTotalAmount - paidNow)
       },
       totalGuests: getTotalGuests()
     })
@@ -1172,6 +1178,48 @@ export default function AdminWalkIn(){
                     <span className="text-lg font-bold">Total Amount</span>
                     <span className="text-2xl font-bold">₹{(bookingData.paymentDetails?.totalAmount || 0).toLocaleString()}</span>
                   </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-green-200">
+                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">Negotiation Discount (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={bookingData.negotiatedDiscount || 0}
+                      onChange={e => {
+                        const raw = Number(e.target.value || 0)
+                        setBookingData(prev => {
+                          if (!prev) return prev
+                          const totalBefore = Number(prev.paymentDetails?.totalAmount || 0)
+                          const safeDiscount = Math.min(Math.max(0, raw), totalBefore)
+                          const finalTotal = Math.max(0, totalBefore - safeDiscount)
+                          const currentPaid = Number(prev.amountPaid ?? prev.paymentDetails?.amountPaid ?? 0)
+                          const nextPaid = markPaid ? finalTotal : Math.min(Math.max(0, currentPaid), finalTotal)
+                          return {
+                            ...prev,
+                            negotiatedDiscount: safeDiscount,
+                            amountPaid: nextPaid,
+                            paymentDetails: {
+                              ...(prev.paymentDetails || {}),
+                              negotiatedDiscount: safeDiscount,
+                              finalTotalAmount: finalTotal,
+                              amountPaid: nextPaid,
+                              remainingAmount: Math.max(0, finalTotal - nextPaid)
+                            }
+                          }
+                        })
+                      }}
+                      className="w-full border-2 border-gray-200 rounded-lg p-2.5 bg-white"
+                      placeholder="0"
+                    />
+                    <p className="text-[10px] text-gray-500 mt-1">Discount will be subtracted from the total amount.</p>
+                  </div>
+
+                  <div className="flex justify-between items-center p-4 bg-gradient-to-r from-teal-600 to-emerald-700 rounded-xl text-white shadow-lg">
+                    <span className="text-lg font-bold">Updated Total</span>
+                    <span className="text-2xl font-bold">₹{(bookingData.paymentDetails?.finalTotalAmount ?? bookingData.paymentDetails?.totalAmount ?? 0).toLocaleString()}</span>
+                  </div>
+
                   <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-green-200">
                     <span className="text-gray-700">Amount Paid</span>
                     <span className="font-semibold text-gray-900">₹{(bookingData.paymentDetails?.amountPaid || 0).toLocaleString()}</span>

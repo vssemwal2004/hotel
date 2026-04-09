@@ -29,6 +29,8 @@ const bookingSchema = new mongoose.Schema({
   subtotal: { type: Number, min: 0 }, // Pre-tax amount
   gstPercentage: { type: Number, min: 0, default: 0 }, // GST % applied
   gstAmount: { type: Number, min: 0, default: 0 }, // GST amount
+  // Negotiated discount applied after tax (admin/worker flow)
+  negotiatedDiscount: { type: Number, min: 0, default: 0 },
   total: { type: Number, required: true, min: 0 },
   // Offline/advance payments (amount received so far)
   amountPaid: { type: Number, min: 0, default: 0 },

@@ -740,7 +740,13 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
       booking.subtotal = newSubtotal
       booking.gstPercentage = gstEnabled ? gstResult.gstPercentage : 0
       booking.gstAmount = gstEnabled ? gstResult.gstAmount : 0
-      booking.total = newSubtotal + (gstEnabled ? gstResult.gstAmount : 0)
+      const grossTotal = newSubtotal + (gstEnabled ? gstResult.gstAmount : 0)
+      const negotiatedDiscount = Math.min(
+        Math.max(0, Number(booking.negotiatedDiscount || 0)),
+        grossTotal
+      )
+      booking.negotiatedDiscount = negotiatedDiscount
+      booking.total = Math.max(0, grossTotal - negotiatedDiscount)
     }
 
     // Manual pricing override (admin/worker can directly edit price fields)
@@ -759,7 +765,13 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
         const effectiveSubtotal = Number(booking.subtotal || 0)
         booking.gstPercentage = nextGstPercentage
         booking.gstAmount = Math.round((effectiveSubtotal * nextGstPercentage) / 100)
-        booking.total = effectiveSubtotal + booking.gstAmount
+        const grossTotal = effectiveSubtotal + booking.gstAmount
+        const negotiatedDiscount = Math.min(
+          Math.max(0, Number(booking.negotiatedDiscount || 0)),
+          grossTotal
+        )
+        booking.negotiatedDiscount = negotiatedDiscount
+        booking.total = Math.max(0, grossTotal - negotiatedDiscount)
       } else {
         // Legacy manual override behavior (kept for compatibility)
         const nextGstAmount = Number(pricing.gstAmount)
@@ -989,7 +1001,19 @@ router.post('/bulk', authRequired, rolesRequired('admin','worker'), async (req, 
 
         const finalGSTPercentage = gstEnabled ? gstResult.gstPercentage : 0
         const finalGSTAmount = gstEnabled ? gstResult.gstAmount : 0
-        const total = subtotalAmount + finalGSTAmount
+        const grossTotal = subtotalAmount + finalGSTAmount
+
+        const negotiatedDiscountRaw = entry.negotiatedDiscount
+        const negotiatedDiscountParsed = negotiatedDiscountRaw === undefined || negotiatedDiscountRaw === null || negotiatedDiscountRaw === ''
+          ? 0
+          : Number(negotiatedDiscountRaw)
+        if (!Number.isFinite(negotiatedDiscountParsed) || negotiatedDiscountParsed < 0) {
+          errors.push({ index: idx, message: `Entry ${idx + 1}: Invalid negotiatedDiscount` })
+          continue
+        }
+        const negotiatedDiscount = Math.min(Math.max(0, negotiatedDiscountParsed), grossTotal)
+
+        const total = Math.max(0, grossTotal - negotiatedDiscount)
 
         const advancePaidRaw = parseAmountPaid(entry.amountPaid ?? entry.advancePaid ?? entry.advanceAmount)
         if (Number.isNaN(advancePaidRaw)) {
@@ -1007,6 +1031,7 @@ router.post('/bulk', authRequired, rolesRequired('admin','worker'), async (req, 
           subtotal: subtotalAmount,
           gstPercentage: finalGSTPercentage,
           gstAmount: finalGSTAmount,
+          negotiatedDiscount,
           total,
           amountPaid: Math.min(Math.max(0, advancePaidRaw || 0), total),
           status: 'pending'
@@ -1075,7 +1100,7 @@ router.post('/bulk', authRequired, rolesRequired('admin','worker'), async (req, 
         )
         results.push({ index: idx, success: true, booking })
 
-        logActivity({ action: 'bulk_booking_created', req, target: { type: 'booking', id: booking._id.toString(), name: guestName }, details: `Bulk booking for ${guestName} - ${items.map(i => `${i.quantity}x ${i.title}`).join(', ')}`, metadata: { bookingId: booking._id, guestName, guestEmail } })
+        logActivity({ action: 'bulk_booking_created', req, target: { type: 'booking', id: booking._id.toString(), name: guestName }, details: `Bulk booking for ${guestName} - ${items.map(i => `${i.quantity}x ${i.title}`).join(', ')} - ₹${total}`, metadata: { bookingId: booking._id, guestName, guestEmail, total, negotiatedDiscount } })
       } catch (entryErr) {
         errors.push({ index: idx, message: `Entry ${idx + 1}: ${entryErr.message}` })
       }
@@ -1237,7 +1262,18 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
     
     const manualGSTPercentage = manualGSTEnabled ? manualGSTResult.gstPercentage : 0
     const manualGSTAmount = manualGSTEnabled ? manualGSTResult.gstAmount : 0
-    const manualTotal = manualSubtotal + manualGSTAmount
+    const grossTotal = manualSubtotal + manualGSTAmount
+
+    const negotiatedDiscountRaw = payload.negotiatedDiscount
+    const negotiatedDiscountParsed = negotiatedDiscountRaw === undefined || negotiatedDiscountRaw === null || negotiatedDiscountRaw === ''
+      ? 0
+      : Number(negotiatedDiscountRaw)
+    if (!Number.isFinite(negotiatedDiscountParsed) || negotiatedDiscountParsed < 0) {
+      return res.status(400).json({ message: 'Invalid negotiatedDiscount' })
+    }
+    const negotiatedDiscount = Math.min(Math.max(0, negotiatedDiscountParsed), grossTotal)
+
+    const manualTotal = Math.max(0, grossTotal - negotiatedDiscount)
 
     const advancePaidRaw = parseAmountPaid(payload.amountPaid ?? payload.advancePaid ?? payload.advanceAmount)
     if (Number.isNaN(advancePaidRaw)) return res.status(400).json({ message: 'Invalid advance/amountPaid' })
@@ -1252,6 +1288,7 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
       subtotal: manualSubtotal,
       gstPercentage: manualGSTPercentage,
       gstAmount: manualGSTAmount,
+      negotiatedDiscount,
       total: manualTotal,
       amountPaid: Math.min(Math.max(0, advancePaidRaw || 0), manualTotal),
       status: 'pending'
@@ -1322,7 +1359,7 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
 
     res.status(201).json({ booking })
 
-    logActivity({ action: 'walk_in_created', req, target: { type: 'booking', id: booking._id.toString(), name }, details: `Walk-in booking for ${name} - ${items.map(i => `${i.quantity}x ${i.title}`).join(', ')} - ₹${manualTotal}`, metadata: { bookingId: booking._id, guestName: name, guestEmail: email, total: manualTotal } })
+    logActivity({ action: 'walk_in_created', req, target: { type: 'booking', id: booking._id.toString(), name }, details: `Walk-in booking for ${name} - ${items.map(i => `${i.quantity}x ${i.title}`).join(', ')} - ₹${manualTotal}`, metadata: { bookingId: booking._id, guestName: name, guestEmail: email, total: manualTotal, negotiatedDiscount } })
   } catch (e) { next(e) }
 })
 
