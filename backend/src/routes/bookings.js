@@ -749,6 +749,28 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
       booking.total = Math.max(0, grossTotal - negotiatedDiscount)
     }
 
+    // Negotiated discount update (applied after tax)
+    if (req.body && Object.prototype.hasOwnProperty.call(req.body, 'negotiatedDiscount')) {
+      const parsed = Number(req.body.negotiatedDiscount)
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        return res.status(400).json({ message: 'Invalid negotiatedDiscount' })
+      }
+
+      const prev = Number(booking.negotiatedDiscount || 0)
+      const grossTotal = Number(booking.subtotal || 0) + Number(booking.gstAmount || 0)
+      const next = Math.min(Math.max(0, parsed), Math.max(0, grossTotal))
+      booking.negotiatedDiscount = next
+      booking.total = Math.max(0, grossTotal - next)
+
+      if (Number(prev || 0) !== Number(next || 0)) changedFields.push('negotiated_discount')
+
+      // Keep amountPaid within total after discount changes
+      if (Number(booking.amountPaid || 0) > Number(booking.total || 0)) {
+        booking.amountPaid = Math.max(0, Number(booking.total || 0))
+        changedFields.push('amount_paid')
+      }
+    }
+
     // Manual pricing override (admin/worker can directly edit price fields)
     if (pricing && typeof pricing === 'object') {
       const nextSubtotal = Number(pricing.subtotal)

@@ -39,6 +39,7 @@ export default function EditBookingPage() {
   const [guestInfo, setGuestInfo] = useState({ name: '', email: '', phone: '' })
   const [editableItems, setEditableItems] = useState([])
   const [pricing, setPricing] = useState({ subtotal: 0, gstPercentage: 0, gstAmount: 0, total: 0 })
+  const [negotiatedDiscount, setNegotiatedDiscount] = useState(0)
   const [additionalGuests, setAdditionalGuests] = useState({}) // { roomTypeKey: [guests] }
   const [newGuestName, setNewGuestName] = useState({}) // { roomTypeKey: string }
   const [newGuestAge, setNewGuestAge] = useState({}) // { roomTypeKey: number }
@@ -115,6 +116,9 @@ export default function EditBookingPage() {
     const subtotal = calcSubtotalFromItems(editableItems, nights)
     setPricing(prev => {
       const next = calcPricing(subtotal, prev.gstPercentage)
+      const grossTotal = Number(next.total || 0)
+      const disc = Math.min(Math.max(0, Number(negotiatedDiscount || 0)), grossTotal)
+      next.total = Math.max(0, grossTotal - disc)
       if (
         Number(prev.subtotal || 0) === Number(next.subtotal || 0) &&
         Number(prev.gstAmount || 0) === Number(next.gstAmount || 0) &&
@@ -124,7 +128,7 @@ export default function EditBookingPage() {
       }
       return { ...prev, ...next }
     })
-  }, [booking, editableItems, newCheckIn, newCheckOut])
+  }, [booking, editableItems, newCheckIn, newCheckOut, negotiatedDiscount])
 
   const fetchAllBookings = async () => {
     setSearchLoading(true)
@@ -170,6 +174,7 @@ export default function EditBookingPage() {
           gstAmount: Number(bookingData.gstAmount || 0),
           total: Number(bookingData.total || 0)
         })
+        setNegotiatedDiscount(Number(bookingData.negotiatedDiscount || 0))
         setAmountPaid(Number(bookingData.amountPaid || 0))
         
         // Initialize additional guests state
@@ -406,6 +411,44 @@ export default function EditBookingPage() {
     )))
   }
 
+  const removeRoomTypeItem = (itemIndex) => {
+    const roomTypeKey = editableItems?.[itemIndex]?.roomTypeKey
+    setEditableItems(prev => (prev || []).filter((_, i) => i !== itemIndex))
+
+    if (!roomTypeKey) return
+
+    setAdditionalGuests(prev => {
+      const next = { ...(prev || {}) }
+      delete next[roomTypeKey]
+      return next
+    })
+    setNewGuestName(prev => {
+      const next = { ...(prev || {}) }
+      delete next[roomTypeKey]
+      return next
+    })
+    setNewGuestAge(prev => {
+      const next = { ...(prev || {}) }
+      delete next[roomTypeKey]
+      return next
+    })
+    setNewGuestType(prev => {
+      const next = { ...(prev || {}) }
+      delete next[roomTypeKey]
+      return next
+    })
+    setSelectedRooms(prev => {
+      const next = { ...(prev || {}) }
+      delete next[roomTypeKey]
+      return next
+    })
+    setAvailableRooms(prev => {
+      const next = { ...(prev || {}) }
+      delete next[roomTypeKey]
+      return next
+    })
+  }
+
   const updateGuestField = (itemIndex, guestIndex, field, value) => {
     setEditableItems(prev => prev.map((it, i) => {
       if (i !== itemIndex) return it
@@ -479,29 +522,38 @@ export default function EditBookingPage() {
         }))
       }))
 
-      const normalizedEditedItems = (editableItems || []).map(it => ({
-        roomTypeKey: it.roomTypeKey,
-        quantity: Math.max(1, Number(it.quantity || 1)),
-        basePrice: Math.max(0, Number(it.basePrice || 0)),
-        guests: (it.guests || []).map(g => ({
-          name: g.name || 'Guest',
-          email: g.email || undefined,
-          phone: g.phone || undefined,
-          age: Math.max(0, Number(g.age || 0)),
-          type: g.type === 'child' ? 'child' : 'adult'
-        })),
-        allottedRoomNumbers: selectedRooms[it.roomTypeKey] || []
-      }))
+      const normalizedEditedItems = (editableItems || [])
+        .map(it => ({
+          roomTypeKey: it.roomTypeKey,
+          quantity: Math.max(0, Math.floor(Number(it.quantity || 0))),
+          basePrice: Math.max(0, Number(it.basePrice || 0)),
+          guests: (it.guests || []).map(g => ({
+            name: g.name || 'Guest',
+            email: g.email || undefined,
+            phone: g.phone || undefined,
+            age: Math.max(0, Number(g.age || 0)),
+            type: g.type === 'child' ? 'child' : 'adult'
+          })),
+          allottedRoomNumbers: selectedRooms[it.roomTypeKey] || []
+        }))
+        .filter(it => it.quantity > 0)
+
+      if (normalizedEditedItems.length === 0) {
+        toast.show({ type: 'warning', message: 'Booking must have at least 1 room type' })
+        return
+      }
 
       if (JSON.stringify(normalizedEditedItems.map(({ allottedRoomNumbers, ...rest }) => rest)) !== JSON.stringify(originalItems)) {
         updates.replaceItems = true
         updates.items = normalizedEditedItems
       }
       
-      // Check if there are additional guests
+      // Check if there are additional guests (only for room types that still exist)
+      const activeRoomTypeKeys = new Set((normalizedEditedItems || []).map(i => i.roomTypeKey))
       const guestsToAdd = []
-      Object.keys(additionalGuests).forEach(roomTypeKey => {
-        if (additionalGuests[roomTypeKey].length > 0) {
+      Object.keys(additionalGuests || {}).forEach(roomTypeKey => {
+        if (!activeRoomTypeKeys.has(roomTypeKey)) return
+        if ((additionalGuests?.[roomTypeKey] || []).length > 0) {
           guestsToAdd.push({
             roomTypeKey,
             guests: additionalGuests[roomTypeKey]
@@ -516,6 +568,7 @@ export default function EditBookingPage() {
       // Check if room allotments changed
       const allotments = []
       for (const item of (editableItems.length > 0 ? editableItems : booking.items)) {
+        if (Number(item?.quantity || 0) <= 0) continue
         const selected = selectedRooms[item.roomTypeKey] || []
         const current = booking.items.find(x => x.roomTypeKey === item.roomTypeKey)?.allottedRoomNumbers || []
         
@@ -542,6 +595,11 @@ export default function EditBookingPage() {
         updates.pricing = {
           gstPercentage: Math.max(0, Number(pricing.gstPercentage || 0))
         }
+      }
+
+      // Negotiated discount changes
+      if (Number(negotiatedDiscount || 0) !== Number(booking.negotiatedDiscount || 0)) {
+        updates.negotiatedDiscount = Math.max(0, Number(negotiatedDiscount || 0))
       }
 
       // Advance/partial payment
@@ -836,15 +894,25 @@ export default function EditBookingPage() {
           {editableItems.map((item, itemIndex) => (
             <div key={`${item.roomTypeKey}-${itemIndex}`} className="border border-gray-200 rounded-xl p-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Room Type</p>
-                  <p className="font-semibold text-gray-900">{item.title}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Room Type</p>
+                    <p className="font-semibold text-gray-900">{item.title}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeRoomTypeItem(itemIndex)}
+                    className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-600"
+                    title="Remove this room type"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">Quantity</label>
                   <input
                     type="number"
-                    min="1"
+                    min="0"
                     value={item.quantity}
                     onChange={(e) => updateItemField(itemIndex, 'quantity', e.target.value)}
                     className="w-full border border-gray-300 rounded-lg p-2"
@@ -949,7 +1017,7 @@ export default function EditBookingPage() {
             </div>
           </div>
         </div>
-        <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-6 gap-3">
+        <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-7 gap-3">
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Subtotal</label>
             <input type="number" min="0" step="1" value={pricing.subtotal} readOnly className="w-full border border-gray-300 rounded-lg p-2 bg-gray-100" />
@@ -965,7 +1033,11 @@ export default function EditBookingPage() {
                 const nextPct = Number(e.target.value || 0)
                 const nights = getPricingNights()
                 const subtotal = calcSubtotalFromItems(editableItems, nights)
-                setPricing(prev => ({ ...prev, ...calcPricing(subtotal, nextPct) }))
+                const next = calcPricing(subtotal, nextPct)
+                const grossTotal = Number(next.total || 0)
+                const disc = Math.min(Math.max(0, Number(negotiatedDiscount || 0)), grossTotal)
+                next.total = Math.max(0, grossTotal - disc)
+                setPricing(prev => ({ ...prev, ...next }))
               }}
               className="w-full border border-gray-300 rounded-lg p-2"
             />
@@ -973,6 +1045,17 @@ export default function EditBookingPage() {
           <div>
             <label className="text-xs text-gray-500 mb-1 block">GST Amount</label>
             <input type="number" min="0" step="1" value={pricing.gstAmount} readOnly className="w-full border border-gray-300 rounded-lg p-2 bg-gray-100" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Negotiation Discount (₹)</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={negotiatedDiscount}
+              onChange={(e) => setNegotiatedDiscount(Math.max(0, Number(e.target.value || 0)))}
+              className="w-full border border-gray-300 rounded-lg p-2"
+            />
           </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Total</label>
@@ -1064,7 +1147,7 @@ export default function EditBookingPage() {
             </h3>
           </div>
           <div className="p-4 md:p-6">
-            {booking.items?.map((item, idx) => (
+            {(editableItems.length > 0 ? editableItems : booking.items)?.map((item, idx) => (
               <div key={idx} className="mb-6 last:mb-0">
                 <h4 className="font-bold text-gray-900 mb-3">{item.title}</h4>
                 
