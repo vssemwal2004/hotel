@@ -11,6 +11,7 @@ const guestSchema = new mongoose.Schema({
 const itemSchema = new mongoose.Schema({
   roomTypeKey: { type: String, required: true },
   title: { type: String, required: true },
+  packageType: { type: String, enum: ['roomOnly', 'roomBreakfast', 'roomBreakfastDinner'], default: 'roomOnly' },
   basePrice: { type: Number, required: true },
   quantity: { type: Number, required: true, min: 1 },
   guests: [guestSchema],

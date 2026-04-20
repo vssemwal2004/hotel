@@ -20,6 +20,12 @@ import { logActivity } from '../utils/activityLogger.js'
 
 const router = Router()
 
+const ALLOWED_PACKAGE_TYPES = new Set(['roomOnly', 'roomBreakfast', 'roomBreakfastDinner'])
+function normalizePackageType(value) {
+  const v = String(value || '').trim()
+  return ALLOWED_PACKAGE_TYPES.has(v) ? v : 'roomOnly'
+}
+
 const guestSchema = z.object({ 
   name: z.string().min(1, 'Guest name is required'), 
   email: z.string().optional().nullable(),
@@ -179,12 +185,14 @@ router.post('/', authRequired, async (req, res, next) => {
     // Build items with pricing
     const items = data.items.map(it => {
       const t = typeMap[it.roomTypeKey]
-      const base = (t.prices && t.prices[it.packageType]) ? t.prices[it.packageType] : (t.basePrice || 0)
+      const pkgType = normalizePackageType(it.packageType)
+      const base = (t.prices && t.prices[pkgType]) ? t.prices[pkgType] : (t.basePrice || 0)
       const extras = (t.extraBedPerPerson || 0) * (it.extraBeds || 0) + (t.extraPersonPerNight || 0) * (it.extraPersons || 0)
       const subtotal = (base * it.quantity + extras) * nights
       return {
         roomTypeKey: t.key,
         title: t.title,
+        packageType: pkgType,
         basePrice: base,
         quantity: it.quantity,
         guests: it.guests || [],
@@ -640,13 +648,15 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
             existingItem.guests.push(...newItem.guests)
           }
         } else {
-          const base = (roomType.prices && roomType.prices[newItem.packageType])
-            ? roomType.prices[newItem.packageType]
+          const pkgType = normalizePackageType(newItem.packageType)
+          const base = (roomType.prices && roomType.prices[pkgType])
+            ? roomType.prices[pkgType]
             : (roomType.basePrice || 0)
           const subtotal = base * newItem.quantity * booking.nights
           booking.items.push({
             roomTypeKey: roomType.key,
             title: roomType.title,
+            packageType: pkgType,
             basePrice: base,
             quantity: newItem.quantity,
             guests: newItem.guests || [],
@@ -989,14 +999,16 @@ router.post('/bulk', authRequired, rolesRequired('admin','worker'), async (req, 
         if (itemError) continue
 
         // Build items with pricing
-        const pkgType = entry.packageType || 'roomOnly'
+        const entryPkgType = normalizePackageType(entry.packageType)
         const items = entry.items.map(it => {
           const t = typeMap[it.roomTypeKey]
+          const pkgType = normalizePackageType(it.packageType || entryPkgType)
           const base = (t.prices && t.prices[pkgType]) ? t.prices[pkgType] : (t.basePrice || 0)
           const subtotal = base * (it.quantity || 1) * nights
           return {
             roomTypeKey: t.key,
             title: t.title,
+            packageType: pkgType,
             basePrice: base,
             quantity: it.quantity || 1,
             guests: [{
@@ -1259,12 +1271,14 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
 
     const items = data.items.map(it => {
       const t = typeMap[it.roomTypeKey]
-      const base = (t.prices && t.prices[it.packageType]) ? t.prices[it.packageType] : (t.basePrice || 0)
+      const pkgType = normalizePackageType(it.packageType)
+      const base = (t.prices && t.prices[pkgType]) ? t.prices[pkgType] : (t.basePrice || 0)
       const extras = (t.extraBedPerPerson || 0) * (it.extraBeds || 0) + (t.extraPersonPerNight || 0) * (it.extraPersons || 0)
       const subtotal = (base * it.quantity + extras) * nights
       return {
         roomTypeKey: t.key,
         title: t.title,
+        packageType: pkgType,
         basePrice: base,
         quantity: it.quantity,
         guests: it.guests || [],

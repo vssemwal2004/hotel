@@ -22,7 +22,7 @@ export default function WorkerAllot(){
   
   // Multiple room type entries - each entry has its own type, quantity, available/selected rooms
   const [roomEntries, setRoomEntries] = useState([
-    { id: 1, roomTypeKey: '', quantity: 1, availableRoomNumbers: [], selectedRoomNumbers: [], fetchingRooms: false }
+    { id: 1, roomTypeKey: '', packageType: 'roomOnly', quantity: 1, availableRoomNumbers: [], selectedRoomNumbers: [], fetchingRooms: false }
   ])
   
   // Main Guest (Guardian) Information
@@ -123,7 +123,7 @@ export default function WorkerAllot(){
 
   const addRoomEntry = () => {
     const newId = Math.max(...roomEntries.map(e => e.id), 0) + 1
-    setRoomEntries(prev => [...prev, { id: newId, roomTypeKey: roomTypes[0]?.key || '', quantity: 1, availableRoomNumbers: [], selectedRoomNumbers: [], fetchingRooms: false }])
+    setRoomEntries(prev => [...prev, { id: newId, roomTypeKey: roomTypes[0]?.key || '', packageType: 'roomOnly', quantity: 1, availableRoomNumbers: [], selectedRoomNumbers: [], fetchingRooms: false }])
   }
 
   const removeRoomEntry = (id) => {
@@ -284,8 +284,9 @@ export default function WorkerAllot(){
     const entryDetails = []
 
     for (const { entry, rt, qty } of validEntries) {
-      const pricePerNight = rt.prices?.roomOnly || rt.basePrice || 0
-      const entrySubtotal = pricePerNight * qty
+      const pkgType = entry.packageType || 'roomOnly'
+      const pricePerNight = (rt.prices?.[pkgType] ?? rt.prices?.roomOnly ?? rt.basePrice ?? 0)
+      const entrySubtotal = pricePerNight * qty * nights
       const gstResult = calculateGST(entrySubtotal, rt, pricePerNight)
 
       totalSubtotal += entrySubtotal
@@ -307,6 +308,7 @@ export default function WorkerAllot(){
 
       items.push({
         roomTypeKey: entry.roomTypeKey,
+        packageType: pkgType,
         quantity: qty,
         guests: itemGuests,
         allottedRoomNumbers: entry.selectedRoomNumbers.length > 0 ? entry.selectedRoomNumbers : undefined
@@ -408,7 +410,7 @@ export default function WorkerAllot(){
         setCheckOut('')
         setNights(1)
         setFullDay(false)
-        setRoomEntries([{ id: 1, roomTypeKey: roomTypes[0]?.key || '', quantity: 1, availableRoomNumbers: [], selectedRoomNumbers: [], fetchingRooms: false }])
+        setRoomEntries([{ id: 1, roomTypeKey: roomTypes[0]?.key || '', packageType: 'roomOnly', quantity: 1, availableRoomNumbers: [], selectedRoomNumbers: [], fetchingRooms: false }])
         setAdvancePaid(0)
         setResult(null)
         setBookingData(null)
@@ -762,6 +764,8 @@ export default function WorkerAllot(){
               {roomEntries.map((entry, entryIdx) => {
                 const otherSelected = getOtherSelectedRooms(entry.id, entry.roomTypeKey)
                 const filteredAvailable = entry.availableRoomNumbers.filter(rn => !otherSelected.includes(rn))
+                const rt = entry.roomTypeKey ? roomTypes.find(r => r.key === entry.roomTypeKey) : null
+                const roomOnlyPrice = (rt?.prices?.roomOnly ?? rt?.basePrice ?? 0)
                 return (
                   <div key={entry.id} className="bg-gray-50 rounded-xl border-2 border-gray-200 p-4">
                     <div className="flex items-center justify-between mb-3">
@@ -777,7 +781,7 @@ export default function WorkerAllot(){
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-gray-700 mb-1">Room Type *</label>
                         <select
@@ -794,6 +798,21 @@ export default function WorkerAllot(){
                           ))}
                         </select>
                       </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Room Plan *</label>
+                        <select
+                          className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all bg-white"
+                          value={entry.packageType || 'roomOnly'}
+                          onChange={e => updateRoomEntry(entry.id, { packageType: e.target.value })}
+                          disabled={!entry.roomTypeKey}
+                        >
+                          <option value="roomOnly">Only Room — ₹{Number(roomOnlyPrice || 0).toLocaleString()}/night</option>
+                          <option value="roomBreakfast">With Breakfast — ₹{Number((rt?.prices?.roomBreakfast ?? roomOnlyPrice) || 0).toLocaleString()}/night</option>
+                          <option value="roomBreakfastDinner">With Breakfast + Dinner — ₹{Number((rt?.prices?.roomBreakfastDinner ?? roomOnlyPrice) || 0).toLocaleString()}/night</option>
+                        </select>
+                      </div>
+
                       <div>
                         <label className="block text-xs font-semibold text-gray-700 mb-1">Number of Rooms *</label>
                         <input
@@ -933,13 +952,14 @@ export default function WorkerAllot(){
               if (!entry.roomTypeKey) continue
               const rt = roomTypes.find(r => r.key === entry.roomTypeKey)
               if (!rt) continue
-              const ppn = rt.prices?.roomOnly || rt.basePrice || 0
-              const sub = ppn * (Number(entry.quantity) || 1)
+              const pkgType = entry.packageType || 'roomOnly'
+              const ppn = (rt.prices?.[pkgType] ?? rt.prices?.roomOnly ?? rt.basePrice ?? 0)
+              const sub = ppn * (Number(entry.quantity) || 1) * (Number(nights) || 1)
               const gst = calculateGST(sub, rt, ppn)
               totalSub += sub
               totalGst += gst.gstAmount || 0
               totalAmt += gst.totalAmount || sub
-              lines.push({ title: rt.title, qty: Number(entry.quantity) || 1, ppn, sub, gstAmt: gst.gstAmount, gstPct: gst.gstPercentage, total: gst.totalAmount || sub })
+              lines.push({ title: rt.title, qty: Number(entry.quantity) || 1, ppn, sub, gstAmt: gst.gstAmount, gstPct: gst.gstPercentage, total: gst.totalAmount || sub, packageType: pkgType })
             }
             if (lines.length === 0) return null
             return (

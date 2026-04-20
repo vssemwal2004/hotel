@@ -32,7 +32,7 @@ function GuestRow({
   const addRoomType = () => {
     onUpdate(index, {
       ...guest,
-      roomSelections: [...(guest.roomSelections || []), { roomTypeKey: '', selectedRooms: [], quantity: 0 }]
+      roomSelections: [...(guest.roomSelections || []), { roomTypeKey: '', packageType: 'roomOnly', selectedRooms: [], quantity: 0 }]
     })
   }
 
@@ -41,10 +41,17 @@ function GuestRow({
 
   const changeRoomType = (ri, key) => {
     const updated = guest.roomSelections.map((s, i) =>
-      i === ri ? { roomTypeKey: key, selectedRooms: [], quantity: 0 } : s
+      i === ri ? { ...s, roomTypeKey: key, selectedRooms: [], quantity: 0, packageType: s.packageType || 'roomOnly' } : s
     )
     onUpdate(index, { ...guest, roomSelections: updated })
     if (key && checkIn && checkOut) onFetchAvailableRooms(key, checkIn, checkOut)
+  }
+
+  const changePackageType = (ri, pkg) => {
+    const updated = guest.roomSelections.map((s, i) =>
+      i === ri ? { ...s, packageType: pkg || 'roomOnly' } : s
+    )
+    onUpdate(index, { ...guest, roomSelections: updated })
   }
 
   const toggleRoom = (ri, rn) => {
@@ -78,10 +85,11 @@ function GuestRow({
       if (!s.roomTypeKey || !s.quantity) return
       const rt = roomTypes.find(r => r.key === s.roomTypeKey)
       if (!rt) return
-      const base = rt.prices?.roomOnly || rt.basePrice || 0
+      const pkgType = s.packageType || 'roomOnly'
+      const base = rt.prices?.[pkgType] ?? rt.prices?.roomOnly ?? rt.basePrice ?? 0
       const sub = base * s.quantity * nights
       subtotal += sub
-      rows.push({ title: rt.title, qty: s.quantity, base, sub })
+      rows.push({ title: rt.title, qty: s.quantity, base, sub, packageType: pkgType })
     })
     const firstKey = guest.roomSelections.find(s => s.roomTypeKey)?.roomTypeKey
     const rt = firstKey ? roomTypes.find(r => r.key === firstKey) : null
@@ -289,6 +297,23 @@ function GuestRow({
                           </select>
                           <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                         </div>
+
+                        <div className="relative w-full sm:w-56">
+                          <Bed size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <select
+                            value={sel.packageType || 'roomOnly'}
+                            onChange={e => changePackageType(ri, e.target.value)}
+                            disabled={!sel.roomTypeKey}
+                            className="w-full pl-8 pr-8 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 appearance-none bg-white font-medium"
+                            title="Room Plan"
+                          >
+                            <option value="roomOnly">Only Room — ₹{Number((rt?.prices?.roomOnly ?? rt?.basePrice ?? 0) || 0).toLocaleString()}/night</option>
+                            <option value="roomBreakfast">With Breakfast — ₹{Number((rt?.prices?.roomBreakfast ?? rt?.prices?.roomOnly ?? rt?.basePrice ?? 0) || 0).toLocaleString()}/night</option>
+                            <option value="roomBreakfastDinner">With Breakfast + Dinner — ₹{Number((rt?.prices?.roomBreakfastDinner ?? rt?.prices?.roomOnly ?? rt?.basePrice ?? 0) || 0).toLocaleString()}/night</option>
+                          </select>
+                          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        </div>
+
                         <button type="button" onClick={() => removeRoomType(ri)} className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors">
                           <Trash2 size={15} />
                         </button>
@@ -349,7 +374,7 @@ function GuestRow({
                                     {sel.quantity} × {rt.title} × {nights} night{nights !== 1 ? 's' : ''}
                                   </span>
                                   <span className="text-sm font-black text-green-600">
-                                    ₹{((rt.prices?.roomOnly || rt.basePrice || 0) * sel.quantity * nights).toLocaleString()}
+                                    ₹{(((rt.prices?.[sel.packageType || 'roomOnly'] ?? rt.prices?.roomOnly ?? rt.basePrice ?? 0) * sel.quantity * nights) || 0).toLocaleString()}
                                   </span>
                                 </div>
                               )}
@@ -472,7 +497,8 @@ function ReviewModal({ guests, roomTypes, nights, checkIn, checkOut, onClose, on
       let sub = 0
       g.roomSelections?.forEach(s => {
         const rt = roomTypes.find(r => r.key === s.roomTypeKey)
-        if (rt && s.quantity) sub += (rt.prices?.roomOnly || rt.basePrice || 0) * s.quantity * nights
+        const pkgType = s.packageType || 'roomOnly'
+        if (rt && s.quantity) sub += ((rt.prices?.[pkgType] ?? rt.prices?.roomOnly ?? rt.basePrice ?? 0) * s.quantity * nights)
       })
       const k = g.roomSelections?.find(s => s.roomTypeKey)?.roomTypeKey
       const rt = k ? roomTypes.find(r => r.key === k) : null
@@ -506,7 +532,8 @@ function ReviewModal({ guests, roomTypes, nights, checkIn, checkOut, onClose, on
             let sub = 0
             g.roomSelections?.forEach(s => {
               const rt = roomTypes.find(r => r.key === s.roomTypeKey)
-              if (rt && s.quantity) sub += (rt.prices?.roomOnly || rt.basePrice || 0) * s.quantity * nights
+              const pkgType = s.packageType || 'roomOnly'
+              if (rt && s.quantity) sub += ((rt.prices?.[pkgType] ?? rt.prices?.roomOnly ?? rt.basePrice ?? 0) * s.quantity * nights)
             })
             const k = g.roomSelections?.find(s => s.roomTypeKey)?.roomTypeKey
             const rt = k ? roomTypes.find(r => r.key === k) : null
@@ -540,17 +567,23 @@ function ReviewModal({ guests, roomTypes, nights, checkIn, checkOut, onClose, on
                 <div className="px-4 py-3 space-y-1.5">
                   {g.roomSelections?.filter(s => s.roomTypeKey && s.quantity > 0).map((s, j) => {
                     const rt2 = roomTypes.find(r => r.key === s.roomTypeKey)
+                    const pkgType = s.packageType || 'roomOnly'
                     return (
                       <div key={j} className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2 flex-wrap">
                           <Bed size={13} className="text-indigo-400" />
                           <span className="text-gray-700 font-medium">{rt2?.title} ×{s.quantity}</span>
+                          <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-bold">
+                            {pkgType === 'roomOnly' && 'Room Only'}
+                            {pkgType === 'roomBreakfast' && 'Room + Breakfast'}
+                            {pkgType === 'roomBreakfastDinner' && 'Full Board'}
+                          </span>
                           {s.selectedRooms?.map(rn => (
                             <span key={rn} className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded text-[10px] font-bold">{rn}</span>
                           ))}
                         </div>
                         <span className="font-semibold text-gray-800 shrink-0 ml-2">
-                          ₹{((rt2?.prices?.roomOnly || rt2?.basePrice || 0) * s.quantity * nights).toLocaleString()}
+                          ₹{(((rt2?.prices?.[pkgType] ?? rt2?.prices?.roomOnly ?? rt2?.basePrice ?? 0) * s.quantity * nights) || 0).toLocaleString()}
                         </span>
                       </div>
                     )
@@ -744,7 +777,8 @@ export default function BulkBookingPage() {
       let sub = 0
       g.roomSelections?.forEach(s => {
         const rt = roomTypes.find(r => r.key === s.roomTypeKey)
-        if (rt && s.quantity) { sub += (rt.prices?.roomOnly || rt.basePrice || 0) * s.quantity * nights; totalRooms += s.quantity }
+        const pkgType = s.packageType || 'roomOnly'
+        if (rt && s.quantity) { sub += ((rt.prices?.[pkgType] ?? rt.prices?.roomOnly ?? rt.basePrice ?? 0) * s.quantity * nights); totalRooms += s.quantity }
       })
       const k = g.roomSelections?.find(s => s.roomTypeKey)?.roomTypeKey
       const rt = k ? roomTypes.find(r => r.key === k) : null
@@ -786,10 +820,11 @@ export default function BulkBookingPage() {
         paid: g.paid,
         amountPaid: g.paid ? undefined : (g.amountPaid || 0),
         negotiatedDiscount: g.negotiatedDiscount || 0,
-        packageType: 'roomOnly',
+        packageType: (g.roomSelections || []).find(s => s.roomTypeKey && s.quantity > 0)?.packageType || 'roomOnly',
         items: g.roomSelections.filter(s => s.roomTypeKey && s.quantity > 0).map(s => ({
           roomTypeKey: s.roomTypeKey,
           quantity: s.quantity,
+          packageType: s.packageType || 'roomOnly',
           allottedRoomNumbers: s.selectedRooms || []
         }))
       }))
