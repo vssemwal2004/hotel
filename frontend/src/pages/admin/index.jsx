@@ -481,18 +481,6 @@ export default function AdminIndex(){
                 <p className="text-xs text-gray-600">Add workers</p>
               </div>
             </button>
-            <button
-              onClick={() => router.push('/admin/bookings/available-rooms')}
-              className="w-full flex items-center gap-3 p-2.5 bg-green-50 hover:bg-green-100 rounded-lg transition-colors group"
-            >
-              <div className="p-2 bg-white rounded-lg shadow-sm group-hover:shadow">
-                <Bed size={16} className="text-green-600" />
-              </div>
-              <div className="text-left">
-                <p className="font-semibold text-sm text-gray-800">Available Rooms</p>
-                <p className="text-xs text-gray-600">View availability</p>
-              </div>
-            </button>
           </div>
         </div>
       </div>

@@ -11,7 +11,6 @@ import {
   ChevronDown,
   History,
   XCircle,
-  DoorOpen,
   LogIn,
   LogOut as LogOutIcon,
   Users,
@@ -93,7 +92,6 @@ export default function WorkerLayout({ children }) {
         { icon: Users, label: 'Bulk Booking', href: '/worker/bookings/bulk-booking' },
       ]
     },
-    { type: 'link', icon: DoorOpen, label: 'Available Rooms', href: '/worker/rooms' },
     { type: 'section', label: 'Manage' },
     {
       type: 'group',

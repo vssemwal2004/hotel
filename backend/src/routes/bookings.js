@@ -87,6 +87,33 @@ function buildGuestDetails(input = {}) {
   }
 }
 
+async function resolveManualBookingUser({ name, email, phone }) {
+  const User = (await import('../models/User.js')).default
+  const normalizedName = String(name || '').trim() || 'Guest'
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  const normalizedPhone = phone ? String(phone).trim() : undefined
+
+  let existingUser = await User.findOne({ email: normalizedEmail })
+
+  if (existingUser && ['admin', 'worker'].includes(existingUser.role)) {
+    existingUser = null
+  }
+
+  if (existingUser) {
+    existingUser.name = normalizedName
+    if (normalizedPhone) existingUser.phone = normalizedPhone
+    await existingUser.save()
+    return existingUser
+  }
+
+  return User.create({
+    name: normalizedName,
+    email: normalizedEmail,
+    phone: normalizedPhone,
+    password: Math.random().toString(36).slice(2, 10)
+  })
+}
+
 function getBookingGuestDetails(booking) {
   const guestDetails = booking?.guestDetails || {}
   const user = booking?.user || {}
@@ -1249,12 +1276,7 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
       email = `guest${Date.now()}@hotel.local`
     }
 
-    // Find or create user
-    let user = await (await import('../models/User.js')).default.findOne({ email })
-    if (!user) {
-      const User = (await import('../models/User.js')).default
-      user = await User.create({ name, email, password: Math.random().toString(36).slice(2,10) })
-    }
+    const user = await resolveManualBookingUser({ name, email, phone: userInfo.phone })
 
     // Validate booking payload using existing schema parts
     const data = createSchema.parse({

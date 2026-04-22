@@ -221,24 +221,6 @@ export default function AdminRooms(){
         )}
       </div>
 
-      {/* Stats */}
-      <div className="mb-4 md:mb-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-        <div className="bg-white rounded-xl p-3 sm:p-5 border-l-4 border-purple-500 shadow-md">
-          <p className="text-sm text-gray-600 mb-1">Total Room Types</p>
-          <p className="text-3xl font-bold text-gray-900">{types.length}</p>
-        </div>
-        <div className="bg-white rounded-xl p-3 sm:p-5 border-l-4 border-blue-500 shadow-md">
-          <p className="text-sm text-gray-600 mb-1">Total Rooms</p>
-          <p className="text-3xl font-bold text-blue-600">{types.reduce((sum, t) => sum + (t.count || 0), 0)}</p>
-        </div>
-        <div className="bg-white rounded-xl p-3 sm:p-5 border-l-4 border-green-500 shadow-md">
-          <p className="text-sm text-gray-600 mb-1">Available</p>
-          <p className="text-3xl font-bold text-green-600">{types.filter(t => t.status === 'available').reduce((sum, t) => sum + (t.count || 0), 0)}</p>
-        </div>
-        </div>
-      </div>
-
       {/* Form */}
       {showForm && (
         <div className="bg-white rounded-2xl shadow-xl border border-purple-100 mb-4 md:mb-6 overflow-hidden">
