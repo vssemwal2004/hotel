@@ -3,7 +3,7 @@ import { useRouter } from 'next/router'
 import AdminLayout from '../../../layouts/AdminLayout'
 import api from '../../../utils/api'
 import { useToast } from '../../../components/ToastProvider'
-import { 
+import {
   Edit,
   Calendar,
   User,
@@ -18,6 +18,13 @@ import {
   DoorOpen,
   Search
 } from 'lucide-react'
+
+const makeGuestRowId = () => `guest-row-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+
+const withGuestRowId = (guest = {}) => ({
+  ...guest,
+  _rowId: guest._rowId || makeGuestRowId()
+})
 
 export default function EditBookingPage() {
   const router = useRouter()
@@ -150,16 +157,16 @@ export default function EditBookingPage() {
         setNewCheckIn(bookingData.checkIn ? new Date(bookingData.checkIn).toISOString().split('T')[0] : '')
         setNewCheckOut(bookingData.checkOut ? new Date(bookingData.checkOut).toISOString().split('T')[0] : '')
         setGuestInfo({
-          name: bookingData.user?.name || '',
-          email: bookingData.user?.email || '',
-          phone: bookingData.user?.phone || ''
+          name: bookingData.guestDetails?.name || bookingData.user?.name || '',
+          email: bookingData.guestDetails?.email || bookingData.user?.email || '',
+          phone: bookingData.guestDetails?.phone || bookingData.user?.phone || ''
         })
         setEditableItems((bookingData.items || []).map(it => ({
           roomTypeKey: it.roomTypeKey,
           title: it.title,
           quantity: Number(it.quantity || 1),
           basePrice: Number(it.basePrice || 0),
-          guests: (it.guests || []).map(g => ({
+          guests: (it.guests || []).map(g => withGuestRowId({
             name: g.name || '',
             email: g.email || '',
             phone: g.phone || '',
@@ -273,7 +280,7 @@ export default function EditBookingPage() {
       title: rt.title || key,
       quantity: qty,
       basePrice: Number.isFinite(base) ? Math.max(0, base) : 0,
-      guests: [{ name: '', email: '', phone: '', age: 18, type: 'adult' }],
+      guests: [withGuestRowId({ name: '', email: '', phone: '', age: 18, type: 'adult' })],
       allottedRoomNumbers: []
     }
 
@@ -467,7 +474,7 @@ export default function EditBookingPage() {
   const addGuestRow = (itemIndex) => {
     setEditableItems(prev => prev.map((it, i) => (
       i === itemIndex
-        ? { ...it, guests: [...(it.guests || []), { name: '', email: '', phone: '', age: 18, type: 'adult' }] }
+        ? { ...it, guests: [...(it.guests || []), withGuestRowId({ name: '', email: '', phone: '', age: 18, type: 'adult' })] }
         : it
     )))
   }
@@ -489,9 +496,9 @@ export default function EditBookingPage() {
       
       // Guest user info changes
       if (
-        guestInfo.name !== (booking.user?.name || '') ||
-        guestInfo.email !== (booking.user?.email || '') ||
-        guestInfo.phone !== (booking.user?.phone || '')
+        guestInfo.name !== (booking.guestDetails?.name || booking.user?.name || '') ||
+        guestInfo.email !== (booking.guestDetails?.email || booking.user?.email || '') ||
+        guestInfo.phone !== (booking.guestDetails?.phone || booking.user?.phone || '')
       ) {
         updates.userInfo = {
           name: guestInfo.name,
@@ -944,7 +951,7 @@ export default function EditBookingPage() {
                 </div>
 
                 {(item.guests || []).map((guest, guestIndex) => (
-                  <div key={guestIndex} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center bg-gray-50 p-2 rounded-lg">
+                  <div key={guest._rowId || `${item.roomTypeKey}-${guestIndex}`} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center bg-gray-50 p-2 rounded-lg">
                     <input
                       type="text"
                       placeholder="Name"

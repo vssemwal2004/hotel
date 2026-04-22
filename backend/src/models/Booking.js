@@ -22,6 +22,11 @@ const itemSchema = new mongoose.Schema({
 
 const bookingSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  guestDetails: {
+    name: { type: String, trim: true },
+    email: { type: String, trim: true, lowercase: true },
+    phone: { type: String, trim: true }
+  },
   checkIn: { type: Date, required: true },
   checkOut: { type: Date },
   fullDay: { type: Boolean, default: false },

@@ -79,6 +79,43 @@ function parseAmountPaid(input) {
   return n
 }
 
+function buildGuestDetails(input = {}) {
+  return {
+    name: String(input.name || '').trim() || 'Guest',
+    email: input.email ? String(input.email).trim().toLowerCase() : undefined,
+    phone: input.phone ? String(input.phone).trim() : undefined
+  }
+}
+
+function getBookingGuestDetails(booking) {
+  const guestDetails = booking?.guestDetails || {}
+  const user = booking?.user || {}
+  return buildGuestDetails({
+    name: guestDetails.name || user.name,
+    email: guestDetails.email || user.email,
+    phone: guestDetails.phone || user.phone
+  })
+}
+
+function applyGuestSnapshotToResponse(booking) {
+  if (!booking) return booking
+  const guestDetails = getBookingGuestDetails(booking)
+  const userValue = booking.user
+  const userDoc = userValue && typeof userValue.toObject === 'function'
+    ? userValue.toObject()
+    : (userValue && typeof userValue === 'object' ? { ...userValue } : {})
+
+  booking.guestDetails = guestDetails
+  booking.user = {
+    ...userDoc,
+    name: guestDetails.name,
+    email: guestDetails.email,
+    phone: guestDetails.phone
+  }
+
+  return booking
+}
+
 // Helper function to check room number availability
 async function getAvailableRoomNumbers(roomTypeKey, checkIn, checkOut, excludeBookingId = null) {
   const roomType = await RoomType.findOne({ key: roomTypeKey })
@@ -217,6 +254,7 @@ router.post('/', authRequired, async (req, res, next) => {
     // Create booking (pending)
     const booking = await Booking.create({
       user: req.user._id,
+      guestDetails: buildGuestDetails(req.user),
       checkIn,
       checkOut: checkOut || undefined,
       fullDay,
@@ -347,7 +385,8 @@ router.get('/my-bookings', authRequired, async (req, res, next) => {
 // Admin/Worker list bookings
 router.get('/', authRequired, rolesRequired('admin','worker'), async (req, res, next) => {
   try {
-    const list = await Booking.find({}).populate('user','name email').sort({ createdAt: -1 })
+    const list = await Booking.find({}).populate('user','name email phone').sort({ createdAt: -1 })
+    list.forEach(applyGuestSnapshotToResponse)
     res.json({ bookings: list })
   } catch (e) { next(e) }
 })
@@ -463,17 +502,20 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
     const changedFields = []
     let recalculate = false
     let bookingUser = await User.findById(booking.user)
+    let guestDetails = getBookingGuestDetails({
+      guestDetails: booking.guestDetails,
+      user: bookingUser || {}
+    })
 
-    // Allow editing guest/user details tied to the booking owner
-    if (userInfo && bookingUser) {
-      const prevName = bookingUser.name
-      const prevEmail = bookingUser.email
-      const prevPhone = bookingUser.phone || ''
-      let reassignedUser = false
+    // Keep guest identity as a booking snapshot instead of rewriting shared User records.
+    if (userInfo) {
+      const prevName = guestDetails.name || ''
+      const prevEmail = guestDetails.email || ''
+      const prevPhone = guestDetails.phone || ''
 
-      const nextName = userInfo.name !== undefined ? String(userInfo.name || '').trim() : bookingUser.name
-      const nextEmail = userInfo.email !== undefined ? String(userInfo.email || '').trim().toLowerCase() : bookingUser.email
-      const nextPhone = userInfo.phone !== undefined ? String(userInfo.phone || '').trim() : (bookingUser.phone || '')
+      const nextName = userInfo.name !== undefined ? String(userInfo.name || '').trim() : prevName
+      const nextEmail = userInfo.email !== undefined ? String(userInfo.email || '').trim().toLowerCase() : prevEmail
+      const nextPhone = userInfo.phone !== undefined ? String(userInfo.phone || '').trim() : prevPhone
 
       if (userInfo.name !== undefined && !nextName) {
         return res.status(400).json({ message: 'Guest name is required' })
@@ -481,25 +523,16 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
       if (userInfo.email !== undefined && !nextEmail) {
         return res.status(400).json({ message: 'Guest email is required' })
       }
-      if (userInfo.email !== undefined && nextEmail !== bookingUser.email) {
-        const existing = await User.findOne({ email: nextEmail, _id: { $ne: bookingUser._id } })
-        if (existing) {
-          // If the email belongs to an existing user, reuse that user for this booking
-          booking.user = existing._id
-          bookingUser = existing
-          reassignedUser = true
-        }
-      }
 
       if (nextName !== prevName) changedFields.push('guest_name')
       if (nextEmail !== prevEmail) changedFields.push('guest_email')
       if (nextPhone !== prevPhone) changedFields.push('guest_phone')
-      if (reassignedUser) changedFields.push('booking_user')
-
-      bookingUser.name = nextName
-      bookingUser.email = nextEmail
-      bookingUser.phone = nextPhone || undefined
-      await bookingUser.save()
+      guestDetails = buildGuestDetails({
+        name: nextName,
+        email: nextEmail,
+        phone: nextPhone
+      })
+      booking.guestDetails = guestDetails
     }
 
     // Update check-in/check-out dates
@@ -873,7 +906,7 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
     logActivity({
       action: 'booking_edited',
       req,
-      target: { type: 'booking', id: booking._id.toString(), name: bookingUser?.name },
+      target: { type: 'booking', id: booking._id.toString(), name: guestDetails?.name || bookingUser?.name },
       details,
       metadata: {
         bookingId: booking._id,
@@ -883,7 +916,10 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
     })
 
     // Always send update emails after any successful edit (fire-and-forget)
-    const userForEmail = bookingUser || await User.findById(booking.user)
+    const baseUserForEmail = bookingUser || await User.findById(booking.user)
+    const userForEmail = baseUserForEmail
+      ? { ...(typeof baseUserForEmail.toObject === 'function' ? baseUserForEmail.toObject() : baseUserForEmail), ...guestDetails }
+      : guestDetails
     const emailFields = changedFields.length > 0 ? [...new Set(changedFields)] : ['booking_updated']
     if (userForEmail?.email) {
       sendBookingUpdateToUser(booking, userForEmail, { changedFields: emailFields, actor: req.user }).catch(err =>
@@ -894,6 +930,7 @@ router.put('/:id', authRequired, rolesRequired('admin','worker'), async (req, re
       console.error('Failed to send booking update email to admin:', err)
     )
 
+    applyGuestSnapshotToResponse(booking)
     res.json({ booking })
   } catch (e) { next(e) }
 })
@@ -1057,6 +1094,7 @@ router.post('/bulk', authRequired, rolesRequired('admin','worker'), async (req, 
 
         let booking = await Booking.create({
           user: user._id,
+          guestDetails: buildGuestDetails({ name: guestName, email: guestEmail, phone: guestPhone }),
           checkIn,
           checkOut: checkOut || undefined,
           fullDay,
@@ -1124,6 +1162,7 @@ router.post('/bulk', authRequired, rolesRequired('admin','worker'), async (req, 
         }
 
         booking = await Booking.findById(booking._id).populate('user', 'name email phone')
+        applyGuestSnapshotToResponse(booking)
 
         // Send confirmation emails for every bulk booking (fire-and-forget)
         sendBookingConfirmationToUser(booking, user).catch(err =>
@@ -1158,30 +1197,34 @@ router.get('/search', authRequired, rolesRequired('admin','worker'), async (req,
     const q = (req.query.q || req.query.query || '').toString().trim()
     if (!q) return res.status(400).json({ message: 'Query is required' })
 
-    const or = []
-    // Search by populated user fields
-    or.push({}) // placeholder to keep structure consistent
-    // If valid ObjectId, include direct id match
     const isObjectId = /^[a-f\d]{24}$/i.test(q)
 
-    const match = {}
-    if (isObjectId) match._id = q
-
-    // Build aggregate to search by user fields
     const pipeline = [
       { $lookup: { from: 'users', localField: 'user', foreignField: '_id', as: 'user' } },
       { $unwind: '$user' },
+      { $addFields: {
+        displayGuestName: { $ifNull: ['$guestDetails.name', '$user.name'] },
+        displayGuestEmail: { $ifNull: ['$guestDetails.email', '$user.email'] },
+        displayGuestPhone: { $ifNull: ['$guestDetails.phone', '$user.phone'] }
+      }},
       { $match: {
         $or: [
           ...(isObjectId ? [{ _id: new mongoose.Types.ObjectId(q) }] : []),
-          { 'user.email': { $regex: q, $options: 'i' } },
-          { 'user.name': { $regex: q, $options: 'i' } }
+          { displayGuestEmail: { $regex: q, $options: 'i' } },
+          { displayGuestName: { $regex: q, $options: 'i' } },
+          { displayGuestPhone: { $regex: q, $options: 'i' } }
         ]
       }},
       { $sort: { createdAt: -1 } },
       { $project: {
-        _id: 1, checkIn: 1, checkOut: 1, fullDay: 1, nights: 1, items: 1, total: 1, status: 1, createdAt: 1,
-        user: { _id: '$user._id', name: '$user.name', email: '$user.email', role: '$user.role' }
+        _id: 1, checkIn: 1, checkOut: 1, fullDay: 1, nights: 1, items: 1, total: 1, status: 1, createdAt: 1, guestDetails: 1,
+        user: {
+          _id: '$user._id',
+          name: '$displayGuestName',
+          email: '$displayGuestEmail',
+          phone: '$displayGuestPhone',
+          role: '$user.role'
+        }
       }}
     ]
 
@@ -1316,6 +1359,7 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
 
     let booking = await Booking.create({
       user: user._id,
+      guestDetails: buildGuestDetails({ name, email, phone: userInfo.phone }),
       checkIn,
       checkOut: checkOut || undefined,
       fullDay,
@@ -1384,6 +1428,7 @@ router.post('/manual', authRequired, rolesRequired('admin','worker'), async (req
 
     // Hydrate basic user fields for response
     booking = await Booking.findById(booking._id).populate('user', 'name email phone')
+    applyGuestSnapshotToResponse(booking)
 
     // Send confirmation emails for all manual bookings (fire-and-forget)
     sendBookingConfirmationToUser(booking, user).catch(err => 
